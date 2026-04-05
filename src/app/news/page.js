@@ -21,6 +21,8 @@ export default function NewsPage() {
         .post-card { background: #10121a; border: 1px solid #1e2030; border-radius: 12px; overflow: hidden; transition: all 0.25s; text-decoration: none; display: block; }
         .post-card:hover { border-color: #2a2c3a; transform: translateY(-3px); box-shadow: 0 8px 30px rgba(0,0,0,0.4); }
         .category-badge { display: inline-flex; align-items: center; gap: 5px; border-radius: 20px; padding: 3px 12px; font-family: 'Segoe UI', system-ui, sans-serif; font-size: 10px; letter-spacing: 0.1em; }
+        .featured-card { transition: all 0.25s; }
+        .featured-card:hover { border-color: #4a4a6a !important; transform: translateY(-2px); }
       `}</style>
 
       <div style={{ maxWidth: 1000, margin: "0 auto", padding: "40px 24px" }}>
@@ -38,16 +40,12 @@ export default function NewsPage() {
         {/* Featured post */}
         {featured && (
           <Link href={`/news/${featured.slug}`} style={{ textDecoration: "none", display: "block", marginBottom: 36 }}>
-            <div style={{
+            <div className="featured-card" style={{
               background: "linear-gradient(135deg, #12101e 0%, #0f1218 60%, #10121a 100%)",
               border: `1px solid #2a2a3a`,
               borderRadius: 16, overflow: "hidden",
-              transition: "all 0.25s",
               position: "relative",
-            }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = "#4a4a6a"; e.currentTarget.style.transform = "translateY(-2px)"; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = "#2a2a3a"; e.currentTarget.style.transform = "none"; }}
-            >
+            }}>
               {/* Featured badge */}
               <div style={{
                 position: "absolute", top: 20, left: 20,

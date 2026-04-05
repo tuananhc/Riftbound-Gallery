@@ -15,12 +15,14 @@ export async function generateStaticParams() {
   return posts.map(post => ({ slug: post.slug }));
 }
 
-export async function generateMetadata({ params }) {
+export async function generateMetadata(props) {
+  const params = await props.params;
   const post = await getPostBySlug(params.slug);
   return { title: `${post.title} — Rift Dispatch` };
 }
 
-export default async function PostPage({ params }) {
+export default async function PostPage(props) {
+  const params = await props.params;
   const post = await getPostBySlug(params.slug);
   const cat  = CATEGORY_CONFIG[post.category] || { color: "#888", bg: "#1a1c28", icon: "📄" };
 
@@ -39,15 +41,14 @@ export default async function PostPage({ params }) {
         .prose a { color: #6090e0; text-decoration: underline; }
         .prose hr { border: none; border-top: 1px solid #1a1c28; margin: 32px 0; }
         .prose code { background: #1a1c28; border-radius: 4px; padding: 2px 6px; font-size: 13px; color: #80deea; }
+        .back-link { color: #3a3a5a; transition: color 0.2s; }
+        .back-link:hover { color: #6a6a8a; }
       `}</style>
 
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "40px 24px" }}>
 
         {/* Back */}
-        <Link href="/news" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, color: COLORS.textDim, fontFamily: "'Segoe UI', system-ui, sans-serif", letterSpacing: "0.1em", marginBottom: 32, textDecoration: "none", transition: "color 0.2s" }}
-          onMouseEnter={e => e.target.style.color = COLORS.textMuted}
-          onMouseLeave={e => e.target.style.color = COLORS.textDim}
-        >
+        <Link href="/news" className="back-link" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontFamily: "'Segoe UI', system-ui, sans-serif", letterSpacing: "0.1em", marginBottom: 32, textDecoration: "none" }}>
           ← RIFT DISPATCH
         </Link>
 
