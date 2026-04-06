@@ -1,4 +1,5 @@
-import { ALL_COLORS, ALL_TAGS, COLOR_CONFIG, COLORS } from "../../lib/data";
+import { ALL_COLORS, ALL_TAGS, COLOR_CONFIG } from "../../lib/cards/data";
+import { COLORS } from "../../lib/data";
 
 export default function CardFilters({ search, setSearch, selectedColors, toggleColor, selectedTags, toggleTag, costRange, setCostRange, hasFilters, clearFilters }) {
 	return (

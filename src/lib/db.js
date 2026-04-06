@@ -1,9 +1,12 @@
-import postgres from "postgres";
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 
-const sql = postgres(process.env.DATABASE_URL, {
-	ssl:     "require",
-	max:     5,
-	idle_timeout: 20,
+const client = new DynamoDBClient({
+	region: process.env.AWS_REGION,
+	credentials: {
+		accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+		secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+	},
 });
 
-export default sql;
+export const dynamo = DynamoDBDocumentClient.from(client);
