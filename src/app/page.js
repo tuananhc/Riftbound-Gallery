@@ -1,4 +1,4 @@
-import { getAllCards } from "../lib/cards";
+import { getAllCards } from "../lib/cards/cards";
 import CardGrid from "../components/cards/CardGrid";
 
 export default async function CardsPage() {

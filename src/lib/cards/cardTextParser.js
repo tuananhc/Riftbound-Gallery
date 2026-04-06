@@ -1,22 +1,6 @@
-const DEFAULT_KEYWORD_STYLE = { background: "#6d6d6d", color: "#fff", textTransform: "uppercase", transform: "skewX(-12deg)" };
+import { KEYWORD_STYLES } from "./data";
 
-const KEYWORD_STYLES = {
-	"Action": { background: "#1c745d", color: "#fff", textTransform: "uppercase", transform: "skewX(-12deg)" },
-	"Reaction": { background: "#1c745d", color: "#fff", textTransform: "uppercase", transform: "skewX(-12deg)" },
-	"Ambush": { background: "#1c745d", color: "#fff", textTransform: "uppercase", transform: "skewX(-12deg)" },
-	"Hidden": { background: "#1c745d", color: "#fff", textTransform: "uppercase", transform: "skewX(-12deg)" },
-	"Legion": { background: "#1c745d", color: "#fff", textTransform: "uppercase", transform: "skewX(-12deg)" },
-	"Shield": { background: "#c23667", color: "#fff", textTransform: "uppercase", transform: "skewX(-12deg)" },
-	"Assault": { background: "#c23667", color: "#fff", textTransform: "uppercase", transform: "skewX(-12deg)" },
-	"Tank": { background: "#c23667", color: "#fff", textTransform: "uppercase", transform: "skewX(-12deg)" },
-	"Backline": { background: "#c23667", color: "#fff", textTransform: "uppercase", transform: "skewX(-12deg)" },
-	"Hunt": { background: "#99b03b", color: "#000", textTransform: "uppercase", transform: "skewX(-12deg)" },
-	"Temporary": { background: "#99b03b", color: "#000", textTransform: "uppercase", transform: "skewX(-12deg)" },
-	"Deflect": { background: "#99b03b", color: "#000", textTransform: "uppercase", transform: "skewX(-12deg)" },
-	"Deathknell": { background: "#99b03b", color: "#000", textTransform: "uppercase", transform: "skewX(-12deg)" },
-	"Legion": { background: "#1c745d", color: "#fff", textTransform: "uppercase", transform: "skewX(-12deg)" },
-	"Accelerate":  { background: "#1c745d", color: "#fff", textTransform: "uppercase", transform: "skewX(-12deg)" },
-};
+const DEFAULT_KEYWORD_STYLE = { background: "#6d6d6d", color: "#fff", textTransform: "uppercase", transform: "skewX(-12deg)" };
 
 export function parseCardText(text) {
 	console.log(text);
@@ -32,6 +16,13 @@ export function parseCardText(text) {
 			segments.push({ type: "text", value: text.slice(lastIndex, match.index) });
 		}
 		const keyword = match[1];
+
+		// Level cards have ">" in their text which we don't want to parse as a keyword
+		if (keyword === ">") {
+			lastIndex = regex.lastIndex;
+			continue;
+		}
+
 		const matchedKey = Object.keys(KEYWORD_STYLES).find(k => keyword.toLowerCase().includes(k.toLowerCase()));
 		segments.push({
 			type: "keyword",

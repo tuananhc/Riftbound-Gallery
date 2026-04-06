@@ -13,6 +13,15 @@ export default function CardItem({ card, onClick }) {
 				? <Image src={card.image} alt={card.name} fill sizes="220px" style={{ objectFit: "contain", transform: isBattlefield ? "rotate(90deg) scale(1.396)" : "none" }} />
 				: <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36, opacity: 0.2 }}>🃏</div>
 			}
+			{card.banned && (
+				<div style={{
+					position: "absolute", top: 8, right: 8,
+					background: "#e84a4a", color: "#fff", fontSize: 15, fontWeight: 700,
+					padding: "2px 6px", borderRadius: 4, letterSpacing: "0.1em",
+				}}>
+					BANNED
+				</div>
+			)}
 		</div>
 	);
 }

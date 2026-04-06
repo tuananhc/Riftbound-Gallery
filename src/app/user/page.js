@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
-import { CARDS, COLOR_CONFIG, RARITY_CONFIG, cardGradient, cardGlow, COLORS } from "../../lib/data";
+import { CARDS, COLOR_CONFIG, RARITY_CONFIG, cardGradient, cardGlow } from "../../lib/cards/data";
+import { COLORS } from "../../lib/data";
 
 // ── Mock Data ──────────────────────────────────────────────────────────────────
 

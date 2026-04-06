@@ -9,12 +9,19 @@ export default function CardGrid({ initialCards }) {
 	const [search, setSearch]               = useState("");
 	const [selectedColors, setSelectedColors] = useState([]);
 	const [selectedTags, setSelectedTags]   = useState([]);
-	const [costRange, setCostRange]         = useState([0, 10]);
+	const [costRange, setCostRange]         = useState([0, 12]);
 	const [selectedCard, setSelectedCard]   = useState(null);
+	const [selectedAttribute, setSelectedAttribute] = useState([]);
+	const [releaseSet, setReleaseSet]       = useState(null);
 	const [sortBy, setSortBy]               = useState("name");
 
-	const toggleColor = c => setSelectedColors(p => p.includes(c) ? p.filter(x => x !== c) : [...p, c]);
+	const toggleColor = c => setSelectedColors(p => {
+		if (p.includes(c)) return p.filter(x => x !== c);
+		if (p.length >= 2) return [...p.slice(1), c];
+		return [...p, c];
+	});
 	const toggleTag   = t => setSelectedTags(p =>   p.includes(t) ? p.filter(x => x !== t) : [...p, t]);
+	const toggleAttribute = a => setSelectedAttribute(p => p.includes(a) ? p.filter(x => x !== a) : [...p, a]);
 
 	const filtered = useMemo(() => {
 		return initialCards
@@ -28,10 +35,14 @@ export default function CardGrid({ initialCards }) {
 					selectedColors.every(c => card.domain_text?.includes(c));
 				const tagMatch =
 					selectedTags.length === 0 ||
-					selectedTags.some(t => card.tags_text?.includes(t));
+					selectedTags.some(t => card.card_type_text?.includes(t));
+				const attributeMatch =
+					selectedAttribute.length === 0 ||
+					selectedAttribute.some(a => card.card_type_text?.includes(a) || card.ability_text?.includes(a));
 				const cost      = parseInt(card.energy_text);
-				const costMatch = isNaN(cost) || (cost >= costRange[0] && cost <= costRange[1]);
-				return nameMatch && domainMatch && tagMatch && costMatch;
+				const costMatch = (cost >= costRange[0] && cost <= costRange[1]);
+				const releaseSetMatch = !releaseSet || card.card_set_text === releaseSet;
+				return nameMatch && domainMatch && tagMatch && attributeMatch && costMatch && releaseSetMatch;
 			})
 			.sort((a, b) => {
 				if (sortBy === "cost") return parseInt(a.energy_text) - parseInt(b.energy_text);
@@ -41,11 +52,10 @@ export default function CardGrid({ initialCards }) {
 				}
 				return a.name?.localeCompare(b.name);
 			});
-	}, [initialCards, search, selectedColors, selectedTags, costRange, sortBy]);
+	}, [initialCards, search, selectedColors, selectedTags, selectedAttribute, costRange, releaseSet, sortBy]);
 
-	const hasFilters  = selectedColors.length > 0 || selectedTags.length > 0 || search || costRange[0] > 0 || costRange[1] < 10;
-	const clearFilters = () => { setSelectedColors([]); setSelectedTags([]); setSearch(""); setCostRange([0, 10]); };
-
+	const hasFilters  = selectedColors.length > 0 || selectedTags.length > 0 || search || costRange[0] > 0 || costRange[1] < 10 || releaseSet;
+	const clearFilters = () => { setSelectedColors([]); setSelectedTags([]); setSearch(""); setCostRange([0, 10]); setReleaseSet(null); };
 
 	return (
 		<>
@@ -53,6 +63,7 @@ export default function CardGrid({ initialCards }) {
 				.card-item { background: #10121a; border: 1px solid #1e2030; border-radius: 10px; padding: 14px; cursor: pointer; transition: all 0.25s ease; }
 				.card-item:hover { transform: translateY(-3px); }
 				.filter-btn { background: #12141e; border: 1px solid #1e2030; border-radius: 6px; padding: 6px 12px; cursor: pointer; font-family: 'Segoe UI', system-ui, sans-serif; font-size: 11px; color: #888; transition: all 0.2s; letter-spacing: 0.05em; }
+				.filter-attribute-btn { background: #12141e; border: 1px solid #1e2030; border-radius: 6px; padding: 3px 6px; cursor: pointer; font-family: 'Segoe UI', system-ui, sans-serif; font-size: 11px; color: #888; transition: all 0.2s; letter-spacing: 0.05em; }
 				.filter-btn:hover { border-color: #444; color: #ccc; }
 				.search-input { width: 100%; background: #0d0f17; border: 1px solid #1e2030; border-radius: 8px; padding: 11px 14px 11px 40px; color: #e8e0d0; font-family: 'Segoe UI', system-ui, sans-serif; font-size: 15px; outline: none; transition: border-color 0.2s; }
 				.search-input:focus { border-color: #3a4060; }
@@ -75,6 +86,8 @@ export default function CardGrid({ initialCards }) {
 					selectedTags={selectedTags}   toggleTag={toggleTag}
 					costRange={costRange}     setCostRange={setCostRange}
 					hasFilters={hasFilters}   clearFilters={clearFilters}
+					selectedAttribute={selectedAttribute} toggleAttribute={toggleAttribute}
+					releaseSet={releaseSet}     setReleaseSet={setReleaseSet}
 				/>
 
 				<section style={{ flex: 1, padding: "24px 28px" }}>
@@ -104,7 +117,6 @@ export default function CardGrid({ initialCards }) {
 					)}
 				</section>
 			</div>
-
 			<CardModal card={selectedCard} onClose={() => setSelectedCard(null)} />
 		</>
 	);

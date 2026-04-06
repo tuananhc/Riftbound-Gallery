@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getAllPosts, getPostBySlug } from "../../../lib/posts";
-import { COLORS } from "../../../lib/data";
+import { COLORS } from "../../../lib/cards/data";
 
 const CATEGORY_CONFIG = {
   "Set Release":  { color: "#ff6b3d", bg: "#2a1008", icon: "🃏" },

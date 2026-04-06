@@ -11,8 +11,7 @@ function Field({ label, html }) {
 				return <CardText text={node.data} />;
 			}
 			if (node instanceof Element && node.name === "img") {
-				// eslint-disable-next-line @next/next/no-img-element
-				return <img {...node.attribs} alt="" style={{ width: 20, height: 20, objectFit: "contain", verticalAlign: "middle", margin: "0 3px" }} />;
+				return <Image {...node.attribs} alt="" width={20} height={20} style={{ objectFit: "contain", verticalAlign: "middle", margin: "0 3px" }} />;
 			}
 		},
 	});
@@ -30,6 +29,8 @@ export default function CardModal({ card, onClose }) {
 
 	const colors = ALL_COLORS.filter(c => card.domain_text?.includes(c));
 	const primaryGlow = colors.length > 0 ? COLOR_CONFIG[colors[0]].glow : "#2a2c3a";
+	console.log(card)
+	console.log(card.banned_announcement)
 
 	return (
 		<div className="modal-overlay" onClick={onClose} style={{ display: "flex", flexDirection: "column"}}>
@@ -61,7 +62,20 @@ export default function CardModal({ card, onClose }) {
 
 					{/* Details */}
 					<div style={{ flex: 1, padding: 24, display: "flex", flexDirection: "column", gap: 12, minWidth: 0, overflowY: "auto" }}>
+						{card.banned && (
+							<div style={{ display: "flex", alignItems: "center" }}>
+								<div style={{
+									background: "#e84a4a", color: "#fff", fontSize: 12, fontWeight: 700,
+									padding: "4px 8px", borderRadius: 4, letterSpacing: "0.1em", width: "fit-content",
+									marginRight: 12,
+								}}>
+									BANNED
+								</div>
+								<p>(View announcement <a href={card.banned_announcement} style={{ color: "#4a90e2", textDecoration: "underline" }} target="_blank" rel="noopener noreferrer">here</a>)</p>
+							</div>
+						)}
 						{card.energy_html      && <Field label="Energy"      html={card.energy_html} />}
+						{card.power_html       && <Field label="Power"       html={card.power_html} />}
 						{card.might_html       && <Field label="Might"       html={card.might_html} />}
 						{card.domain_html      && <Field label="Domain"      html={card.domain_html} />}
 						{card.card_type_html   && <Field label="Type"        html={card.card_type_html} />}
@@ -69,7 +83,6 @@ export default function CardModal({ card, onClose }) {
 						{card.tags_html        && <Field label="Tags"        html={card.tags_html} />}
 						{card.ability_html     && <Field label="Ability"     html={card.ability_html} />}
 						{card.effect_html      && <Field label="Effect"      html={card.effect_html} />}
-						{card.power_html       && <Field label="Power"       html={card.power_html} />}
 						{card.might_bonus_html && <Field label="Might Bonus" html={card.might_bonus_html} />}
 						{card.artist_html      && <Field label="Artist"      html={card.artist_html} />}
 						{card.card_set_html    && <Field label="Set"         html={card.card_set_html} />}
