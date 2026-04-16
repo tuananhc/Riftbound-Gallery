@@ -18,13 +18,13 @@ export const RARITY_CONFIG = {
 };
 
 export const ALL_COLORS = ["Mind", "Body", "Chaos", "Calm", "Order", "Fury"];
-export const ALL_TAGS   = ["Unit", "Spell", "Champion", "Legend", "Token", "Gear", "Battlefield"];
+export const ALL_TAGS   = ["Legend", "Champion", "Unit", "Spell", "Token", "Gear", "Battlefield"];
 
 export const TAGS_IMG = {
+  "Legend": "https://riftbound.s3.us-east-1.amazonaws.com/resources/Type_Legend.png",
+  "Champion": "https://riftbound.s3.us-east-1.amazonaws.com/resources/Type_Champion.png",
   "Unit": "https://riftbound.s3.us-east-1.amazonaws.com/resources/Type_Unit.png",
   "Spell": "https://riftbound.s3.us-east-1.amazonaws.com/resources/Type_Spell.png",
-  "Champion": "https://riftbound.s3.us-east-1.amazonaws.com/resources/Type_Champion.png",
-  "Legend": "https://riftbound.s3.us-east-1.amazonaws.com/resources/Type_Legend.png",
   "Token": "https://riftbound.s3.us-east-1.amazonaws.com/resources/Type_Gear.png",
   "Gear": "https://riftbound.s3.us-east-1.amazonaws.com/resources/Type_Gear.png",
   "Battlefield": "https://riftbound.s3.us-east-1.amazonaws.com/resources/Type_Battlefield.png"

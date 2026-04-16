@@ -41,8 +41,8 @@ export default function Navbar() {
         </div>
       </Link>
 
-      {/* Nav links */}
-      <nav style={{ display: "flex", alignItems: "center", gap: 4 }}>
+      {/* Nav links — centered */}
+      <nav style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: 4 }}>
         {NAV_LINKS.map(({ href, label }) => {
           const active = pathname === href || (href !== "/" && pathname.startsWith(href));
           return (
@@ -65,7 +65,23 @@ export default function Navbar() {
         })}
       </nav>
 
-      {/* Right: mock user */}
+      {/* Right: Dev Log + user */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <Link href="/devlog" style={{
+          padding: "6px 16px",
+          borderRadius: 6,
+          fontSize: 11,
+          fontFamily: "'Segoe UI', system-ui, sans-serif",
+          letterSpacing: "0.12em",
+          fontWeight: "bold",
+          color: "#ffffff",
+          backgroundColor: "rgba(61, 245, 255, 0.96)",
+          transition: "all 0.2s",
+          textDecoration: "none",
+        }}>
+          Dev Log
+        </Link>
+
       <Link href="/user" style={{
         display: "flex", alignItems: "center", gap: 8,
         background: "#10121a", border: `1px solid ${COLORS.border}`,
@@ -86,6 +102,7 @@ export default function Navbar() {
           AETHON
         </span>
       </Link>
+      </div>
     </header>
   );
 }

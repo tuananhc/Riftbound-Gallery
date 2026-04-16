@@ -35,7 +35,7 @@ export default function CardModal({ card, onClose }) {
 	return (
 		<div className="modal-overlay" onClick={onClose} style={{ display: "flex", flexDirection: "column"}}>
 			<div className="modal-card" onClick={e => e.stopPropagation()} style={{
-				width: "70vw", height: "60vh",
+				width: "60vw", height: "70vh",
 				background: colors.length > 0 ? cardGradient(colors) : "#10121a",
 				border: `1px solid ${primaryGlow}55`,
 				borderRadius: 16, overflow: "hidden", position: "relative",
@@ -53,7 +53,7 @@ export default function CardModal({ card, onClose }) {
 					{/* Image */}
 					<div style={{ width: "50%", flexShrink: 0, position: "relative", background: "#0a0c14" }}>
 						{card.image
-							? <Image src={card.image} alt={card.name} fill sizes="200px" style={{ objectFit: "contain" }} />
+							? <Image src={card.image} alt={card.name} fill sizes="200px" style={{ objectFit: "contain", padding: "10%" }} />
 							: <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48, opacity: 0.2 }}>
 								{colors.length > 0 ? COLOR_CONFIG[colors[0]].icon : "🃏"}
 							  </div>

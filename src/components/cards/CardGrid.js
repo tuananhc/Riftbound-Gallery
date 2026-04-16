@@ -40,7 +40,7 @@ export default function CardGrid({ initialCards }) {
 					selectedAttribute.length === 0 ||
 					selectedAttribute.some(a => card.card_type_text?.includes(a) || card.ability_text?.includes(a));
 				const cost      = parseInt(card.energy_text);
-				const costMatch = (cost >= costRange[0] && cost <= costRange[1]);
+				const costMatch = costRange[0] === 0 && costRange[1] === 12 ? true : (cost >= costRange[0] && cost <= costRange[1]);
 				const releaseSetMatch = !releaseSet || card.card_set_text === releaseSet;
 				return nameMatch && domainMatch && tagMatch && attributeMatch && costMatch && releaseSetMatch;
 			})
