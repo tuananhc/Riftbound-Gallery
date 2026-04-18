@@ -1,11 +1,6 @@
 import Navbar from "../components/Navbar";
 import { BASE_STYLES, FONTS, COLORS } from "../lib/data";
 
-export const metadata = {
-  title: "Riftbound — Card Database",
-  description: "Search, explore, and build decks for Riftbound TCG",
-};
-
 export default function RootLayout({ children }) {
   return (
     <html lang="en">

@@ -24,13 +24,13 @@ function Field({ label, html }) {
 	);
 }
 
-export default function CardModal({ card, onClose }) {
+export default function CardModal({ card, onClose, deckOpen, onAddToDeck, deckCount = 0, deckMax = 3 }) {
 	if (!card) return null;
+
+	console.log(card); // Debug: Log the card data when the modal is opened
 
 	const colors = ALL_COLORS.filter(c => card.domain_text?.includes(c));
 	const primaryGlow = colors.length > 0 ? COLOR_CONFIG[colors[0]].glow : "#2a2c3a";
-	console.log(card)
-	console.log(card.banned_announcement)
 
 	return (
 		<div className="modal-overlay" onClick={onClose} style={{ display: "flex", flexDirection: "column"}}>
@@ -47,6 +47,26 @@ export default function CardModal({ card, onClose }) {
 					<button onClick={onClose} style={{ position: "absolute", top: 14, right: 14, background: "transparent", border: "none", color: "#4a4a6a", fontSize: 18, cursor: "pointer" }}>✕</button>
 					<div style={{ fontSize: 20, fontWeight: 700, color: "#f0e8c8", letterSpacing: "0.05em", lineHeight: 1.2, fontFamily: "'Segoe UI', system-ui, sans-serif" }}>{card.name}</div>
 				</div>
+
+				{deckOpen && (
+					<button
+						onClick={() => onAddToDeck(card)}
+						disabled={deckCount >= deckMax}
+						style={{
+							position: "absolute", bottom: 14, right: 14, zIndex: 10,
+							background: deckCount >= deckMax ? "#1a1c28" : "#1a2040",
+							border: `1px solid ${deckCount >= deckMax ? "#2a2c3a" : "#4a5090"}`,
+							borderRadius: 8, padding: "8px 16px", cursor: deckCount >= deckMax ? "default" : "pointer",
+							color: deckCount >= deckMax ? "#3a3a5a" : "#8890c0",
+							fontFamily: "'Segoe UI', system-ui, sans-serif", fontSize: 11,
+							letterSpacing: "0.12em", fontWeight: 700, transition: "all 0.2s",
+						}}
+						onMouseEnter={e => { if (deckCount < deckMax) { e.currentTarget.style.background = "#242860"; e.currentTarget.style.color = "#e8d090"; e.currentTarget.style.borderColor = "#e8d090"; } }}
+						onMouseLeave={e => { e.currentTarget.style.background = deckCount >= deckMax ? "#1a1c28" : "#1a2040"; e.currentTarget.style.color = deckCount >= deckMax ? "#3a3a5a" : "#8890c0"; e.currentTarget.style.borderColor = deckCount >= deckMax ? "#2a2c3a" : "#4a5090"; }}
+					>
+						{deckCount >= deckMax ? "MAX COPIES" : `ADD TO DECK${deckCount > 0 ? ` (${deckCount}/${deckMax})` : ""}`}
+					</button>
+				)}
 
 				{/* Row 2: Image + Details */}
 				<div style={{ display: "flex", flex: 1, minHeight: 0 }}>

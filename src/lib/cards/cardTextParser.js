@@ -3,7 +3,6 @@ import { KEYWORD_STYLES } from "./data";
 const DEFAULT_KEYWORD_STYLE = { background: "#6d6d6d", color: "#fff", textTransform: "uppercase", transform: "skewX(-12deg)" };
 
 export function parseCardText(text) {
-	console.log(text);
 	if (!text) return [];
 
 	const segments = [];

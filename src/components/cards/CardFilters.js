@@ -109,7 +109,7 @@ export default function CardFilters({
 
 			{/* Additional attributes */}
 			<div>
-				<div style={{ fontSize: 10, letterSpacing: "0.em", color: COLORS.text, marginBottom: 10, fontFamily: "'Segoe UI', system-ui, sans-serif" }}>TYPE</div>
+				<div style={{ fontSize: 10, letterSpacing: "0.2em", color: COLORS.text, marginBottom: 10, fontFamily: "'Segoe UI', system-ui, sans-serif" }}>ATTRIBUTES</div>
 				<div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
 					{Object.keys(KEYWORD_STYLES).map(attribute => {
 						const active = selectedAttribute.includes(attribute);
@@ -127,7 +127,7 @@ export default function CardFilters({
 
 			{/* Set filters */}
 			<div>
-				<div style={{ fontSize: 10, letterSpacing: "0.em", color: COLORS.text, marginBottom: 10, fontFamily: "'Segoe UI', system-ui, sans-serif" }}>TYPE</div>
+				<div style={{ fontSize: 10, letterSpacing: "0.2em", color: COLORS.text, marginBottom: 10, fontFamily: "'Segoe UI', system-ui, sans-serif" }}>SET</div>
 				<div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
 					{["Proving Grounds", "Origins", "Spiritforged", "Unleashed"].map(attribute => {
 						const active = releaseSet === attribute;

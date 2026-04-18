@@ -16,7 +16,5 @@ export async function getAllCards() {
 
 	} while (lastKey);
 
-	console.log(`Fetched ${items.length} cards from DynamoDB`);
-
 	return items.sort((a, b) => a.name.localeCompare(b.name));
 }

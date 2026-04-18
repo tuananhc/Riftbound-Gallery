@@ -10,7 +10,7 @@ export const COLORS = {
   borderHover:"#2a2c3a",
   text:       "#e8e0d0",
   textMuted:  "#6a6a8a",
-  textDim:    "#3a3a5a",
+  textDim:    "#969696",
   gold:       "#e8d090",
   goldDim:    "#8a7a50",
 };
