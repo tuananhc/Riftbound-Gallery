@@ -6,7 +6,6 @@ import { COLORS } from "../lib/data";
 const NAV_LINKS = [
   { href: "/",      label: "Cards"   },
   { href: "/news",  label: "News"    },
-  { href: "/user",  label: "Profile" },
 ];
 
 export default function Navbar() {

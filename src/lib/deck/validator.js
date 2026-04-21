@@ -17,6 +17,9 @@ const validateAddCardToDeck = (card, deck) => {
 
 	// TODO: Only 12 runes per deck
 
+	// TODO: Choose new legend will wipe the deck and start fresh with the new champion's domain
+
+	// TODO: Choose legend will set the domain filter to the champion's domain and lock the filter
 	return { status: true };
 };
 

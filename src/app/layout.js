@@ -20,12 +20,6 @@ export default function RootLayout({ children }) {
           display: "flex", justifyContent: "space-between", alignItems: "center",
           background: COLORS.bgAlt,
         }}>
-          <span style={{ fontSize: 11, color: COLORS.textDim, fontFamily: "'Segoe UI', system-ui, sans-serif", letterSpacing: "0.1em" }}>
-            ⚡ RIFTBOUND CARD DATABASE
-          </span>
-          <span style={{ fontSize: 11, color: COLORS.textDim, fontFamily: "'Segoe UI', system-ui, sans-serif", letterSpacing: "0.06em" }}>
-            © 2026 RIFTBOUND PROJECT
-          </span>
         </footer>
       </body>
     </html>

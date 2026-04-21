@@ -86,7 +86,8 @@ export default function CardGrid({ initialCards }) {
 				const nameMatch =
 					!search ||
 					card.name?.toLowerCase().includes(search.toLowerCase()) ||
-					card.ability_text?.toLowerCase().includes(search.toLowerCase());
+					card.ability_text?.toLowerCase().includes(search.toLowerCase()) ||
+					card.tags_text?.toLowerCase().includes(search.toLowerCase());
 				const domainMatch =
 					selectedColors.length === 0 ||
 					selectedColors.every(c => card.domain_text?.includes(c));
