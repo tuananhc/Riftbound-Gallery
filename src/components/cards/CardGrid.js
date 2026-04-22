@@ -28,10 +28,10 @@ export default function CardGrid({ initialCards }) {
 		const isChampion = card.card_type_text?.includes("Champion");
 
 		setDeck(prev => {
-			const existing = prev.find(e => e.card.id === card.id);
+			const existing = prev.find(e => e.card.name === card.name);
 			if (existing) {
 				if (existing.count >= maxCopies(card)) return prev;
-				return prev.map(e => e.card.id === card.id ? { ...e, count: e.count + 1 } : e);
+				return prev.map(e => e.card.name === card.name ? { ...e, count: e.count + 1 } : e);
 			}
 			return [...prev, { card, count: 1 }];
 		});
@@ -43,6 +43,7 @@ export default function CardGrid({ initialCards }) {
 		} else if (legendId && !championId && isChampion) {
 			setChampionId(card.id);
 			clearFilters();
+			setSelectedColors(deck[0]?.card.domain_text ? deck[0].card.domain_text.split(',').map(s => s.trim()) : []);
 		}
 	};
 
@@ -64,7 +65,7 @@ export default function CardGrid({ initialCards }) {
 		});
 	};
 
-	const deckTotal = deck.reduce((sum, e) => sum + e.count, 0);
+	const deckTotal = deck.slice(1).reduce((sum, e) => sum + e.count, 0);
 
 	const copyDeckList = () => {
 		const text = deck.map(e => `${e.count}x ${e.card.name}`).join("\n");
@@ -90,7 +91,7 @@ export default function CardGrid({ initialCards }) {
 					card.tags_text?.toLowerCase().includes(search.toLowerCase());
 				const domainMatch =
 					selectedColors.length === 0 ||
-					selectedColors.every(c => card.domain_text?.includes(c));
+					selectedColors.some(c => card.domain_text?.includes(c));
 				const tagMatch =
 					selectedTags.length === 0 ||
 					selectedTags.some(t => card.card_type_text?.includes(t));
@@ -194,7 +195,7 @@ export default function CardGrid({ initialCards }) {
 						<div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 14 }}>
 							{filtered.map(card => (
 								<div key={card.id} className="card-wrapper">
-									<CardItem card={card} onClick={() => setSelectedCard(card)} deckCount={deckOpen ? (deck.find(e => e.card.id === card.id)?.count ?? 0) : 0} />
+									<CardItem card={card} onClick={() => setSelectedCard(card)} deckCount={deckOpen ? (deck.find(e => e.card.name === card.name)?.count ?? 0) : 0} />
 									{deckOpen && <button className="add-deck-btn" onClick={e => addToDeck(card, e)} title="Add to deck">+</button>}
 								</div>
 							))}
@@ -220,7 +221,11 @@ export default function CardGrid({ initialCards }) {
 				card={selectedCard}
 				onClose={() => setSelectedCard(null)}
 				deckOpen={deckOpen}
-				onAddToDeck={card => addToDeck(card, { stopPropagation: () => {} })}
+				onAddToDeck={card => {
+					const currentCount = deck.find(e => e.card.name === card.name)?.count ?? 0;
+					addToDeck(card, { stopPropagation: () => {} });
+					if (currentCount + 1 >= maxCopies(card)) setSelectedCard(null);
+				}}
 				deckCount={selectedCard ? (deck.find(e => e.card.id === selectedCard.id)?.count ?? 0) : 0}
 				deckMax={selectedCard ? maxCopies(selectedCard) : 3}
 			/>

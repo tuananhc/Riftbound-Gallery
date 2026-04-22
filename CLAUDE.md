@@ -220,7 +220,7 @@ NEXT_PUBLIC_COGNITO_CLIENT_ID=    # Cognito App Client ID
 
 ## SUMMARISE Command
 
-When the user types `SUMMARISE`, generate a dev log entry and write it to a markdown file at `content/devlog/YYYY-MM-DD.md` using today's date.
+When the user types `SUMMARISE`, generate a dev log entry and write it to a markdown file at `content/dev-log/DevLog_YYYYMMDD.md` using today's date.
 
 If a file for today already exists, append to it rather than overwriting it.
 
