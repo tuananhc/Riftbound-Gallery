@@ -1,3 +1,5 @@
+import "server-only";
+
 import { dynamo } from "../db";
 import { ScanCommand } from "@aws-sdk/lib-dynamodb";
 

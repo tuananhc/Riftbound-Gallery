@@ -4,8 +4,9 @@ import { usePathname } from "next/navigation";
 import { COLORS } from "../lib/data";
 
 const NAV_LINKS = [
-  { href: "/",      label: "Cards"   },
-  { href: "/news",  label: "News"    },
+  { href: "/",       label: "Cards"   },
+  { href: "/news",   label: "News"    },
+  { href: "/decks",  label: "Decks"   },
 ];
 
 export default function Navbar() {

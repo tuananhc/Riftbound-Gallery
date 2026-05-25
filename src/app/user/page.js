@@ -165,7 +165,7 @@ export default function UserPage() {
             {DECKS.map(deck => {
               const primaryColor = COLOR_CONFIG[deck.colors[0]];
               const open = expandedDeck === deck.id;
-              const deckCards = deck.cardIds.map(id => CARDS.find(c => c.id === id)).filter(Boolean);
+              const deckCards = deck.cardIds; // TODO: replace with real card lookups when decks are loaded from DynamoDB
               const wr = Math.round((deck.wins / (deck.wins + deck.losses)) * 100);
 
               return (
@@ -201,24 +201,8 @@ export default function UserPage() {
                       <div style={{ fontSize: 10, color: COLORS.textDim, letterSpacing: "0.15em", fontFamily: "'Segoe UI', system-ui, sans-serif", margin: "14px 0 10px" }}>
                         CARDS IN DECK ({deckCards.length})
                       </div>
-                      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                        {deckCards.map(card => (
-                          <div key={card.id} style={{
-                            background: cardGradient(card.colors),
-                            border: `1px solid ${COLOR_CONFIG[card.colors[0]].glow}44`,
-                            borderRadius: 8, padding: "10px 12px",
-                            minWidth: 140, flex: "1 1 140px", maxWidth: 180,
-                          }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                              <span style={{ fontSize: 12 }}>{card.colors.map(c => COLOR_CONFIG[c].icon).join("")}</span>
-                              <span style={{ fontSize: 11, fontWeight: 700, color: COLORS.gold, fontFamily: "'Segoe UI', system-ui, sans-serif" }}>{card.cost}</span>
-                            </div>
-                            <div style={{ fontSize: 12, fontWeight: 700, color: "#e8d890", fontFamily: "'Segoe UI', system-ui, sans-serif", letterSpacing: "0.03em", lineHeight: 1.2 }}>{card.name}</div>
-                            <div style={{ fontSize: 10, color: RARITY_CONFIG[card.rarity].color, marginTop: 4, fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
-                              {RARITY_CONFIG[card.rarity].symbol} {card.rarity}
-                            </div>
-                          </div>
-                        ))}
+                      <div style={{ fontSize: 11, color: COLORS.textDim, fontFamily: "'Segoe UI', system-ui, sans-serif", letterSpacing: "0.06em", fontStyle: "italic" }}>
+                        Card details will appear here once decks are loaded from the database.
                       </div>
                       <div style={{ fontSize: 10, color: COLORS.textDim, marginTop: 12, fontFamily: "'Segoe UI', system-ui, sans-serif", letterSpacing: "0.06em" }}>
                         LAST PLAYED: {deck.lastPlayed.toUpperCase()}

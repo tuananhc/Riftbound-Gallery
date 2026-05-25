@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getAllPosts, getPostBySlug } from "../../../lib/posts";
-import { COLORS } from "../../../lib/cards/data";
+import { ALL_COLORS } from "../../../lib/cards/data";
 
 const CATEGORY_CONFIG = {
   "Set Release":  { color: "#ff6b3d", bg: "#2a1008", icon: "🃏" },
@@ -60,19 +60,19 @@ export default async function PostPage(props) {
         </div>
 
         {/* Title */}
-        <h1 style={{ fontSize: 30, fontWeight: 900, color: COLORS.text, fontFamily: "'Segoe UI', system-ui, sans-serif", letterSpacing: "0.06em", lineHeight: 1.3, marginBottom: 16 }}>
+        <h1 style={{ fontSize: 30, fontWeight: 900, color: ALL_COLORS.text, fontFamily: "'Segoe UI', system-ui, sans-serif", letterSpacing: "0.06em", lineHeight: 1.3, marginBottom: 16 }}>
           {post.title}
         </h1>
 
         {/* Meta */}
-        <div style={{ display: "flex", gap: 16, alignItems: "center", marginBottom: 36, paddingBottom: 24, borderBottom: `1px solid ${COLORS.border}` }}>
-          <span style={{ fontSize: 12, color: COLORS.textDim, fontFamily: "'Segoe UI', system-ui, sans-serif", letterSpacing: "0.08em" }}>
+        <div style={{ display: "flex", gap: 16, alignItems: "center", marginBottom: 36, paddingBottom: 24, borderBottom: `1px solid ${ALL_COLORS.border}` }}>
+          <span style={{ fontSize: 12, color: ALL_COLORS.textDim, fontFamily: "'Segoe UI', system-ui, sans-serif", letterSpacing: "0.08em" }}>
             {new Date(post.date).toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).toUpperCase()}
           </span>
           {post.author && (
             <>
-              <span style={{ color: COLORS.textDim }}>·</span>
-              <span style={{ fontSize: 12, color: COLORS.textMuted, fontFamily: "'Segoe UI', system-ui, sans-serif" }}>BY {post.author.toUpperCase()}</span>
+              <span style={{ color: ALL_COLORS.textDim }}>·</span>
+              <span style={{ fontSize: 12, color: ALL_COLORS.textMuted, fontFamily: "'Segoe UI', system-ui, sans-serif" }}>BY {post.author.toUpperCase()}</span>
             </>
           )}
         </div>
@@ -81,8 +81,8 @@ export default async function PostPage(props) {
         <article className="prose" dangerouslySetInnerHTML={{ __html: post.contentHtml }} />
 
         {/* Footer */}
-        <div style={{ marginTop: 56, paddingTop: 24, borderTop: `1px solid ${COLORS.border}` }}>
-          <Link href="/news" style={{ fontSize: 12, color: COLORS.goldDim, fontFamily: "'Segoe UI', system-ui, sans-serif", letterSpacing: "0.1em", textDecoration: "none" }}>
+        <div style={{ marginTop: 56, paddingTop: 24, borderTop: `1px solid ${ALL_COLORS.border}` }}>
+          <Link href="/news" style={{ fontSize: 12, color: ALL_COLORS.goldDim, fontFamily: "'Segoe UI', system-ui, sans-serif", letterSpacing: "0.1em", textDecoration: "none" }}>
             ← BACK TO RIFT DISPATCH
           </Link>
         </div>
