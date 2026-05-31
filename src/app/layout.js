@@ -1,4 +1,5 @@
 import Navbar from "../components/Navbar";
+import { CardStoreProvider } from "../components/CardStoreProvider";
 import { BASE_STYLES, FONTS, COLORS } from "../lib/data";
 
 export default function RootLayout({ children }) {
@@ -11,16 +12,17 @@ export default function RootLayout({ children }) {
 			<body>
 				<style dangerouslySetInnerHTML={{ __html: FONTS + BASE_STYLES }} />
 				<Navbar />
-				<main style={{ minHeight: "calc(100vh - 62px)", background: COLORS.bg }}>
-					{children}
-				</main>
+				<CardStoreProvider>
+					<main style={{ minHeight: "calc(100vh - 62px)", background: COLORS.bg }}>
+						{children}
+					</main>
+				</CardStoreProvider>
 				<footer style={{
 					borderTop: `1px solid ${COLORS.border}`,
 					padding: "24px 32px",
 					display: "flex", justifyContent: "space-between", alignItems: "center",
 					background: COLORS.bgAlt,
-				}}>
-				</footer>
+				}} />
 			</body>
 		</html>
 	);

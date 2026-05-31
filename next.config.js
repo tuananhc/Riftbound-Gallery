@@ -5,7 +5,8 @@ const nextConfig = {
 			{ hostname: "cmsassets.rgpub.io" },
 			{ hostname: "assetcdn.rgpub.io" },
 			{ hostname: "riftbound.s3.us-east-1.amazonaws.com" },
-		], // riftbound card images
+			{ hostname: "cdn.piltoverarchive.com" },
+		], // riftbound card images + crawled deck thumbnails
   },
 };
 module.exports = nextConfig;

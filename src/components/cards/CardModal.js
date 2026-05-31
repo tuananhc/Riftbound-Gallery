@@ -27,8 +27,6 @@ function Field({ label, html }) {
 export default function CardModal({ card, onClose, deckOpen, onAddToDeck, deckCount = 0, deckMax = 3 }) {
 	if (!card) return null;
 
-	console.log(card); // Debug: Log the card data when the modal is opened
-
 	const colors = ALL_COLORS.filter(c => card.domain_text?.includes(c));
 	const primaryGlow = colors.length > 0 ? COLOR_CONFIG[colors[0]].glow : "#2a2c3a";
 

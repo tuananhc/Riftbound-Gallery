@@ -1,16 +1,16 @@
 import { NextResponse } from "next/server";
+import crawlPiltoverArchive from "./crawlers/piltoverArchive.js";
+// import crawlRiftdecks    from "../../../lib/crawlers/riftdecks";
+// import crawlTheVault     from "../../../lib/crawlers/the-vault";
+// import crawlMetawatch    from "../../../lib/crawlers/metawatch";
 
-// Crawler imports — add each one as it's implemented
-// import crawlPiltoverArchive from "../../../lib/crawlers/piltover-archive";
-// import crawlRiftdecks       from "../../../lib/crawlers/riftdecks";
-// import crawlTheVault        from "../../../lib/crawlers/the-vault";
-// import crawlMetawatch       from "../../../lib/crawlers/metawatch";
+export const runtime = "nodejs";
 
 const CRAWLERS = {
-	// "piltover-archive": crawlPiltoverArchive,
-	// "riftdecks":        crawlRiftdecks,
-	// "the-vault":        crawlTheVault,
-	// "metawatch":        crawlMetawatch,
+	"piltover-archive": crawlPiltoverArchive,
+	// "riftdecks":     crawlRiftdecks,
+	// "the-vault":     crawlTheVault,
+	// "metawatch":     crawlMetawatch,
 };
 
 export async function POST(request) {
@@ -32,7 +32,7 @@ export async function POST(request) {
 			await Promise.allSettled(
 				validSources.map(async (sourceId) => {
 					try {
-						const decks = await CRAWLERS[sourceId](filters);
+						const { decks } = await CRAWLERS[sourceId](filters);
 						controller.enqueue(encode({ sourceId, decks }));
 					} catch (err) {
 						controller.enqueue(encode({ sourceId, error: err.message }));

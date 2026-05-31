@@ -1,12 +1,15 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { COLORS } from "../../lib/data";
+import { useSetCards } from "../CardStoreProvider";
 import CardItem from "./CardItem";
 import CardFilters from "./CardFilters";
 import CardModal from "./CardModal";
 import DeckPanel from "./DeckPanel";
 
 export default function CardGrid({ initialCards }) {
+	const setCards = useSetCards();
+	useEffect(() => { setCards(initialCards); }, [initialCards, setCards]);
 	const [search, setSearch]               = useState("");
 	const [selectedColors, setSelectedColors] = useState([]);
 	const [selectedTags, setSelectedTags]   = useState([]);
@@ -81,7 +84,6 @@ export default function CardGrid({ initialCards }) {
 	const toggleAttribute = a => setSelectedAttribute(p => p.includes(a) ? p.filter(x => x !== a) : [...p, a]);
 
 	const filtered = useMemo(() => {
-		console.log("Filtering cards with:", { search, selectedColors, selectedTags, costRange, selectedAttribute, releaseSet, sortBy }); // Debug: Log filter criteria
 		return initialCards
 			.filter(card => {
 				const nameMatch =
