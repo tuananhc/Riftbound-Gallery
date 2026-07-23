@@ -131,3 +131,9 @@ Or deploy as a Node.js app on **AWS Lambda** using the [OpenNext](https://open-n
 | `/user`        | Profile, decks, match history               |
 | `/news`        | News/blog index                             |
 | `/news/[slug]` | Individual post                             |
+
+## Credits
+
+- Match history and tournament data provided by [EloShowdown](https://eloshowdown.com/riftbound/) via their public API
+- Card data sourced from the [Riftbound Card Gallery](https://riftbound.leagueoflegends.com/en-us/card-gallery/)
+- Riftbound is a trading card game developed by [Riot Games](https://www.riotgames.com) and published by [UVS Games](https://www.uvsgames.com)

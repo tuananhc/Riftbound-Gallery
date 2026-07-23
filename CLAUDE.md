@@ -116,15 +116,29 @@ src/
 ## Styling Conventions
 
 - **Inline styles only** — all styles are written as JavaScript objects on the element
-- **No** CSS files, CSS modules, Tailwind classes, or styled-components
+- **No** CSS files, CSS modules, Tailwind classes, styled-components, or `<style>` tags — not even for hover states
 - All shared design values (colours, font names, glow configs) live in `src/lib/data.js` — never hardcode hex values or font names in components
-- Use CSS class strings only for hover states and animations where inline styles are insufficient — define these in a `<style>` tag in the nearest layout or page file
+- **Never declare CSS classes in a `<style>` tag** — this includes hover, focus, and animation rules
+- For hover effects: use `onMouseEnter`/`onMouseLeave` to mutate `e.currentTarget.style` directly, or drive styles from a React state variable (e.g. `hoveredId`)
+- For focus effects: use `onFocus`/`onBlur` to mutate `e.target.style` directly
+- For active/selected states: derive styles conditionally from existing state (e.g. `isActive ? colorA : colorB`)
 
 ```js
-// CORRECT
-<div style={{ background: COLORS.bgCard, borderRadius: 10, padding: 14 }}>
+// CORRECT — inline style, hover via event handler
+<div
+  onMouseEnter={e => { e.currentTarget.style.background = "#0d0f17"; }}
+  onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+  style={{ background: COLORS.bgCard, borderRadius: 10, padding: 14 }}
+/>
 
-// WRONG
+// CORRECT — active state from React state
+<button style={{ color: isActive ? "#e8d090" : "#6a6a8a" }} />
+
+// WRONG — class declared in a <style> tag
+<style>{`.card:hover { background: #0d0f17; }`}</style>
+<div className="card" />
+
+// WRONG — className on any element
 <div className="card-item" style={{ padding: 14 }}>
 ```
 

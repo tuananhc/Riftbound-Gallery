@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState, useEffect, useRef } from "react";
 import { COLORS } from "../lib/data";
 
 const NAV_LINKS = [
@@ -11,6 +12,17 @@ const NAV_LINKS = [
 
 export default function Navbar() {
   const pathname = usePathname();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onClickOutside(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [menuOpen]);
 
   return (
     <header style={{
@@ -82,26 +94,60 @@ export default function Navbar() {
           Dev Log
         </Link>
 
-      <Link href="/user" style={{
-        display: "flex", alignItems: "center", gap: 8,
-        background: "#10121a", border: `1px solid ${COLORS.border}`,
-        borderRadius: 8, padding: "6px 12px", textDecoration: "none",
-        transition: "border-color 0.2s",
-      }}
-        onMouseEnter={e => e.currentTarget.style.borderColor = "#2a2c3a"}
-        onMouseLeave={e => e.currentTarget.style.borderColor = COLORS.border}
-      >
-        <div style={{
-          width: 26, height: 26, borderRadius: "50%",
-          background: "linear-gradient(135deg, #2a1040, #1a0830)",
-          border: "1px solid #4a2060",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 12,
-        }}>🧙</div>
-        <span style={{ fontSize: 11, color: COLORS.textMuted, fontFamily: "'Segoe UI', system-ui, sans-serif", letterSpacing: "0.08em" }}>
-          AETHON
-        </span>
-      </Link>
+      <div ref={menuRef} style={{ position: "relative" }}>
+        <button onClick={() => setMenuOpen(o => !o)}
+          onMouseEnter={e => e.currentTarget.style.borderColor = "#2a2c3a"}
+          onMouseLeave={e => e.currentTarget.style.borderColor = menuOpen ? "#2a2c3a" : COLORS.border}
+          style={{
+            display: "flex", alignItems: "center", gap: 8,
+            background: "#10121a", border: `1px solid ${menuOpen ? "#2a2c3a" : COLORS.border}`,
+            borderRadius: 8, padding: "6px 12px", cursor: "pointer", transition: "border-color 0.2s",
+          }}>
+          <div style={{
+            width: 26, height: 26, borderRadius: "50%",
+            background: "linear-gradient(135deg, #2a1040, #1a0830)",
+            border: "1px solid #4a2060",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 12,
+          }}>🧙</div>
+          <span style={{ fontSize: 11, color: COLORS.textMuted, fontFamily: "'Segoe UI', system-ui, sans-serif", letterSpacing: "0.08em" }}>
+            AETHON
+          </span>
+        </button>
+
+        {menuOpen && (
+          <div style={{
+            position: "absolute", top: "calc(100% + 8px)", right: 0, minWidth: 160,
+            background: "#10121a", border: `1px solid ${COLORS.border}`,
+            borderRadius: 10, overflow: "hidden", zIndex: 100,
+            boxShadow: "0 8px 24px #00000066",
+          }}>
+            <Link href="/user" onClick={() => setMenuOpen(false)} style={{
+              display: "block", padding: "10px 16px", textDecoration: "none",
+              fontSize: 12, color: COLORS.textMuted, fontFamily: "'Segoe UI', system-ui, sans-serif",
+              letterSpacing: "0.08em", transition: "background 0.15s",
+            }}
+              onMouseEnter={e => e.currentTarget.style.background = "#161820"}
+              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+            >
+              VIEW PROFILE
+            </Link>
+            <div style={{ height: 1, background: COLORS.border }} />
+            <button onClick={() => { setMenuOpen(false); /* TODO: Cognito sign out */ }}
+              style={{
+                display: "block", width: "100%", padding: "10px 16px", textAlign: "left",
+                background: "transparent", border: "none", cursor: "pointer",
+                fontSize: 12, color: "#ef5350", fontFamily: "'Segoe UI', system-ui, sans-serif",
+                letterSpacing: "0.08em", transition: "background 0.15s",
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = "#1a1010"}
+              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+            >
+              LOG OUT
+            </button>
+          </div>
+        )}
+      </div>
       </div>
     </header>
   );
