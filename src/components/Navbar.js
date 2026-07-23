@@ -1,8 +1,9 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { COLORS } from "../lib/data";
+import { useAuth } from "../hooks/useAuth";
 
 const NAV_LINKS = [
   { href: "/",       label: "Cards"   },
@@ -12,8 +13,16 @@ const NAV_LINKS = [
 
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { status, user, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
+
+  function handleLogout() {
+    setMenuOpen(false);
+    signOut(); // clears cached ID/access/refresh tokens from localStorage
+    router.push("/login");
+  }
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -94,26 +103,20 @@ export default function Navbar() {
           Dev Log
         </Link>
 
+      {status === "authed" && (
       <div ref={menuRef} style={{ position: "relative" }}>
+        {/* Dummy avatar — indicates a successful login */}
         <button onClick={() => setMenuOpen(o => !o)}
-          onMouseEnter={e => e.currentTarget.style.borderColor = "#2a2c3a"}
-          onMouseLeave={e => e.currentTarget.style.borderColor = menuOpen ? "#2a2c3a" : COLORS.border}
+          title={user?.email ?? "Account"}
+          onMouseEnter={e => e.currentTarget.style.boxShadow = "0 0 12px #6020a077"}
+          onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}
           style={{
-            display: "flex", alignItems: "center", gap: 8,
-            background: "#10121a", border: `1px solid ${menuOpen ? "#2a2c3a" : COLORS.border}`,
-            borderRadius: 8, padding: "6px 12px", cursor: "pointer", transition: "border-color 0.2s",
-          }}>
-          <div style={{
-            width: 26, height: 26, borderRadius: "50%",
+            width: 34, height: 34, borderRadius: "50%",
             background: "linear-gradient(135deg, #2a1040, #1a0830)",
-            border: "1px solid #4a2060",
+            border: `1px solid ${menuOpen ? "#6a30a0" : "#4a2060"}`,
             display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 12,
-          }}>🧙</div>
-          <span style={{ fontSize: 11, color: COLORS.textMuted, fontFamily: "'Segoe UI', system-ui, sans-serif", letterSpacing: "0.08em" }}>
-            AETHON
-          </span>
-        </button>
+            fontSize: 15, cursor: "pointer", transition: "all 0.2s", padding: 0,
+          }}>🧙</button>
 
         {menuOpen && (
           <div style={{
@@ -133,7 +136,7 @@ export default function Navbar() {
               VIEW PROFILE
             </Link>
             <div style={{ height: 1, background: COLORS.border }} />
-            <button onClick={() => { setMenuOpen(false); /* TODO: Cognito sign out */ }}
+            <button onClick={handleLogout}
               style={{
                 display: "block", width: "100%", padding: "10px 16px", textAlign: "left",
                 background: "transparent", border: "none", cursor: "pointer",
@@ -148,6 +151,22 @@ export default function Navbar() {
           </div>
         )}
       </div>
+      )}
+
+      {status === "guest" && (
+        <Link href="/login" style={{
+          padding: "7px 20px", borderRadius: 6, fontSize: 11,
+          fontFamily: "'Segoe UI', system-ui, sans-serif", letterSpacing: "0.12em",
+          fontWeight: 700, color: "#1a1206",
+          background: "linear-gradient(135deg, #e8d090, #d4bc78)",
+          border: "1px solid #f0dca0", transition: "all 0.2s", textDecoration: "none",
+        }}
+          onMouseEnter={e => e.currentTarget.style.boxShadow = "0 0 14px #e8d09055"}
+          onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}
+        >
+          LOG IN
+        </Link>
+      )}
       </div>
     </header>
   );

@@ -1,8 +1,10 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { COLOR_CONFIG, RARITY_CONFIG, cardGradient, cardGlow } from "../../lib/cards/data";
 import { COLORS } from "../../lib/data";
 import { countryFlag } from "../../lib/countries";
+import { useAuth } from "../../hooks/useAuth";
 
 // ── Dummy data ─────────────────────────────────────────────────────────────────
 
@@ -56,6 +58,14 @@ const MATCH_HISTORY = [
 // ── Component ──────────────────────────────────────────────────────────────────
 
 export default function UserPage() {
+	const router = useRouter();
+	const { status } = useAuth();
+
+	// Redirect guests to sign-in once the session check resolves.
+	useEffect(() => {
+		if (status === "guest") router.replace("/login");
+	}, [status, router]);
+
 	const [activeTab, setActiveTab]         = useState("decks");
 	const [expandedDeck, setExpandedDeck]   = useState(null);
 	const [historyFilter, setHistoryFilter] = useState("ALL");
@@ -69,6 +79,9 @@ export default function UserPage() {
 	const [linkedPlayer, setLinkedPlayer]       = useState(null);
 	const [eloHistory, setEloHistory]           = useState(null);
 	const [eloHistoryLoading, setEloHistoryLoading] = useState(false);
+
+	// Session still resolving, or a guest being redirected — render nothing.
+	if (status !== "authed") return null;
 
 	async function handleEloSearch(e) {
 		e.preventDefault();
