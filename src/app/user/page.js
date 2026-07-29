@@ -1,87 +1,80 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { COLOR_CONFIG, RARITY_CONFIG, cardGradient, cardGlow } from "../../lib/cards/data";
 import { COLORS } from "../../lib/data";
 import { countryFlag } from "../../lib/countries";
 import { useAuth } from "../../hooks/useAuth";
+import { useCards } from "../../components/CardStoreProvider";
+
+// A legend's base printing (mirrors the check in DeckSources).
+function isBaseCard(id) {
+	const match = id?.match(/-(\d+)[^/]*\/(\d+)/);
+	if (!match) return true;
+	return parseInt(match[1], 10) < parseInt(match[2], 10);
+}
 
 // ── Dummy data ─────────────────────────────────────────────────────────────────
 
 const RANK_COLORS = {
-	"Bronze":   { color: "#cd7f32", glow: "#cd7f3233", icon: "🥉" },
-	"Silver":   { color: "#c0c0c0", glow: "#c0c0c033", icon: "🥈" },
-	"Gold":     { color: "#ffd700", glow: "#ffd70033", icon: "🥇" },
+	"Bronze": { color: "#cd7f32", glow: "#cd7f3233", icon: "🥉" },
+	"Silver": { color: "#c0c0c0", glow: "#c0c0c033", icon: "🥈" },
+	"Gold": { color: "#ffd700", glow: "#ffd70033", icon: "🥇" },
 	"Platinum": { color: "#4fc3f7", glow: "#4fc3f733", icon: "💎" },
-	"Diamond":  { color: "#b388ff", glow: "#b388ff33", icon: "🔷" },
-	"Master":   { color: "#ff6d00", glow: "#ff6d0033", icon: "👑" },
+	"Diamond": { color: "#b388ff", glow: "#b388ff33", icon: "🔷" },
+	"Master": { color: "#ff6d00", glow: "#ff6d0033", icon: "👑" },
 };
 
 const USER = {
-	username:  "ShadowRift",
-	avatar:    "🧙",
-	title:     "Keeper of the Seventh Seal",
-	rank:      "Platinum",
-	joinDate:  "March 2024",
+	username: "ShadowRift",
+	avatar: "🧙",
+	title: "Keeper of the Seventh Seal",
+	rank: "Platinum",
+	joinDate: "March 2024",
 	stats: { wins: 142, losses: 58, draws: 7, winStreak: 6 },
 };
 
-const DECKS = [
-	{
-		id: "deck-1", name: "Fury of the Rift", description: "Aggressive burn strategy",
-		colors: ["Fury"], wins: 54, losses: 18, lastPlayed: "18 Jul 2026",
-		cardIds: ["c001", "c002", "c003", "c004", "c005"],
-	},
-	{
-		id: "deck-2", name: "Mind & Order", description: "Control with counter magic",
-		colors: ["Mind", "Order"], wins: 61, losses: 22, lastPlayed: "15 Jul 2026",
-		cardIds: ["c010", "c011", "c012", "c013"],
-	},
-	{
-		id: "deck-3", name: "Chaos Reigns", description: "High-variance combo build",
-		colors: ["Chaos", "Body"], wins: 27, losses: 18, lastPlayed: "10 Jul 2026",
-		cardIds: ["c020", "c021", "c022"],
-	},
-];
-
-const MATCH_HISTORY = [
-	{ id: "m1",  result: "WIN",  opponent: "VoidWalker",   date: "20 Jul 2026", deck: "Fury of the Rift",  opponentDeck: "Calm Storm",     turns: 12 },
-	{ id: "m2",  result: "WIN",  opponent: "StormCaller",  date: "20 Jul 2026", deck: "Mind & Order",       opponentDeck: "Body Rush",       turns: 18 },
-	{ id: "m3",  result: "LOSS", opponent: "IronClad",     date: "19 Jul 2026", deck: "Chaos Reigns",       opponentDeck: "Order Sentinel",  turns: 9  },
-	{ id: "m4",  result: "WIN",  opponent: "NightShade",   date: "19 Jul 2026", deck: "Fury of the Rift",  opponentDeck: "Mind Weaver",     turns: 14 },
-	{ id: "m5",  result: "DRAW", opponent: "EchoSerpent",  date: "18 Jul 2026", deck: "Mind & Order",       opponentDeck: "Mind & Order",    turns: 25 },
-	{ id: "m6",  result: "LOSS", opponent: "BlazeKnight",  date: "18 Jul 2026", deck: "Chaos Reigns",       opponentDeck: "Fury Aggro",      turns: 7  },
-	{ id: "m7",  result: "WIN",  opponent: "RuneMaster",   date: "17 Jul 2026", deck: "Fury of the Rift",  opponentDeck: "Chaos Reigns",    turns: 11 },
-	{ id: "m8",  result: "WIN",  opponent: "CalmTide",     date: "17 Jul 2026", deck: "Mind & Order",       opponentDeck: "Calm Storm",     turns: 20 },
-];
+// How many match-history rows to reveal per "Load More" click.
+const ELO_PAGE_SIZE = 10;
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
 export default function UserPage() {
 	const router = useRouter();
 	const { status } = useAuth();
+	const cards = useCards();
+
+	// Legends (Riftbound champions) for the match-row champion pickers.
+	const legends = useMemo(
+		() => cards
+			.filter(c => c.card_type_text?.includes("Legend") && isBaseCard(c.id))
+			.map(c => ({ id: c.id, name: c.name, image: c.image ?? null, tags_text: c.tags_text ?? "" }))
+			.sort((a, b) => a.name.localeCompare(b.name)),
+		[cards]
+	);
 
 	// Redirect guests to sign-in once the session check resolves.
 	useEffect(() => {
 		if (status === "guest") router.replace("/login");
 	}, [status, router]);
 
-	const [activeTab, setActiveTab]         = useState("decks");
-	const [expandedDeck, setExpandedDeck]   = useState(null);
-	const [historyFilter, setHistoryFilter] = useState("ALL");
-	const [hoveredTab, setHoveredTab]       = useState(null);
-	const [hoveredDeck, setHoveredDeck]     = useState(null);
-
-	const [eloQuery, setEloQuery]               = useState("");
-	const [eloResults, setEloResults]           = useState([]);
-	const [eloLoading, setEloLoading]           = useState(false);
-	const [eloError, setEloError]               = useState(null);
-	const [linkedPlayer, setLinkedPlayer]       = useState(null);
-	const [eloHistory, setEloHistory]           = useState(null);
+	const [eloQuery, setEloQuery] = useState("");
+	const [eloResults, setEloResults] = useState([]);
+	const [eloLoading, setEloLoading] = useState(false);
+	const [eloError, setEloError] = useState(null);
+	const [linkedPlayer, setLinkedPlayer] = useState(null);
+	const [eloHistory, setEloHistory] = useState(null);
 	const [eloHistoryLoading, setEloHistoryLoading] = useState(false);
+	const [eloVisible, setEloVisible] = useState(ELO_PAGE_SIZE);
+	// Per-match champion picks: { [matchId]: { mine, opponent } }.
+	const [matchChampions, setMatchChampions] = useState({});
 
 	// Session still resolving, or a guest being redirected — render nothing.
 	if (status !== "authed") return null;
+
+	function setChampion(matchId, side, championId) {
+		setMatchChampions(prev => ({ ...prev, [matchId]: { ...prev[matchId], [side]: championId } }));
+	}
 
 	async function handleEloSearch(e) {
 		e.preventDefault();
@@ -104,6 +97,7 @@ export default function UserPage() {
 
 	async function fetchEloHistory(playerId) {
 		setEloHistoryLoading(true);
+		setEloVisible(ELO_PAGE_SIZE);
 		try {
 			const res = await fetch(`/api/elo/players/${playerId}/elo-history`);
 			if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -117,10 +111,8 @@ export default function UserPage() {
 	}
 
 	const totalGames = USER.stats.wins + USER.stats.losses + USER.stats.draws;
-	const winRate    = Math.round((USER.stats.wins / totalGames) * 100);
-	const rank       = RANK_COLORS[USER.rank] || { color: "#e8d090", glow: "#e8d09044", icon: "⭐" };
-
-	const filteredHistory = MATCH_HISTORY.filter(m => historyFilter === "ALL" || m.result === historyFilter);
+	const winRate = Math.round((USER.stats.wins / totalGames) * 100);
+	const rank = RANK_COLORS[USER.rank] || { color: "#e8d090", glow: "#e8d09044", icon: "⭐" };
 
 	return (
 		<div style={{ maxWidth: 1000, margin: "0 auto", padding: "40px 24px" }}>
@@ -168,9 +160,9 @@ export default function UserPage() {
 				{/* Stats */}
 				<div style={{ display: "flex", gap: 12, flexShrink: 0 }}>
 					{[
-						{ label: "WINS",   value: USER.stats.wins,   color: "#4caf50" },
+						{ label: "WINS", value: USER.stats.wins, color: "#4caf50" },
 						{ label: "LOSSES", value: USER.stats.losses, color: "#ef5350" },
-						{ label: "WIN%",   value: `${winRate}%`,     color: COLORS.gold },
+						{ label: "WIN%", value: `${winRate}%`, color: COLORS.gold },
 					].map(s => (
 						<div key={s.label} style={{ background: "#10121a", border: "1px solid #1e2030", borderRadius: 10, padding: 18, textAlign: "center", minWidth: 70 }}>
 							<div style={{ fontSize: 22, fontWeight: 900, color: s.color, fontFamily: "'Segoe UI', system-ui, sans-serif" }}>{s.value}</div>
@@ -188,84 +180,6 @@ export default function UserPage() {
 				<div style={{ fontSize: 10, color: COLORS.textDim, letterSpacing: "0.18em", fontFamily: "'Segoe UI', system-ui, sans-serif", marginBottom: 14 }}>
 					Find your latest match history with Riot ID
 				</div>
-
-				{linkedPlayer && (
-					<div style={{
-						display: "flex", alignItems: "center", gap: 14, marginBottom: 16,
-						background: "#0d1020", border: "1px solid #2a3060", borderRadius: 10, padding: "12px 16px",
-					}}>
-						<div style={{ fontSize: 18 }}>🔗</div>
-						<div style={{ flex: 1 }}>
-							<div style={{ fontSize: 14, fontWeight: 700, color: COLORS.gold, fontFamily: "'Segoe UI', system-ui, sans-serif" }}>{linkedPlayer.display_name}</div>
-							<div style={{ fontSize: 11, color: COLORS.textMuted, fontFamily: "'Segoe UI', system-ui, sans-serif", marginTop: 2 }}>
-								{linkedPlayer.primary_community} · {countryFlag(linkedPlayer.country)} {linkedPlayer.country}
-							</div>
-						</div>
-						<button onClick={() => { setLinkedPlayer(null); setEloResults([]); setEloQuery(""); setEloHistory(null); }}
-							style={{ background: "transparent", border: "none", color: COLORS.textDim, cursor: "pointer", fontSize: 16, padding: 4 }}>✕</button>
-					</div>
-				)}
-
-				{/* ── ELO History ── */}
-				{linkedPlayer && (
-					<div style={{ marginBottom: 16 }}>
-						{eloHistoryLoading && (
-							<div style={{ fontSize: 11, color: COLORS.textDim, fontFamily: "'Segoe UI', system-ui, sans-serif", letterSpacing: "0.1em", padding: "10px 0" }}>
-								LOADING MATCH HISTORY…
-							</div>
-						)}
-						{eloHistory && (() => {
-							const points  = [...eloHistory.points].reverse();
-							const current = eloHistory.points[eloHistory.points.length - 1]?.elo_after;
-							const recent  = points.slice(0, 10);
-							return (
-								<div>
-									<div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 12 }}>
-										<div style={{ fontSize: 10, color: COLORS.textDim, letterSpacing: "0.15em", fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
-											ELO
-										</div>
-										<div style={{ fontSize: 22, fontWeight: 700, color: COLORS.gold, fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
-											{current}
-										</div>
-										<div style={{ fontSize: 10, color: COLORS.textDim, letterSpacing: "0.1em", fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
-											{eloHistory.season_slug.replace(/-/g, " ").toUpperCase()}
-										</div>
-									</div>
-									<div style={{ background: "#0a0c14", border: `1px solid ${COLORS.border}`, borderRadius: 10, overflow: "hidden" }}>
-										{recent.map((m, i) => {
-											const resultColor = m.result === "win" ? "#4caf50" : m.result === "loss" ? "#ef5350" : "#ffd700";
-											const changeSign  = m.elo_change > 0 ? "+" : "";
-											const d           = new Date(m.date);
-											const dateStr     = d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-											return (
-												<div key={m.match_id}
-													onMouseEnter={e => { e.currentTarget.style.background = "#0d0f17"; }}
-													onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
-													style={{
-														display: "grid", gridTemplateColumns: "52px 1fr 60px",
-														alignItems: "center", padding: "9px 14px", gap: 12,
-														borderBottom: i < recent.length - 1 ? "1px solid #12141e" : "none",
-														transition: "background 0.15s",
-													}}>
-													<span style={{ fontSize: 11, fontWeight: 700, color: resultColor, fontFamily: "'Segoe UI', system-ui, sans-serif", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-														{m.result}
-													</span>
-													<div>
-														<div style={{ fontSize: 13, color: COLORS.text, fontFamily: "'Segoe UI', system-ui, sans-serif" }}>{m.opponent_name}</div>
-														<div style={{ fontSize: 10, color: COLORS.textDim, fontFamily: "'Segoe UI', system-ui, sans-serif", marginTop: 1 }}>{dateStr}</div>
-													</div>
-													<span style={{ fontSize: 13, fontWeight: 700, color: m.elo_change > 0 ? "#4caf50" : m.elo_change < 0 ? "#ef5350" : COLORS.textDim, fontFamily: "'Segoe UI', system-ui, sans-serif", textAlign: "right" }}>
-														{changeSign}{m.elo_change}
-													</span>
-												</div>
-											);
-										})}
-									</div>
-								</div>
-							);
-						})()}
-					</div>
-				)}
 
 				<form onSubmit={handleEloSearch} style={{ display: "flex", gap: 10 }}>
 					<input
@@ -294,11 +208,11 @@ export default function UserPage() {
 					</button>
 				</form>
 
-				{eloError && (
+				{ eloError && (
 					<div style={{ marginTop: 12, fontSize: 12, color: "#ef5350", fontFamily: "'Segoe UI', system-ui, sans-serif" }}>{eloError}</div>
-				)}
+				) }
 
-				{eloResults.length > 0 && (
+				{ eloResults.length > 0 && (
 					<div style={{ marginTop: 14, background: "#0a0c14", border: `1px solid ${COLORS.border}`, borderRadius: 10, overflow: "hidden" }}>
 						{eloResults.map((player, i) => (
 							<div key={player.id}
@@ -319,186 +233,175 @@ export default function UserPage() {
 							</div>
 						))}
 					</div>
-				)}
-			</div>
+				) }
 
-			{/* ── Tabs ── */}
-			<div style={{ borderBottom: `1px solid ${COLORS.border}`, marginBottom: 28, display: "flex", gap: 0 }}>
-				{[
-					{ id: "decks",   label: "MY DECKS"     },
-					{ id: "history", label: "MATCH HISTORY" },
-				].map(tab => {
-					const isActive  = activeTab === tab.id;
-					const isHovered = hoveredTab === tab.id;
-					return (
-						<button key={tab.id}
-							onClick={() => setActiveTab(tab.id)}
-							onMouseEnter={() => setHoveredTab(tab.id)}
-							onMouseLeave={() => setHoveredTab(null)}
-							style={{
-								background: "transparent", border: "none",
-								borderBottom: `2px solid ${isActive ? "#e8d090" : "transparent"}`,
-								padding: "10px 20px",
-								fontFamily: "'Segoe UI', system-ui, sans-serif", fontSize: 11, letterSpacing: "0.15em",
-								color: isActive ? "#e8d090" : isHovered ? "#aaa" : "#6a6a8a",
-								cursor: "pointer", transition: "all 0.2s",
-							}}>
-							{tab.label}
-						</button>
-					);
-				})}
-			</div>
-
-			{/* ── Decks Tab ── */}
-			{activeTab === "decks" && (
-				<div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-					{DECKS.map(deck => {
-						const primaryColor = COLOR_CONFIG[deck.colors[0]];
-						const open    = expandedDeck === deck.id;
-						const hovered = hoveredDeck === deck.id;
-						const deckCards = deck.cardIds; // TODO: replace with real card lookups when decks are loaded from DynamoDB
-						const wr = Math.round((deck.wins / (deck.wins + deck.losses)) * 100);
-
-						return (
-							<div key={deck.id}
-								onMouseEnter={() => setHoveredDeck(deck.id)}
-								onMouseLeave={() => setHoveredDeck(null)}
-								style={{
-									background: "#10121a",
-									border: `1px solid ${open ? primaryColor.glow + "55" : hovered ? "#2a2c3a" : "#1e2030"}`,
-									borderRadius: 12, overflow: "hidden", transition: "all 0.25s", cursor: "pointer",
-									boxShadow: open ? `0 0 20px ${primaryColor.glow}22` : "none",
-									transform: hovered && !open ? "translateY(-2px)" : "none",
-								}}>
-								{/* Header row */}
-								<div onClick={() => setExpandedDeck(open ? null : deck.id)}
-									style={{ padding: "18px 20px", display: "flex", alignItems: "center", gap: 16,
-													 background: open ? cardGradient(deck.colors) : "transparent" }}>
-									<div style={{ display: "flex", gap: 4 }}>
-										{deck.colors.map(c => <span key={c} style={{ fontSize: 18 }}>{COLOR_CONFIG[c].icon}</span>)}
-									</div>
-									<div style={{ flex: 1 }}>
-										<div style={{ fontSize: 15, fontWeight: 700, color: COLORS.gold, fontFamily: "'Segoe UI', system-ui, sans-serif", letterSpacing: "0.06em" }}>{deck.name}</div>
-										<div style={{ fontSize: 12, color: COLORS.textMuted, fontFamily: "'Segoe UI', system-ui, sans-serif", fontStyle: "italic", marginTop: 2 }}>{deck.description}</div>
-									</div>
-									<div style={{ display: "flex", gap: 20, alignItems: "center" }}>
-										<div style={{ textAlign: "center" }}>
-											<div style={{ fontSize: 16, fontWeight: 700, color: "#4caf50", fontFamily: "'Segoe UI', system-ui, sans-serif" }}>{wr}%</div>
-											<div style={{ fontSize: 9, color: COLORS.textDim, letterSpacing: "0.1em", fontFamily: "'Segoe UI', system-ui, sans-serif" }}>WIN RATE</div>
-										</div>
-										<div style={{ textAlign: "center" }}>
-											<div style={{ fontSize: 14, color: COLORS.textMuted, fontFamily: "'Segoe UI', system-ui, sans-serif" }}>{deck.wins}W {deck.losses}L</div>
-											<div style={{ fontSize: 9, color: COLORS.textDim, letterSpacing: "0.1em", fontFamily: "'Segoe UI', system-ui, sans-serif" }}>RECORD</div>
-										</div>
-										<div style={{ fontSize: 16, color: COLORS.textDim, transition: "transform 0.2s", transform: open ? "rotate(180deg)" : "none" }}>▾</div>
-									</div>
-								</div>
-
-								{/* Expanded: card previews */}
-								{open && (
-									<div style={{ padding: "0 20px 20px", borderTop: `1px solid ${primaryColor.glow}22` }}>
-										<div style={{ fontSize: 10, color: COLORS.textDim, letterSpacing: "0.15em", fontFamily: "'Segoe UI', system-ui, sans-serif", margin: "14px 0 10px" }}>
-											CARDS IN DECK ({deckCards.length})
-										</div>
-										<div style={{ fontSize: 11, color: COLORS.textDim, fontFamily: "'Segoe UI', system-ui, sans-serif", letterSpacing: "0.06em", fontStyle: "italic" }}>
-											Card details will appear here once decks are loaded from the database.
-										</div>
-										<div style={{ fontSize: 10, color: COLORS.textDim, marginTop: 12, fontFamily: "'Segoe UI', system-ui, sans-serif", letterSpacing: "0.06em" }}>
-											LAST PLAYED: {deck.lastPlayed.toUpperCase()}
-										</div>
-									</div>
-								)}
+				{ linkedPlayer && (
+					<div style={{
+						display: "flex", alignItems: "center", gap: 14, marginTop: 16, marginBottom: 16,
+						background: "#0d1020", border: "1px solid #2a3060", borderRadius: 10, padding: "12px 16px",
+					}}>
+						<div style={{ fontSize: 18 }}>🔗</div>
+						<div style={{ flex: 1 }}>
+							<div style={{ fontSize: 14, fontWeight: 700, color: COLORS.gold, fontFamily: "'Segoe UI', system-ui, sans-serif" }}>{linkedPlayer.display_name}</div>
+							<div style={{ fontSize: 11, color: COLORS.textMuted, fontFamily: "'Segoe UI', system-ui, sans-serif", marginTop: 2 }}>
+								{linkedPlayer.primary_community} · {countryFlag(linkedPlayer.country)} {linkedPlayer.country}
 							</div>
-						);
-					})}
-
-					{/* New deck CTA */}
-					<button
-						onMouseEnter={e => { e.target.style.borderColor = "#4a4a6a"; e.target.style.color = "#8a8aaa"; }}
-						onMouseLeave={e => { e.target.style.borderColor = "#2a2c3a"; e.target.style.color = COLORS.textDim; }}
-						style={{
-							background: "transparent", border: "1px dashed #2a2c3a", borderRadius: 12,
-							padding: "20px", color: COLORS.textDim, fontFamily: "'Segoe UI', system-ui, sans-serif",
-							fontSize: 11, letterSpacing: "0.15em", cursor: "pointer", transition: "all 0.2s",
-						}}>
-						+ CREATE NEW DECK
-					</button>
-				</div>
-			)}
-
-			{/* ── History Tab ── */}
-			{activeTab === "history" && (
-				<div>
-					{/* Filter pills */}
-					<div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-						{["ALL", "WIN", "LOSS", "DRAW"].map(f => {
-							const isActive = historyFilter === f;
-							return (
-								<button key={f}
-									onClick={() => setHistoryFilter(f)}
-									style={{
-										background: isActive ? "#1a1f35" : "#12141e",
-										border: `1px solid ${isActive ? "#4a5090" : "#1e2030"}`,
-										borderRadius: 20, padding: "5px 14px",
-										fontFamily: "'Segoe UI', system-ui, sans-serif", fontSize: 10, letterSpacing: "0.1em",
-										color: isActive ? "#8890cc" : "#666",
-										cursor: "pointer", transition: "all 0.2s",
-									}}>
-									{f}
-								</button>
-							);
-						})}
-						<span style={{ marginLeft: "auto", fontSize: 11, color: COLORS.textDim, fontFamily: "'Segoe UI', system-ui, sans-serif", alignSelf: "center", letterSpacing: "0.06em" }}>
-							{filteredHistory.length} GAMES
-						</span>
-					</div>
-
-					{/* Table */}
-					<div style={{ background: COLORS.bgCard, border: `1px solid ${COLORS.border}`, borderRadius: 12, overflow: "hidden" }}>
-						{/* Header */}
-						<div style={{
-							display: "grid", gridTemplateColumns: "80px 1fr 1fr 1fr 60px", gap: 0,
-							padding: "10px 16px", borderBottom: `1px solid ${COLORS.border}`,
-							background: COLORS.bgAlt,
-						}}>
-							{["RESULT", "OPPONENT", "MY DECK", "OPP. DECK", "TURNS"].map(h => (
-								<div key={h} style={{ fontSize: 9, color: COLORS.textDim, letterSpacing: "0.15em", fontFamily: "'Segoe UI', system-ui, sans-serif" }}>{h}</div>
-							))}
 						</div>
+						<button onClick={() => { setLinkedPlayer(null); setEloResults([]); setEloQuery(""); setEloHistory(null); setEloVisible(ELO_PAGE_SIZE); }}
+							style={{ background: "transparent", border: "none", color: COLORS.textDim, cursor: "pointer", fontSize: 16, padding: 4 }}>✕</button>
+					</div>
+				) }
 
-						{filteredHistory.map((match, i) => {
-							const resultColor = match.result === "WIN" ? "#4caf50" : match.result === "LOSS" ? "#ef5350" : "#ffd700";
-							return (
-								<div key={match.id}
-									onMouseEnter={e => { e.currentTarget.style.background = "#0d0f17"; }}
-									onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
-									style={{
-										display: "grid", gridTemplateColumns: "80px 1fr 1fr 1fr 60px", gap: 0,
-										alignItems: "center", padding: "12px 16px",
-										borderBottom: i < filteredHistory.length - 1 ? "1px solid #12141e" : "none",
-										transition: "background 0.15s",
-									}}>
-									<span style={{ fontSize: 11, fontWeight: 700, color: resultColor, fontFamily: "'Segoe UI', system-ui, sans-serif", letterSpacing: "0.1em" }}>
-										{match.result}
-									</span>
-									<div>
-										<div style={{ fontSize: 13, color: COLORS.text, fontFamily: "'Segoe UI', system-ui, sans-serif" }}>{match.opponent}</div>
-										<div style={{ fontSize: 10, color: COLORS.textDim, fontFamily: "'Segoe UI', system-ui, sans-serif", letterSpacing: "0.04em" }}>{match.date}</div>
-									</div>
-									<span style={{ fontSize: 12, color: COLORS.textMuted, fontFamily: "'Segoe UI', system-ui, sans-serif" }}>{match.deck}</span>
-									<span style={{ fontSize: 12, color: COLORS.textMuted, fontFamily: "'Segoe UI', system-ui, sans-serif" }}>{match.opponentDeck}</span>
-									<span style={{ fontSize: 13, color: COLORS.textDim, fontFamily: "'Segoe UI', system-ui, sans-serif" }}>{match.turns}</span>
-								</div>
-							);
-						})}
-
-						{filteredHistory.length === 0 && (
-							<div style={{ padding: 40, textAlign: "center", color: COLORS.textDim, fontFamily: "'Segoe UI', system-ui, sans-serif", fontSize: 12, letterSpacing: "0.1em" }}>
-								NO MATCHES FOUND
+				{/* ── ELO History ── */}
+				{ linkedPlayer && (
+					<div style={{ marginBottom: 16 }}>
+						{eloHistoryLoading && (
+							<div style={{ fontSize: 11, color: COLORS.textDim, fontFamily: "'Segoe UI', system-ui, sans-serif", letterSpacing: "0.1em", padding: "10px 0" }}>
+								LOADING MATCH HISTORY…
 							</div>
 						)}
+						{ eloHistory && (() => {
+							const points = [...eloHistory.points].reverse();
+							const current = eloHistory.points[eloHistory.points.length - 1]?.elo_after;
+							const recent = points.slice(0, eloVisible);
+							const hasMore = points.length > eloVisible;
+							return (
+								<div>
+									<div style={{ display: "flex", alignItems: "baseline", gap: 16, marginBottom: 12 }}>
+										<div style={{ fontSize: 10, color: COLORS.textDim, letterSpacing: "0.15em", fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
+											ELO
+										</div>
+										<div style={{ fontSize: 22, fontWeight: 700, color: COLORS.gold, fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
+											{current}
+										</div>
+										<div style={{ fontSize: 10, color: COLORS.textDim, letterSpacing: "0.1em", fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
+											{eloHistory.season_slug.replace(/-/g, " ").toUpperCase()}
+										</div>
+									</div>
+									<div style={{ background: "#0a0c14", border: `1px solid ${COLORS.border}`, borderRadius: 10, overflow: "visible" }}>
+										{recent.map((m, i) => {
+											const resultColor = m.result === "win" ? "#4caf50" : m.result === "loss" ? "#ef5350" : "#ffd700";
+											const changeSign = m.elo_change > 0 ? "+" : "";
+											const d = new Date(m.date);
+											const dateStr = d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+											const picks = matchChampions[m.match_id] || {};
+											return (
+												<div key={m.match_id}
+													style={{
+														position: "relative", height: 68,
+														borderBottom: i < recent.length - 1 ? "1px solid #12141e" : "none",
+														overflow: "visible",
+													}}>
+													<ChampionHalf side="left" label="YOU" champions={legends} value={picks.mine}
+														onSelect={id => setChampion(m.match_id, "mine", id)} />
+													<ChampionHalf side="right" label="OPP" champions={legends} value={picks.opponent}
+														onSelect={id => setChampion(m.match_id, "opponent", id)} />
+													<div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", gap: 14, pointerEvents: "none", zIndex: 3 }}>
+														<span style={{ fontSize: 11, fontWeight: 700, color: resultColor, fontFamily: "'Segoe UI', system-ui, sans-serif", letterSpacing: "0.08em", textTransform: "uppercase", textShadow: "0 1px 4px #000" }}>
+															{m.result}
+														</span>
+														<div style={{ textAlign: "center" }}>
+															<div style={{ fontSize: 13, color: COLORS.text, fontFamily: "'Segoe UI', system-ui, sans-serif", textShadow: "0 1px 4px #000" }}>{m.opponent_name}</div>
+															<div style={{ fontSize: 10, color: COLORS.textDim, fontFamily: "'Segoe UI', system-ui, sans-serif", marginTop: 1, textShadow: "0 1px 4px #000" }}>{dateStr}</div>
+														</div>
+														<span style={{ fontSize: 13, fontWeight: 700, color: m.elo_change > 0 ? "#4caf50" : m.elo_change < 0 ? "#ef5350" : COLORS.textDim, fontFamily: "'Segoe UI', system-ui, sans-serif", textShadow: "0 1px 4px #000" }}>
+															{changeSign}{m.elo_change}
+														</span>
+													</div>
+												</div>
+											);
+										})}
+									</div>
+									{ hasMore && (
+										<button
+											onClick={() => setEloVisible(v => v + ELO_PAGE_SIZE)}
+											onMouseEnter={e => { e.currentTarget.style.borderColor = "#4a5090"; e.currentTarget.style.color = "#8890cc"; }}
+											onMouseLeave={e => { e.currentTarget.style.borderColor = "#1e2030"; e.currentTarget.style.color = COLORS.textMuted; }}
+											style={{
+												width: "100%", marginTop: 12, padding: "10px 20px",
+												background: "#12141e", border: "1px solid #1e2030", borderRadius: 10,
+												color: COLORS.textMuted, fontFamily: "'Segoe UI', system-ui, sans-serif",
+												fontSize: 11, letterSpacing: "0.14em", cursor: "pointer", transition: "all 0.2s",
+											}}>
+											LOAD MORE ({points.length - eloVisible} MORE)
+										</button>
+									) }
+								</div>
+							);
+						} ) () }
 					</div>
-				</div>
+				) }
+
+			</div>
+		</div>
+	);
+}
+
+// ── Champion half ────────────────────────────────────────────────────────────
+// Fills its half (left/right) of a match row with the selected champion's art,
+// clipped so it never overflows the row. Click opens the legend picker.
+
+function ChampionHalf({ champions, value, onSelect, label, side }) {
+	const [open, setOpen] = useState(false);
+	const champ = champions.find(c => c.id === value);
+	const isLeft = side === "left";
+	// Fade the art toward the row's centre so the match info stays readable.
+	const fade = isLeft
+		? "linear-gradient(90deg, rgba(10,12,20,0) 25%, rgba(10,12,20,0.96) 100%)"
+		: "linear-gradient(270deg, rgba(10,12,20,0) 25%, rgba(10,12,20,0.96) 100%)";
+
+	return (
+		<div style={{ position: "absolute", [isLeft ? "left" : "right"]: 0, top: 0, width: "50%", height: "100%", zIndex: open ? 60 : 1 }}>
+			<button onClick={() => setOpen(o => !o)}
+				title={champ ? champ.tags_text : "Select champion"}
+				style={{
+					width: "100%", height: "100%", position: "relative", overflow: "hidden",
+					border: "none", background: champ ? "transparent" : "#0a0c14", cursor: "pointer", padding: 0,
+					display: "flex", alignItems: "center", justifyContent: isLeft ? "flex-start" : "flex-end",
+				}}>
+				{champ?.image && (
+					<Image src={champ.image} alt={champ.tags_text} fill sizes="360px" style={{ objectFit: "cover", objectPosition: "center 22%" }} />
+				)}
+				<div style={{ position: "absolute", inset: 0, background: fade, pointerEvents: "none" }} />
+				<span style={{
+					position: "relative", zIndex: 1, padding: "0 12px",
+					fontSize: 9, letterSpacing: "0.1em", whiteSpace: "nowrap",
+					color: champ ? COLORS.gold : COLORS.textDim,
+					fontFamily: "'Segoe UI', system-ui, sans-serif",
+				}}>
+					{champ ? `${label} · ${champ.tags_text}` : `＋ ${label}`}
+				</span>
+			</button>
+
+			{open && (
+				<>
+					{/* click-away backdrop */}
+					<div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
+					<div style={{
+						position: "absolute", top: "calc(100% + 4px)", [isLeft ? "left" : "right"]: 8, zIndex: 50,
+						minWidth: 190, maxHeight: 260, overflowY: "auto",
+						background: "#10121a", border: `1px solid ${COLORS.border}`, borderRadius: 10,
+						boxShadow: "0 8px 24px #00000088",
+					}}>
+						{champions.length === 0 && (
+							<div style={{ padding: "12px 14px", fontSize: 11, color: COLORS.textDim, fontFamily: "'Segoe UI', system-ui, sans-serif", letterSpacing: "0.06em" }}>
+								Visit the Cards page first to load legends.
+							</div>
+						)}
+						{champions.map(c => (
+							<div key={c.id}
+								onClick={() => { onSelect(c.id); setOpen(false); }}
+								onMouseEnter={e => { e.currentTarget.style.background = "#161a28"; }}
+								onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+								style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 12px", cursor: "pointer", transition: "background 0.15s" }}>
+								<div style={{ position: "relative", width: 26, height: 36, borderRadius: 4, overflow: "hidden", background: "#0a0c14", flexShrink: 0 }}>
+									{c.image && <Image src={c.image} alt={c.tags_text} fill sizes="26px" style={{ objectFit: "cover", objectPosition: "top" }} />}
+								</div>
+								<span style={{ fontSize: 12, color: c.id === value ? COLORS.gold : COLORS.text, fontFamily: "'Segoe UI', system-ui, sans-serif" }}>{c.tags_text}</span>
+							</div>
+						))}
+					</div>
+				</>
 			)}
 		</div>
 	);

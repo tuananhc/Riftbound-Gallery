@@ -31,8 +31,8 @@ This file defines the architecture rules, coding conventions, and best practices
 // CORRECT — server component fetches, client component renders
 // page.js (server)
 export default async function CardsPage() {
-	const cards = await getAllCards();
-	return <CardGrid initialCards={cards} />;
+  const cards = await getAllCards();
+  return <CardGrid initialCards={cards} />;
 }
 
 // CardGrid.js (client)
@@ -67,7 +67,7 @@ import { getAllCards } from "../../lib/cards"; // throws if cards.js uses Node.j
 - All tables use **Standard table class** — not Standard-IA (cards are frequently accessed)
 - Never add GSIs unless a specific server-side query pattern requires one — there are currently none
 - Never store `null` values in DynamoDB — strip null and empty string fields before writing
-- MatchHistory and DeckVersions writes must always include a `ttl` field (Unix timestamp, 90 days)
+- MatchHistory and DeckVersions items persist indefinitely — do **not** set a `ttl` field on them (users own this data and can edit it, so it must not auto-expire). Bound read size with `Query` `Limit` + pagination (`LastEvaluatedKey`), not deletion
 - Deck saves must use `TransactWriteCommand` to atomically write both the Decks record and DeckVersions snapshot
 
 ### Auth
@@ -81,7 +81,7 @@ import { getAllCards } from "../../lib/cards"; // throws if cards.js uses Node.j
 
 ## File Structure Conventions
 
-```
+```txt
 src/
 ├── app/                  # Next.js App Router pages — server components only
 │   ├── layout.js
@@ -164,22 +164,45 @@ COLORS.gold       // #e8d090 — accent gold
 ## Component Conventions
 
 ### Naming
+
 - Component files use **PascalCase**: `CardGrid.js`, `CardModal.js`
 - Hook files use **camelCase** with `use` prefix: `useCardFilters.js`
 - Lib files use **camelCase**: `cardTextParser.js`, `posts.js`
 - Page files are always named `page.js` per Next.js App Router convention
 
+### Formatting
+
+- **Never vertically align code with extra spaces.** Do not pad assignments, object keys, or values to line up `=`, `:`, or values across adjacent lines. Use a single space after `:` and around `=`, always.
+- Alignment breaks the moment one line's name changes length, producing noisy diffs where only whitespace moved — and it fights the formatter, which strips it back out.
+
+```js
+// WRONG — padded to align
+const winRate    = 0.72;
+const rank       = "Platinum";
+username:  "ShadowRift",
+avatar:    "🧙",
+
+// CORRECT — single space, no alignment
+const winRate = 0.72;
+const rank = "Platinum";
+username: "ShadowRift",
+avatar: "🧙",
+```
+
 ### Client components
+
 - Always declare `"use client"` as the **first line** of the file
 - Never import server-only modules (`fs`, `path`, `postgres`, `server-only`)
 - Receive all external data via props — never fetch inside a client component
 
 ### Card text rendering
+
 - Never render `ability_text` or `effect_text` as raw strings — always pass through `CardText` component
 - `_html` fields from the database may be rendered with `dangerouslySetInnerHTML` for display only — never use `_html` fields for logic or filtering
 - `[Keyword]` badges use `skewX(-12deg)` parallelogram shape and map to `KEYWORD_STYLES` in `cardTextParser.js`
 
 ### Next.js Image
+
 - Always use `<Image>` from `next/image` for card images — never a plain `<img>` tag
 - Card images use `objectFit: "contain"` not `"cover"` to avoid distortion
 - Allowed external domains: `cmsassets.rgpub.io`, `assetcdn.rgpub.io` (configured in `next.config.js`)
@@ -189,7 +212,7 @@ COLORS.gold       // #e8d090 — accent gold
 ## Known Pitfalls — Do Not Repeat
 
 | Issue | Cause | Fix |
-|---|---|---|
+| --- | --- | --- |
 | `Module not found: fs` | Node.js import inside `"use client"` file | Move DB/file reads to server component |
 | Hydration mismatch | Inline `<style>` tags rendered on server | Add `suppressHydrationWarning` to root or avoid inline style tags |
 | Event handlers on server component | `onMouseEnter`/`onMouseLeave` in non-client file | Use CSS hover classes or mark component `"use client"` |
@@ -239,12 +262,14 @@ When the user types `SUMMARISE`, generate a dev log entry and write it to a mark
 If a file for today already exists, append to it rather than overwriting it.
 
 ### File naming
-```
+
+```txt
 content/devlog/2026-04-06.md
 content/devlog/2026-04-07.md
 ```
 
 ### Log number
+
 Before writing, count the number of existing `.md` files in `content/devlog/`. The log number is that count + 1. If today's file already exists, keep its existing log number.
 
 ### Required format
@@ -294,6 +319,7 @@ identified this session.
 ```
 
 ### Example header
+
 ```markdown
 # Monday 6 April 2026 - Dev Log No. 1
 
@@ -304,6 +330,7 @@ deployment configuration.
 ```
 
 ### Rules
+
 - Always write the file — do not just print the summary to the chat
 - Count existing files in `content/devlog/` to determine the log number before writing
 - If a file for today already exists, append to it and keep the same log number
