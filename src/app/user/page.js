@@ -6,6 +6,7 @@ import { COLORS } from "../../lib/data";
 import { countryFlag } from "../../lib/countries";
 import { useAuth } from "../../hooks/useAuth";
 import { useCards } from "../../components/CardStoreProvider";
+import { saveMatchHistory } from "../../lib/api";
 
 // A legend's base printing (mirrors the check in DeckSources).
 function isBaseCard(id) {
@@ -41,7 +42,7 @@ const ELO_PAGE_SIZE = 10;
 
 export default function UserPage() {
 	const router = useRouter();
-	const { status } = useAuth();
+	const { status, token } = useAuth();
 	const cards = useCards();
 
 	// Legends (Riftbound champions) for the match-row champion pickers.
@@ -68,12 +69,44 @@ export default function UserPage() {
 	const [eloVisible, setEloVisible] = useState(ELO_PAGE_SIZE);
 	// Per-match champion picks: { [matchId]: { mine, opponent } }.
 	const [matchChampions, setMatchChampions] = useState({});
+	const [saving, setSaving] = useState(false);
+	const [saveMsg, setSaveMsg] = useState(null);
 
 	// Session still resolving, or a guest being redirected — render nothing.
 	if (status !== "authed") return null;
 
 	function setChampion(matchId, side, championId) {
 		setMatchChampions(prev => ({ ...prev, [matchId]: { ...prev[matchId], [side]: championId } }));
+	}
+
+	// Send the loaded match history (with champion picks) to DynamoDB. The Lambda
+	// derives the userId from the JWT and keys each match by matchId.
+	async function handleSaveHistory() {
+		if (!eloHistory?.points?.length) return;
+		setSaving(true);
+		setSaveMsg(null);
+		const matches = eloHistory.points.map(m => {
+			const picks = matchChampions[m.match_id] || {};
+			return {
+				matchId: m.match_id,
+				result: m.result,
+				playedAt: m.date,
+				opponent: m.opponent_name,
+				eloChange: m.elo_change,
+				eloAfter: m.elo_after,
+				season: eloHistory.season_slug,
+				myChampion: picks.mine ?? null,
+				opponentChampion: picks.opponent ?? null,
+			};
+		});
+		try {
+			await saveMatchHistory(token, matches);
+			setSaveMsg({ ok: true, text: `Saved ${matches.length} matches to your history.` });
+		} catch {
+			setSaveMsg({ ok: false, text: "Could not save — make sure the backend is deployed and you're signed in." });
+		} finally {
+			setSaving(false);
+		}
 	}
 
 	async function handleEloSearch(e) {
@@ -326,6 +359,27 @@ export default function UserPage() {
 											LOAD MORE ({points.length - eloVisible} MORE)
 										</button>
 									) }
+
+									{/* Save the whole loaded history (with champion picks) to DynamoDB */}
+									<button onClick={handleSaveHistory} disabled={saving}
+										onMouseEnter={e => { if (!saving) e.currentTarget.style.boxShadow = "0 0 18px #e8d09055"; }}
+										onMouseLeave={e => { e.currentTarget.style.boxShadow = "none"; }}
+										style={{
+											width: "100%", marginTop: 12, padding: "12px 20px", borderRadius: 10,
+											background: saving ? "#1a1c28" : "linear-gradient(135deg, #e8d090, #d4bc78)",
+											border: `1px solid ${saving ? "#1e2030" : "#f0dca0"}`,
+											color: saving ? COLORS.textDim : "#1a1206",
+											fontFamily: "'Segoe UI', system-ui, sans-serif", fontSize: 12, fontWeight: 800, letterSpacing: "0.14em",
+											cursor: saving ? "not-allowed" : "pointer", transition: "all 0.2s",
+										}}>
+										{saving ? "SAVING…" : "SAVE MATCH HISTORY"}
+									</button>
+
+									{saveMsg && (
+										<div style={{ marginTop: 10, fontSize: 12, textAlign: "center", color: saveMsg.ok ? "#4caf50" : "#ef5350", fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
+											{saveMsg.text}
+										</div>
+									)}
 								</div>
 							);
 						} ) () }

@@ -105,18 +105,30 @@ export default function Navbar() {
 
       {status === "authed" && (
       <div ref={menuRef} style={{ position: "relative" }}>
-        {/* Dummy avatar — indicates a successful login */}
+        {/* Avatar + username — indicates a successful login */}
         <button onClick={() => setMenuOpen(o => !o)}
           title={user?.email ?? "Account"}
-          onMouseEnter={e => e.currentTarget.style.boxShadow = "0 0 12px #6020a077"}
-          onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}
+          onMouseEnter={e => e.currentTarget.style.borderColor = "#6a30a0"}
+          onMouseLeave={e => e.currentTarget.style.borderColor = menuOpen ? "#6a30a0" : COLORS.border}
           style={{
-            width: 34, height: 34, borderRadius: "50%",
+            display: "flex", alignItems: "center", gap: 9,
+            background: "#10121a", border: `1px solid ${menuOpen ? "#6a30a0" : COLORS.border}`,
+            borderRadius: 20, padding: "4px 14px 4px 4px", cursor: "pointer", transition: "all 0.2s",
+          }}>
+          <div style={{
+            width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
             background: "linear-gradient(135deg, #2a1040, #1a0830)",
-            border: `1px solid ${menuOpen ? "#6a30a0" : "#4a2060"}`,
+            border: "1px solid #4a2060",
             display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 15, cursor: "pointer", transition: "all 0.2s", padding: 0,
-          }}>🧙</button>
+            fontSize: 14,
+          }}>🧙</div>
+          <span style={{
+            fontSize: 12, color: COLORS.text, fontFamily: "'Segoe UI', system-ui, sans-serif",
+            letterSpacing: "0.06em", maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          }}>
+            {user?.email ? user.email.split("@")[0] : "Account"}
+          </span>
+        </button>
 
         {menuOpen && (
           <div style={{
