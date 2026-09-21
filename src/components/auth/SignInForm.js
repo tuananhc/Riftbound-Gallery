@@ -36,7 +36,7 @@ export default function SignInForm() {
 			onSuccess: () => {
 				// Tokens are cached in localStorage by the SDK. Send the user to
 				// their profile — useAuth will read the session from here.
-				router.push("/user");
+				router.push("/");
 			},
 			onFailure: (err) => {
 				setLoading(false);

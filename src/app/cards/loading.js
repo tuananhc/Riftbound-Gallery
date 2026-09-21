@@ -1,4 +1,4 @@
-import { COLORS } from "../lib/data";
+import { COLORS } from "../../lib/data";
 
 const CARD_COUNT = 20;
 

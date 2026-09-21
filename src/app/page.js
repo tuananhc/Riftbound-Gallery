@@ -1,9 +1,5 @@
-import { getAllCards } from "../lib/cards/cards";
-import CardGrid from "../components/cards/CardGrid";
+import UserProfile from "../components/user/UserProfile";
 
-export const revalidate = 3600;
-
-export default async function CardsPage() {
-	const cards = await getAllCards();
-	return <CardGrid initialCards={cards} />;
+export default function HomePage() {
+	return <UserProfile />;
 }

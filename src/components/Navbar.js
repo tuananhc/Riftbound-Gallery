@@ -6,10 +6,17 @@ import { COLORS } from "../lib/data";
 import { useAuth } from "../hooks/useAuth";
 
 const NAV_LINKS = [
-  { href: "/",       label: "Cards"   },
-  { href: "/news",   label: "News"    },
-  { href: "/decks",  label: "Decks"   },
+  { href: "/", label: "Profile" },
+  { href: "/cards", label: "Cards" },
+  { href: "/decks", label: "Decks" },
+  { href: "/news", label: "News" },
 ];
+
+// "/" only matches exactly; other tabs also match their sub-routes (/news/foo).
+function isActive(pathname, href) {
+  if (href === "/") return pathname === "/";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -62,25 +69,37 @@ export default function Navbar() {
         </div>
       </Link>
 
-      {/* Nav links — centered */}
-      <nav style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", gap: 4 }}>
+      {/* Nav links — centered, active tab marked by a gold underline */}
+      <nav style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", height: "100%", display: "flex", alignItems: "stretch", gap: 6 }}>
         {NAV_LINKS.map(({ href, label }) => {
-          const active = pathname === href || (href !== "/" && pathname.startsWith(href));
+          const active = isActive(pathname, href);
           return (
-            <Link key={href} href={href} style={{
-              padding: "6px 16px",
-              borderRadius: 6,
-              fontSize: 11,
-              fontFamily: "'Segoe UI', system-ui, sans-serif",
-              letterSpacing: "0.12em",
-              fontWeight: active ? 700 : 400,
-              color: active ? COLORS.gold : COLORS.textMuted,
-              background: active ? "rgba(232,208,144,0.07)" : "transparent",
-              border: `1px solid ${active ? "rgba(232,208,144,0.18)" : "transparent"}`,
-              transition: "all 0.2s",
-              textDecoration: "none",
-            }}>
+            <Link key={href} href={href}
+              aria-current={active ? "page" : undefined}
+              onMouseEnter={e => { if (!active) e.currentTarget.style.color = COLORS.text; }}
+              onMouseLeave={e => { if (!active) e.currentTarget.style.color = COLORS.textMuted; }}
+              style={{
+                position: "relative",
+                display: "flex", alignItems: "center",
+                padding: "0 16px",
+                fontSize: 11,
+                fontFamily: "'Segoe UI', system-ui, sans-serif",
+                letterSpacing: "0.14em",
+                fontWeight: active ? 700 : 500,
+                color: active ? COLORS.gold : COLORS.textMuted,
+                background: active ? "linear-gradient(180deg, transparent 0%, rgba(232,208,144,0.06) 100%)" : "transparent",
+                transition: "color 0.2s, background 0.2s",
+                textDecoration: "none",
+              }}>
               {label.toUpperCase()}
+              <span style={{
+                position: "absolute", left: 12, right: 12, bottom: -1, height: 2, borderRadius: 2,
+                background: COLORS.gold,
+                boxShadow: "0 0 10px rgba(232,208,144,0.6)",
+                opacity: active ? 1 : 0,
+                transform: active ? "scaleX(1)" : "scaleX(0.4)",
+                transition: "opacity 0.2s, transform 0.2s",
+              }} />
             </Link>
           );
         })}
@@ -137,7 +156,7 @@ export default function Navbar() {
             borderRadius: 10, overflow: "hidden", zIndex: 100,
             boxShadow: "0 8px 24px #00000066",
           }}>
-            <Link href="/user" onClick={() => setMenuOpen(false)} style={{
+            <Link href="/" onClick={() => setMenuOpen(false)} style={{
               display: "block", padding: "10px 16px", textDecoration: "none",
               fontSize: 12, color: COLORS.textMuted, fontFamily: "'Segoe UI', system-ui, sans-serif",
               letterSpacing: "0.08em", transition: "background 0.15s",
