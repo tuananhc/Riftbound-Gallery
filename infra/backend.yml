@@ -1,0 +1,362 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Riftbound backend: the Lambda functions, the HTTP API (Cognito JWT auth) in
+  front of them, and the MatchHistory table. Deployed by infra/deploy.sh on
+  every push to master. See infra/README.md.
+
+# Deliberately NOT owned by this stack, because they hold real data:
+#   - The Cognito user pool and its app client. Email-as-alias and the SPA
+#     (no-secret) client are fixed at creation, so the pool can never be
+#     recreated without losing every account. Referenced by ID.
+#   - The Users table (profiles). Referenced by name; set CreateUsersTable=true
+#     only when deploying into a fresh account.
+#   - The RiftboundCards table. Only the Next.js site reads it, with its own
+#     credentials, so nothing here refers to it.
+
+Parameters:
+  CodeBucket:
+    Type: String
+    Description: Bucket holding the packaged Lambda code (created by infra/bootstrap.yml).
+  CodeKey:
+    Type: String
+    Description: Key of the Lambda code zip. Named after a hash of lambda/, so it only changes when the code does.
+  UserPoolId:
+    Type: String
+    AllowedPattern: "[\\w-]+_[0-9a-zA-Z]+"
+    Description: Existing Cognito user pool (NEXT_PUBLIC_COGNITO_POOL_ID).
+  UserPoolClientId:
+    Type: String
+    Description: App client whose ID tokens the API accepts (NEXT_PUBLIC_COGNITO_CLIENT_ID).
+  UsersTableName:
+    Type: String
+    Default: Users
+  CreateUsersTable:
+    Type: String
+    AllowedValues: ["true", "false"]
+    Default: "false"
+    Description: "false = use the existing Users table; true = create it (fresh account only)."
+  MatchHistoryTableName:
+    Type: String
+    Default: MatchHistory
+  AllowedOrigins:
+    Type: CommaDelimitedList
+    Default: "*"
+    Description: >-
+      Browser origins allowed to call the API. "*" is safe here: every route
+      requires a Cognito ID token in the Authorization header, which another
+      site can't read, and no cookies are involved.
+
+Conditions:
+  ShouldCreateUsersTable: !Equals [!Ref CreateUsersTable, "true"]
+
+Resources:
+
+  # ── Tables ──────────────────────────────────────────────────────────────────
+  # RetainExceptOnCreate: kept if the stack is deleted or the table replaced
+  # (users own this data), but removed if the very first create rolls back —
+  # otherwise the orphan would block the retry with "already exists".
+
+  MatchHistoryTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: RetainExceptOnCreate
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Ref MatchHistoryTableName
+      BillingMode: PAY_PER_REQUEST
+      TableClass: STANDARD
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: accountMatchId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+        - AttributeName: accountMatchId
+          KeyType: RANGE
+
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Condition: ShouldCreateUsersTable
+    DeletionPolicy: RetainExceptOnCreate
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Ref UsersTableName
+      BillingMode: PAY_PER_REQUEST
+      TableClass: STANDARD
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+
+  # ── save-match-history: POST /history ──────────────────────────────────────
+
+  SaveMatchHistoryRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${AWS::StackName}-fn-save-match-history
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: write-match-history
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: dynamodb:UpdateItem
+                Resource: !GetAtt MatchHistoryTable.Arn
+
+  SaveMatchHistoryLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${AWS::StackName}-save-match-history
+      RetentionInDays: 30
+
+  SaveMatchHistoryFunction:
+    Type: AWS::Lambda::Function
+    DependsOn: SaveMatchHistoryLogGroup
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-save-match-history
+      Description: POST /history - bulk upsert one linked account's match history
+      Runtime: nodejs24.x
+      Architectures: [arm64]
+      Handler: saveMatchHistory.handler
+      Code:
+        S3Bucket: !Ref CodeBucket
+        S3Key: !Ref CodeKey
+      Role: !GetAtt SaveMatchHistoryRole.Arn
+      MemorySize: 256
+      Timeout: 15 # up to 500 matches, written in waves of 25
+      Environment:
+        Variables:
+          DYNAMODB_TABLE_HISTORY: !Ref MatchHistoryTable
+
+  # ── user-profile: GET /profile, PUT /profile ───────────────────────────────
+
+  UserProfileRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${AWS::StackName}-fn-user-profile
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: read-write-users
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                Resource: !Sub arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${UsersTableName}
+
+  UserProfileLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${AWS::StackName}-user-profile
+      RetentionInDays: 30
+
+  UserProfileFunction:
+    Type: AWS::Lambda::Function
+    DependsOn: UserProfileLogGroup
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-user-profile
+      Description: GET/PUT /profile - read the profile and manage linked EloShowdown accounts
+      Runtime: nodejs24.x
+      Architectures: [arm64]
+      Handler: userProfile.handler
+      Code:
+        S3Bucket: !Ref CodeBucket
+        S3Key: !Ref CodeKey
+      Role: !GetAtt UserProfileRole.Arn
+      MemorySize: 256
+      Timeout: 10
+      Environment:
+        Variables:
+          DYNAMODB_TABLE_USERS: !Ref UsersTableName
+
+  # ── sync-user-profile: Cognito Post-confirmation trigger ───────────────────
+  # The trigger itself is configured on the user pool, which this stack doesn't
+  # own — point the pool's "Post confirmation" trigger at this function once
+  # (infra/README.md). The permission below lets Cognito invoke it.
+
+  SyncUserProfileRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${AWS::StackName}-fn-sync-user-profile
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: create-user-profile
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: dynamodb:PutItem
+                Resource: !Sub arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${UsersTableName}
+
+  SyncUserProfileLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${AWS::StackName}-sync-user-profile
+      RetentionInDays: 30
+
+  SyncUserProfileFunction:
+    Type: AWS::Lambda::Function
+    DependsOn: SyncUserProfileLogGroup
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-sync-user-profile
+      Description: Cognito Post-confirmation - create the Users row for a newly confirmed account
+      Runtime: nodejs24.x
+      Architectures: [arm64]
+      Handler: syncUserProfile.handler
+      Code:
+        S3Bucket: !Ref CodeBucket
+        S3Key: !Ref CodeKey
+      Role: !GetAtt SyncUserProfileRole.Arn
+      MemorySize: 256
+      Timeout: 5 # Cognito gives triggers 5 seconds
+      Environment:
+        Variables:
+          DYNAMODB_TABLE_USERS: !Ref UsersTableName
+
+  SyncUserProfileCognitoPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref SyncUserProfileFunction
+      Action: lambda:InvokeFunction
+      Principal: cognito-idp.amazonaws.com
+      SourceAccount: !Ref AWS::AccountId
+      SourceArn: !Sub arn:${AWS::Partition}:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${UserPoolId}
+
+  # ── HTTP API ────────────────────────────────────────────────────────────────
+
+  HttpApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: !Sub ${AWS::StackName}-api
+      Description: Riftbound backend API. Every route requires a Cognito ID token.
+      ProtocolType: HTTP
+      CorsConfiguration:
+        AllowOrigins: !Ref AllowedOrigins
+        AllowMethods: [GET, POST, PUT]
+        AllowHeaders: [authorization, content-type]
+        MaxAge: 600
+
+  # Accepts the Cognito ID token (its `aud` is the app client ID) and exposes
+  # its claims to the Lambdas at event.requestContext.authorizer.jwt.claims.
+  CognitoAuthorizer:
+    Type: AWS::ApiGatewayV2::Authorizer
+    Properties:
+      ApiId: !Ref HttpApi
+      Name: cognito-id-token
+      AuthorizerType: JWT
+      IdentitySource:
+        - "$request.header.Authorization"
+      JwtConfiguration:
+        Audience:
+          - !Ref UserPoolClientId
+        Issuer: !Sub https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPoolId}
+
+  DefaultStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref HttpApi
+      StageName: "$default"
+      AutoDeploy: true
+      # A ceiling against runaway clients or abuse — far above real usage.
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 50
+        ThrottlingRateLimit: 25
+
+  SaveMatchHistoryIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt SaveMatchHistoryFunction.Arn
+      PayloadFormatVersion: "2.0"
+
+  UserProfileIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt UserProfileFunction.Arn
+      PayloadFormatVersion: "2.0"
+
+  PostHistoryRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: POST /history
+      AuthorizationType: JWT
+      AuthorizerId: !Ref CognitoAuthorizer
+      Target: !Sub integrations/${SaveMatchHistoryIntegration}
+
+  GetProfileRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: GET /profile
+      AuthorizationType: JWT
+      AuthorizerId: !Ref CognitoAuthorizer
+      Target: !Sub integrations/${UserProfileIntegration}
+
+  PutProfileRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: PUT /profile
+      AuthorizationType: JWT
+      AuthorizerId: !Ref CognitoAuthorizer
+      Target: !Sub integrations/${UserProfileIntegration}
+
+  SaveMatchHistoryApiPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref SaveMatchHistoryFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/POST/history
+
+  UserProfileApiPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref UserProfileFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/*/profile
+
+Outputs:
+  ApiUrl:
+    Description: Set this as NEXT_PUBLIC_API_URL in .env.local and in Vercel.
+    Value: !GetAtt HttpApi.ApiEndpoint
+  PostConfirmationFunction:
+    Description: Point the Cognito user pool's Post confirmation trigger at this function.
+    Value: !Ref SyncUserProfileFunction
+  MatchHistoryTable:
+    Value: !Ref MatchHistoryTable

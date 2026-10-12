@@ -19,12 +19,9 @@
 // Items written by the old single-account version (`eloPlayer`) are migrated
 // into `eloPlayers` on read and the old attribute is removed on the next write.
 //
-// Deploy notes:
-//   - Runtime: Node.js 20.x (AWS SDK v3 is bundled in the runtime — no npm install)
-//   - Env var: DYNAMODB_TABLE_USERS = "Users"
-//   - Execution role needs: dynamodb:GetItem, dynamodb:UpdateItem on the Users table
-//   - Routes: GET /profile and PUT /profile, both with the Cognito JWT authorizer
-//   - CORS is handled by the HTTP API's CORS config, not here.
+// Deployed by infra/backend.yml (runtime, env vars, IAM role, routes) on every
+// push to master — don't change the function's settings in the console.
+//   - Function riftbound-user-profile, routes GET /profile and PUT /profile.
 
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, GetCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";

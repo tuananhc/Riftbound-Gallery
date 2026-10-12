@@ -26,12 +26,9 @@
 // from the page never wipes attributes it didn't include — e.g. notes written
 // elsewhere survive a bulk re-sync.
 //
-// Deploy notes:
-//   - Runtime: Node.js 20.x (AWS SDK v3 is bundled in the runtime — no npm install)
-//   - Env var: DYNAMODB_TABLE_HISTORY = "MatchHistory"
-//   - Table keys: partition key `userId` (String), sort key `accountMatchId` (String)
-//   - Execution role needs: dynamodb:UpdateItem on the MatchHistory table
-//   - CORS is handled by the HTTP API's CORS config, not here.
+// Deployed by infra/backend.yml (runtime, env vars, IAM role, routes) on every
+// push to master — don't change the function's settings in the console.
+//   - Function riftbound-save-match-history, route POST /history.
 
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, UpdateCommand } from "@aws-sdk/lib-dynamodb";

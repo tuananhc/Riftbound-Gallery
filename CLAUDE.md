@@ -71,6 +71,14 @@ import { getAllCards } from "../../lib/cards"; // throws if cards.js uses Node.j
 - MatchHistory and DeckVersions items persist indefinitely — do **not** set a `ttl` field on them (users own this data and can edit it, so it must not auto-expire). Bound read size with `Query` `Limit` + pagination (`LastEvaluatedKey`), not deletion
 - Deck saves must use `TransactWriteCommand` to atomically write both the Decks record and DeckVersions snapshot
 
+### Infrastructure
+
+- All backend AWS resources (Lambdas, their IAM roles, the HTTP API and its routes, the `MatchHistory` table) are defined in `infra/backend.yml` and deployed by `.github/workflows/deploy-backend.yml` on every push to `master` — never create or edit them in the AWS console
+- Lambda source lives in `lambda/`, one `.mjs` file per function with no npm dependencies (the AWS SDK v3 ships with the runtime); the handler is `<fileName>.handler`
+- The Cognito user pool and the `Users` / `RiftboundCards` tables hold real data and are **referenced, not owned**, by the stack — never add them as resources (the pool can't be recreated without losing every account)
+- CI's own permissions live in `infra/bootstrap.yml`, deployed by hand; a new AWS service type in `backend.yml` needs a matching permission there first
+- See `infra/README.md` for setup, adding a Lambda, and debugging failed deploys
+
 ### Auth
 
 - Cognito JWT is the only auth mechanism — no sessions, no cookies beyond the token

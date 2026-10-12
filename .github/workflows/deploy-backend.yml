@@ -1,0 +1,54 @@
+# Deploy the backend CloudFormation stack (infra/backend.yml) on every push to
+# master. A push that changes nothing in the backend is a no-op: the Lambda zip
+# is content-addressed and CloudFormation skips an empty change set.
+#
+# The Next.js site is deployed by Vercel, not here.
+#
+# Auth is OIDC — no AWS keys in GitHub. Needs the repo variable AWS_DEPLOY_ROLE
+# (Settings → Secrets and variables → Actions → Variables, not Secrets), the
+# DeployRoleArn output of the bootstrap stack. See infra/README.md.
+
+name: Deploy backend
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch: # re-deploy by hand from the Actions tab
+
+permissions:
+  id-token: write # mint the OIDC token
+  contents: read
+
+# CloudFormation rejects overlapping updates — queue runs instead.
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'ap-southeast-2' }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check deploy role is configured
+        run: |
+          if [ -z "${{ vars.AWS_DEPLOY_ROLE }}" ]; then
+            echo "::error::Repo variable AWS_DEPLOY_ROLE is not set. Add it under Settings → Secrets and variables → Actions → Variables, using the DeployRoleArn output of the riftbound-bootstrap stack."
+            exit 1
+          fi
+
+      # Same Node major as the Lambda runtime, for the syntax check.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy stack
+        run: bash infra/deploy.sh

@@ -1,0 +1,192 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Riftbound bootstrap: what CI needs before it can deploy the backend stack —
+  the GitHub deploy role, the CloudFormation execution role, and the bucket the
+  Lambda code is uploaded to. Deploy once by hand; see infra/README.md.
+
+# Why two roles: GitHub's role can only hand the backend stack to CloudFormation
+# and upload code. The broad permissions needed to create functions, roles,
+# tables and the API live on the execution role, which only CloudFormation can
+# assume — so a leaked GitHub token can't create resources directly.
+#
+# The GitHub OIDC identity provider is account-wide (one per account, possibly
+# shared with other repos), so it's referenced here rather than owned.
+
+Parameters:
+  GitHubRepository:
+    Type: String
+    Default: tuananhc/Riftbound-Gallery
+    Description: owner/repo allowed to deploy.
+  GitHubBranch:
+    Type: String
+    Default: master
+    Description: Only workflow runs on this branch can assume the deploy role.
+  BackendStackName:
+    Type: String
+    Default: riftbound
+    Description: Must match STACK_NAME in infra/deploy.sh.
+  UsersTableName:
+    Type: String
+    Default: Users
+  MatchHistoryTableName:
+    Type: String
+    Default: MatchHistory
+
+Resources:
+
+  ArtifactsBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: RetainExceptOnCreate
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub riftbound-artifacts-${AWS::AccountId}-${AWS::Region}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+  CloudFormationExecRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: riftbound-cfn-exec
+      Description: Assumed by CloudFormation to create and update the riftbound backend stack.
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudformation.amazonaws.com
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                "aws:SourceAccount": !Ref AWS::AccountId
+      Policies:
+        - PolicyName: manage-backend-stack
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # Only the Lambda execution roles the backend stack names
+              # (<stack>-fn-*) — not this role or the GitHub role.
+              - Sid: LambdaExecutionRoles
+                Effect: Allow
+                Action:
+                  - iam:GetRole
+                  - iam:CreateRole
+                  - iam:DeleteRole
+                  - iam:UpdateRole
+                  - iam:UpdateAssumeRolePolicy
+                  - iam:TagRole
+                  - iam:UntagRole
+                  - iam:ListRoleTags
+                  - iam:GetRolePolicy
+                  - iam:PutRolePolicy
+                  - iam:DeleteRolePolicy
+                  - iam:ListRolePolicies
+                  - iam:AttachRolePolicy
+                  - iam:DetachRolePolicy
+                  - iam:ListAttachedRolePolicies
+                  - iam:PassRole
+                Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${BackendStackName}-fn-*
+              - Sid: Functions
+                Effect: Allow
+                Action: lambda:*
+                Resource: !Sub arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:${BackendStackName}-*
+              # Lambda fetches the code with the caller's (this role's) access.
+              - Sid: ReadLambdaCode
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                Resource: !Sub ${ArtifactsBucket.Arn}/*
+              - Sid: HttpApi
+                Effect: Allow
+                Action: apigateway:*
+                Resource: !Sub arn:${AWS::Partition}:apigateway:${AWS::Region}::/*
+              - Sid: Tables
+                Effect: Allow
+                Action: dynamodb:*
+                Resource:
+                  - !Sub arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${MatchHistoryTableName}
+                  - !Sub arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${UsersTableName}
+              - Sid: LogGroups
+                Effect: Allow
+                Action: logs:*
+                Resource: !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${BackendStackName}-*
+              - Sid: DescribeLogGroups
+                Effect: Allow
+                Action: logs:DescribeLogGroups
+                Resource: "*"
+
+  GitHubDeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: github-deploy-riftbound
+      Description: Assumed by GitHub Actions (OIDC) to deploy the riftbound backend stack.
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                "token.actions.githubusercontent.com:aud": sts.amazonaws.com
+                "token.actions.githubusercontent.com:sub": !Sub repo:${GitHubRepository}:ref:refs/heads/${GitHubBranch}
+      Policies:
+        - PolicyName: deploy-backend-stack
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: BackendStack
+                Effect: Allow
+                Action:
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:DescribeStacks
+                  - cloudformation:DescribeStackEvents
+                  - cloudformation:DeleteStack # only used to clear a failed first create
+                Resource: !Sub arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${BackendStackName}/*
+              - Sid: ReadTemplates
+                Effect: Allow
+                Action:
+                  - cloudformation:GetTemplateSummary
+                  - cloudformation:ValidateTemplate
+                Resource: "*"
+              - Sid: HandStackToCloudFormation
+                Effect: Allow
+                Action: iam:PassRole
+                Resource: !GetAtt CloudFormationExecRole.Arn
+                Condition:
+                  StringEquals:
+                    "iam:PassedToService": cloudformation.amazonaws.com
+              - Sid: UploadLambdaCode
+                Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                Resource: !Sub ${ArtifactsBucket.Arn}/*
+              - Sid: CheckForExistingCode
+                Effect: Allow
+                Action: s3:ListBucket
+                Resource: !GetAtt ArtifactsBucket.Arn
+
+Outputs:
+  DeployRoleArn:
+    Description: Value for the AWS_DEPLOY_ROLE GitHub repo variable.
+    Value: !GetAtt GitHubDeployRole.Arn
+  ExecRoleArn:
+    Value: !GetAtt CloudFormationExecRole.Arn
+  ArtifactsBucketName:
+    Value: !Ref ArtifactsBucket

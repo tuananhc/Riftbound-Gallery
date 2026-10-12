@@ -4,12 +4,10 @@
 // Mirrors the immutable Cognito `sub` into the Users table as the profile row,
 // so every confirmed user has a DynamoDB record keyed by their sub.
 //
-// Deploy notes:
-//   - Runtime: Node.js 20.x (AWS SDK v3 is bundled in the runtime — no npm install)
-//   - Env var: DYNAMODB_TABLE_USERS = "Users"
-//   - Execution role needs: dynamodb:PutItem on the Users table
-//   - Attach in Cognito → User Pool → User pool properties → Add trigger →
-//     "Post confirmation" → this function
+// Deployed by infra/backend.yml (runtime, env vars, IAM role, routes) on every
+// push to master — don't change the function's settings in the console.
+//   - Function riftbound-sync-user-profile. The user pool's Post confirmation
+//     trigger must point at it (one-time console step, see infra/README.md).
 
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
