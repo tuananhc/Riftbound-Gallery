@@ -24,8 +24,12 @@ ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
 CODE_BUCKET="riftbound-artifacts-${ACCOUNT_ID}-${REGION}"
 EXEC_ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/riftbound-cfn-exec"
 
-# 1. Fail fast on syntax errors, before anything touches AWS.
+# 1. Fail fast on syntax errors and a missing bootstrap stack.
 for f in "$ROOT"/lambda/*.mjs; do node --check "$f"; done
+if ! aws s3api head-bucket --bucket "$CODE_BUCKET" --region "$REGION" >/dev/null 2>&1; then
+	echo "::error::Bucket ${CODE_BUCKET} not found. The riftbound-bootstrap stack isn't deployed in ${REGION} (or its create rolled back) — see infra/README.md steps 1–2." >&2
+	exit 1
+fi
 
 # 2. Package lambda/ into one zip named after a hash of the sources (all three
 #    functions share it, each with its own handler). Unchanged code → same key
