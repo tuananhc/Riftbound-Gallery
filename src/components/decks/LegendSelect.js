@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
-import { COLORS } from "../../lib/data";
+import { COLORS, FONT_MONO } from "../../lib/data";
 
 export default function LegendSelect({ legends, value, onChange }) {
 	const [open, setOpen] = useState(false);
@@ -52,25 +52,25 @@ export default function LegendSelect({ legends, value, onChange }) {
 			style={{
 				position: "fixed",
 				top: pos.top, left: pos.left, width: pos.width,
-				background: "#12141e", border: "1px solid #2a2c3a",
-				borderRadius: 8, zIndex: 9999,
+				background: "#202020", border: "1px solid #4a4a4a",
+				borderRadius: 0, zIndex: 9999,
 				maxHeight: pos.maxHeight,
 				display: "flex", flexDirection: "column",
 				boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
 			}}
 		>
-			<div style={{ padding: "10px 12px", borderBottom: "1px solid #1e2030", flexShrink: 0 }}>
+			<div style={{ padding: "10px 12px", borderBottom: "1px solid #333333", flexShrink: 0 }}>
 				<input
 					ref={searchRef}
 					value={search}
 					onChange={e => setSearch(e.target.value)}
 					placeholder="Search legends..."
 					style={{
-						width: "100%", background: "#0a0c14",
-						border: "1px solid #2a2c3a", borderRadius: 6,
+						width: "100%", background: "#121212",
+						border: "1px solid #4a4a4a", borderRadius: 0,
 						padding: "6px 10px", fontSize: 12,
 						color: COLORS.text, outline: "none",
-						fontFamily: "'Segoe UI', system-ui, sans-serif",
+						fontFamily: FONT_MONO,
 						colorScheme: "dark",
 					}}
 				/>
@@ -83,25 +83,25 @@ export default function LegendSelect({ legends, value, onChange }) {
 						style={{
 							display: "flex", alignItems: "center", gap: 14,
 							padding: "10px 14px", cursor: "pointer",
-							background: value === "" ? "#1e2030" : "transparent",
-							borderBottom: "1px solid #1e2030",
+							background: value === "" ? "#333333" : "transparent",
+							borderBottom: "1px solid #333333",
 						}}
 					>
-						<div style={{ width: 52, height: 52, borderRadius: 6, background: "#1e2030", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+						<div style={{ width: 52, height: 52, borderRadius: 0, background: "#333333", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
 							<svg width="16" height="16" viewBox="0 0 12 12"><path d="M2 6h8M6 2v8" stroke={COLORS.textDim} strokeWidth="1.5" strokeLinecap="round" /></svg>
 						</div>
-						<span style={{ fontSize: 13, color: value === "" ? COLORS.gold : COLORS.textMuted, fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
+						<span style={{ fontSize: 13, color: value === "" ? COLORS.accent : COLORS.textMuted, fontFamily: FONT_MONO }}>
 							All legends
 						</span>
 					</div>
 				)}
 
 				{legends.length === 0 ? (
-					<div style={{ padding: "14px", fontSize: 12, color: COLORS.textDim, fontFamily: "'Segoe UI', system-ui, sans-serif", fontStyle: "italic" }}>
+					<div style={{ padding: "14px", fontSize: 12, color: COLORS.textDim, fontFamily: FONT_MONO, fontStyle: "italic" }}>
 						No legends available yet.
 					</div>
 				) : filtered.length === 0 ? (
-					<div style={{ padding: "14px", fontSize: 12, color: COLORS.textDim, fontFamily: "'Segoe UI', system-ui, sans-serif", fontStyle: "italic" }}>
+					<div style={{ padding: "14px", fontSize: 12, color: COLORS.textDim, fontFamily: FONT_MONO, fontStyle: "italic" }}>
 						No legends match &ldquo;{search}&rdquo;.
 					</div>
 				) : (
@@ -112,19 +112,19 @@ export default function LegendSelect({ legends, value, onChange }) {
 							style={{
 								display: "flex", alignItems: "center", gap: 14,
 								padding: "10px 14px", cursor: "pointer",
-								background: value === l.name ? "#1e2030" : "transparent",
+								background: value === l.name ? "#333333" : "transparent",
 								transition: "background 0.1s",
 							}}
 						>
 							{l.image ? (
-								<Image src={l.image} alt={l.name} width={52} height={52} style={{ objectFit: "contain", borderRadius: 6, flexShrink: 0 }} />
+								<Image src={l.image} alt={l.name} width={52} height={52} style={{ objectFit: "contain", borderRadius: 0, flexShrink: 0 }} />
 							) : (
-								<div style={{ width: 52, height: 52, borderRadius: 6, background: "#1e2030", flexShrink: 0 }} />
+								<div style={{ width: 52, height: 52, borderRadius: 0, background: "#333333", flexShrink: 0 }} />
 							)}
 							<span style={{
 								fontSize: 13,
-								color: value === l.name ? COLORS.gold : COLORS.text,
-								fontFamily: "'Segoe UI', system-ui, sans-serif",
+								color: value === l.name ? COLORS.accent : COLORS.text,
+								fontFamily: FONT_MONO,
 								overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
 							}}>
 								{l.tags_text ? `${l.tags_text} - ${l.name}` : l.name}
@@ -143,20 +143,20 @@ export default function LegendSelect({ legends, value, onChange }) {
 				onClick={() => open ? setOpen(false) : openDropdown()}
 				style={{
 					width: "100%", display: "flex", alignItems: "center", gap: 10,
-					background: "#12141e", border: `1px solid ${open ? COLORS.gold + "55" : "#2a2c3a"}`,
-					borderRadius: 8, padding: "7px 12px",
+					background: "#202020", border: `1px solid ${open ? COLORS.accent + "55" : "#4a4a4a"}`,
+					borderRadius: 0, padding: "7px 12px",
 					cursor: "pointer", transition: "border-color 0.15s",
 				}}
 			>
 				{selected?.image ? (
-					<Image src={selected.image} alt={selected.name} width={40} height={40} style={{ objectFit: "contain", borderRadius: 6, flexShrink: 0 }} />
+					<Image src={selected.image} alt={selected.name} width={40} height={40} style={{ objectFit: "contain", borderRadius: 0, flexShrink: 0 }} />
 				) : (
-					<div style={{ width: 40, height: 40, borderRadius: 6, background: "#1e2030", flexShrink: 0 }} />
+					<div style={{ width: 40, height: 40, borderRadius: 0, background: "#333333", flexShrink: 0 }} />
 				)}
 				<span style={{
 					flex: 1, textAlign: "left", fontSize: 12,
 					color: selected ? COLORS.text : COLORS.textDim,
-					fontFamily: "'Segoe UI', system-ui, sans-serif",
+					fontFamily: FONT_MONO,
 					overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
 				}}>
 					{selected ? `${selected.tags_text} - ${selected.name}` : "All legends"}

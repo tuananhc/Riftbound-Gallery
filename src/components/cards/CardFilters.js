@@ -1,5 +1,5 @@
 import { ALL_COLORS, ALL_TAGS, COLOR_CONFIG, KEYWORD_STYLES, TAGS_IMG } from "../../lib/cards/data";
-import { COLORS } from "../../lib/data";
+import { COLORS, FONT_MONO } from "../../lib/data";
 import Image from "next/image";
 
 export default function CardFilters({
@@ -30,28 +30,28 @@ export default function CardFilters({
 		}}>
 			{/* Search */}
 			<div>
-				<div style={{ fontSize: 10, letterSpacing: "0.2em", color: COLORS.text, marginBottom: 10, fontFamily: "'Segoe UI', system-ui, sans-serif" }}>SEARCH</div>
+				<div style={{ fontSize: 10, letterSpacing: "0.2em", color: COLORS.text, marginBottom: 10, fontFamily: FONT_MONO }}>SEARCH</div>
 				<div style={{ position: "relative" }}>
-					<span style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "#3a3a5a", fontSize: 14 }}>⚔</span>
+					<span style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "#5f5f62", fontSize: 14 }}>⚔</span>
 					<input className="search-input" placeholder="Name or ability text..." value={search} onChange={e => setSearch(e.target.value)} />
 				</div>
 			</div>
 
 			{/* Cost */}
 			<div>
-				<div style={{ fontSize: 10, letterSpacing: "0.2em", color: COLORS.text, marginBottom: 10, fontFamily: "'Segoe UI', system-ui, sans-serif", display: "flex", justifyContent: "space-between" }}>
+				<div style={{ fontSize: 10, letterSpacing: "0.2em", color: COLORS.text, marginBottom: 10, fontFamily: FONT_MONO, display: "flex", justifyContent: "space-between" }}>
 					<span>COST</span>
-					<span style={{ color: "#6a6a8a" }}>{costRange[0]}–{costRange[1]}</span>
+					<span style={{ color: "#8a8a8d" }}>{costRange[0]}–{costRange[1]}</span>
 				</div>
 				<div style={{ display: "flex", gap: 5, marginBottom: 8, flexWrap: "wrap" }}>
 					{[0,1,2,3,4,5,6,7,8,9,10,11,12].map(n => (
 						<div key={n} onClick={() => setCostRange([n, Math.max(n, costRange[1])])} style={{
-							width: 22, height: 22, borderRadius: 4, cursor: "pointer",
-							background: n >= costRange[0] && n <= costRange[1] ? "#1e2240" : "#10121a",
-							border: `1px solid ${n >= costRange[0] && n <= costRange[1] ? "#3a4070" : "#1e2030"}`,
+							width: 22, height: 22, borderRadius: 0, cursor: "pointer",
+							background: n >= costRange[0] && n <= costRange[1] ? "#1e2240" : "#1a1a1a",
+							border: `1px solid ${n >= costRange[0] && n <= costRange[1] ? "#3a4070" : "#333333"}`,
 							display: "flex", alignItems: "center", justifyContent: "center",
-							fontSize: 10, color: n >= costRange[0] && n <= costRange[1] ? "#8890c0" : "#2a2a4a",
-							fontFamily: "'Segoe UI', system-ui, sans-serif", transition: "all 0.15s",
+							fontSize: 10, color: n >= costRange[0] && n <= costRange[1] ? "#8fa3bf" : "#2a2a4a",
+							fontFamily: FONT_MONO, transition: "all 0.15s",
 						}}>{n}</div>
 					))}
 				</div>
@@ -61,7 +61,7 @@ export default function CardFilters({
 
 			{/* Colors */}
 			<div>
-				<div style={{ fontSize: 10, letterSpacing: "0.2em", color: COLORS.text, marginBottom: 10, fontFamily: "'Segoe UI', system-ui, sans-serif" }}>CARD DOMAIN</div>
+				<div style={{ fontSize: 10, letterSpacing: "0.2em", color: COLORS.text, marginBottom: 10, fontFamily: FONT_MONO }}>CARD DOMAIN</div>
 				<div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
 					{ALL_COLORS.map(color => {
 						const c      = COLOR_CONFIG[color];
@@ -69,9 +69,9 @@ export default function CardFilters({
 						return (
 							<button key={color} className="filter-btn" onClick={() => toggleColor(color)} style={{
 								display: "flex", alignItems: "center", gap: 8, textAlign: "left",
-								background: active ? c.bg : "#12141e",
-								borderColor: active ? c.glow + "88" : "#1e2030",
-								color: active ? c.accent : "#888",
+								background: active ? c.bg : "#202020",
+								borderColor: active ? c.glow + "88" : "#333333",
+								color: active ? c.accent : "#8a8a8d",
 								boxShadow: active ? `0 0 10px ${c.glow}33` : "none",
 							}}>
 								<div style={{ display: "flex" }}>
@@ -86,15 +86,15 @@ export default function CardFilters({
 
 			{/* Type */}
 			<div>
-				<div style={{ fontSize: 10, letterSpacing: "0.2em", color: COLORS.text, marginBottom: 10, fontFamily: "'Segoe UI', system-ui, sans-serif" }}>TYPE</div>
+				<div style={{ fontSize: 10, letterSpacing: "0.2em", color: COLORS.text, marginBottom: 10, fontFamily: FONT_MONO }}>TYPE</div>
 				<div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
 					{ALL_TAGS.map(tag => {
 						const active = selectedTags.includes(tag);
 						return (
 							<button key={tag} className="filter-btn" onClick={() => toggleTag(tag)} style={{
-								background: active ? "#1a1f35" : "#12141e",
-								borderColor: active ? "#4a5090" : "#1e2030",
-								color: active ? "#8890cc" : "#666",
+								background: active ? "#242424" : "#202020",
+								borderColor: active ? "#5d6e86" : "#333333",
+								color: active ? "#8fa3bf" : "#666",
 								textAlign: "left",
 							}}>
 								<div style={{ display: "flex" }}>
@@ -109,7 +109,7 @@ export default function CardFilters({
 
 			{/* Additional attributes */}
 			<div>
-				<div style={{ fontSize: 10, letterSpacing: "0.2em", color: COLORS.text, marginBottom: 10, fontFamily: "'Segoe UI', system-ui, sans-serif" }}>ATTRIBUTES</div>
+				<div style={{ fontSize: 10, letterSpacing: "0.2em", color: COLORS.text, marginBottom: 10, fontFamily: FONT_MONO }}>ATTRIBUTES</div>
 				<div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
 					{Object.keys(KEYWORD_STYLES).map(attribute => {
 						const active = selectedAttribute.includes(attribute);
@@ -127,7 +127,7 @@ export default function CardFilters({
 
 			{/* Set filters */}
 			<div>
-				<div style={{ fontSize: 10, letterSpacing: "0.2em", color: COLORS.text, marginBottom: 10, fontFamily: "'Segoe UI', system-ui, sans-serif" }}>SET</div>
+				<div style={{ fontSize: 10, letterSpacing: "0.2em", color: COLORS.text, marginBottom: 10, fontFamily: FONT_MONO }}>SET</div>
 				<div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
 					{["Proving Grounds", "Origins", "Spiritforged", "Unleashed"].map(attribute => {
 						const active = releaseSet === attribute;

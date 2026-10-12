@@ -64,3 +64,40 @@ export const KEYWORD_STYLES = {
 	"Ganking": { background: "#99b03b", color: "#000", textTransform: "uppercase", transform: "skewX(-12deg)" },
   "Level": { background: "#99b03b", color: "#000", textTransform: "uppercase", transform: "skewX(-12deg)" },
 };
+
+// ─── Champion Icons ───────────────────────────────────────────────────────────
+// Square champion portraits in S3. Filenames strip whitespace and punctuation
+// from the champion name in a legend's `tags_text` — "Lee Sin" → "LeeSin.png",
+// "Kai'Sa" → "KaiSa.png". Not every champion has one yet, so callers fall back
+// to the card art on error.
+
+export const CHAMPION_ICON_BASE = "https://riftbound.s3.us-east-1.amazonaws.com/champion_icons";
+
+export function championIconUrl(championName) {
+	const name = championName?.split(",")[0].replace(/[^A-Za-z0-9]/g, "");
+	return name ? `${CHAMPION_ICON_BASE}/${name}.png` : null;
+}
+
+// ─── Legends ──────────────────────────────────────────────────────────────────
+
+// A card id's base printing — alternate arts repeat the number past the set size
+// (e.g. "OGN-123/300" is base, "OGN-301/300" is an alt art of it).
+export function isBaseCard(id) {
+	const match = id?.match(/-(\d+)[^/]*\/(\d+)/);
+	if (!match) return true;
+	return parseInt(match[1], 10) < parseInt(match[2], 10);
+}
+
+// The legend options used by the champion pickers, sorted by champion name.
+export function legendOptions(cards) {
+	return cards
+		.filter(c => c.card_type_text?.includes("Legend") && isBaseCard(c.id))
+		.map(c => ({
+			id: c.id,
+			name: c.name,
+			image: c.image ?? null,
+			tags_text: c.tags_text ?? "",
+			icon: championIconUrl(c.tags_text),
+		}))
+		.sort((a, b) => a.tags_text.localeCompare(b.tags_text) || a.name.localeCompare(b.name));
+}

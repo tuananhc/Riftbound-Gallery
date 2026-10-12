@@ -58,16 +58,16 @@ export default function SignInForm() {
 	return (
 		<div style={{ maxWidth: 440, margin: "0 auto", padding: "60px 24px" }}>
 			<div style={{
-				background: "linear-gradient(135deg, #0f1120 0%, #12101e 50%, #0f1120 100%)",
-				border: `1px solid ${COLORS.border}`, borderRadius: 16,
+				background: "linear-gradient(135deg, #1a1a1a 0%, #1a1a1a 50%, #1a1a1a 100%)",
+				border: `1px solid ${COLORS.border}`, borderRadius: 0,
 				padding: "36px 34px", position: "relative", overflow: "hidden",
 			}}>
 				{/* bg decoration */}
-				<div style={{ position: "absolute", top: -50, right: -50, width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle, #2a104044 0%, transparent 70%)", pointerEvents: "none" }} />
+				<div style={{ position: "absolute", top: -50, right: -50, width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle, #2a2a2a44 0%, transparent 70%)", pointerEvents: "none" }} />
 
 				{/* ── Header ── */}
 				<div style={{ marginBottom: 28, position: "relative" }}>
-					<h1 style={{ fontSize: 24, fontWeight: 900, color: COLORS.gold, letterSpacing: "0.08em", fontFamily: FONT }}>
+					<h1 style={{ fontSize: 24, fontWeight: 900, color: COLORS.accent, letterSpacing: "0.08em", fontFamily: FONT }}>
 						Sign In
 					</h1>
 					<div style={{ fontSize: 13, color: COLORS.textMuted, fontStyle: "italic", marginTop: 6, fontFamily: FONT }}>
@@ -77,7 +77,7 @@ export default function SignInForm() {
 
 				{/* ── Error ── */}
 				{error && (
-					<div style={{ marginBottom: 18, padding: "10px 14px", background: "#2a0d0d", border: "1px solid #ef535044", borderRadius: 8, fontSize: 12, color: "#ef8a8a", fontFamily: FONT }}>
+					<div style={{ marginBottom: 18, padding: "10px 14px", background: "#202020", border: "1px solid #cc606044", borderRadius: 0, fontSize: 12, color: "#cc6060", fontFamily: FONT }}>
 						{error}
 					</div>
 				)}
@@ -98,7 +98,7 @@ export default function SignInForm() {
 				{/* ── Footer ── */}
 				<div style={{ marginTop: 22, textAlign: "center", fontSize: 12, color: COLORS.textDim, fontFamily: FONT }}>
 					New to Riftbound?{" "}
-					<a href="/signup" style={{ color: COLORS.gold }}>Create an account</a>
+					<a href="/signup" style={{ color: COLORS.accent }}>Create an account</a>
 				</div>
 			</div>
 		</div>

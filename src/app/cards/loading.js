@@ -6,7 +6,7 @@ function Bone({ width = "100%", height, borderRadius = 6, style = {} }) {
 	return (
 		<div className="bone" style={{
 			width, height, borderRadius,
-			background: "#1a1c28",
+			background: "#333333",
 			flexShrink: 0,
 			...style,
 		}} />
@@ -15,8 +15,8 @@ function Bone({ width = "100%", height, borderRadius = 6, style = {} }) {
 
 function CardSkeleton() {
 	return (
-		<div style={{ aspectRatio: "744 / 1039", borderRadius: 10, overflow: "hidden", background: "#10121a", position: "relative" }}>
-			<div className="bone" style={{ position: "absolute", inset: 0, borderRadius: 10 }} />
+		<div style={{ aspectRatio: "744 / 1039", borderRadius: 0, overflow: "hidden", background: "#1a1a1a", position: "relative" }}>
+			<div className="bone" style={{ position: "absolute", inset: 0, borderRadius: 0 }} />
 		</div>
 	);
 }

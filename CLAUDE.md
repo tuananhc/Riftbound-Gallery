@@ -12,7 +12,8 @@ This file defines the architecture rules, coding conventions, and best practices
 - **Database:** DynamoDB (Cards, Users, Decks, DeckVersions, MatchHistory)
 - **News/Blog:** Markdown files in `content/news/`
 - **Styling:** Inline styles only — no CSS modules, no Tailwind, no styled-components
-- **Fonts:** Cinzel (display/headings), Crimson Pro (body text)
+- **Theme:** flat dark grey surfaces, hairline grey borders, square corners, one cool grey-blue accent
+- **Fonts:** Geist Mono (whole UI, via `FONT_MONO` in `src/lib/data.js`)
 
 ---
 
@@ -145,18 +146,30 @@ src/
 ### Colour and typography tokens (from `src/lib/data.js`)
 
 ```js
-COLORS.bg         // #080b12 — page background
-COLORS.bgAlt      // #090c14 — sidebar background
-COLORS.bgCard     // #10121a — card background
-COLORS.border     // #1a1c28 — default border
-COLORS.text       // #e8e0d0 — primary text
-COLORS.textMuted  // #6a6a8a — secondary text
-COLORS.textDim    // #3a3a5a — disabled/hint text
-COLORS.gold       // #e8d090 — accent gold
+COLORS.bg         // #121212 — page background
+COLORS.bgAlt      // #161616 — sidebar background
+COLORS.bgCard     // #1a1a1a — card background
+COLORS.bgRaised   // #202020 — inputs, buttons, raised rows
+COLORS.bgHover    // #242424 — row / menu item hover
+COLORS.border     // #333333 — default hairline border
+COLORS.borderHover// #4a4a4a
+COLORS.text       // #d8d8d8 — primary text
+COLORS.textMuted  // #8a8a8d — secondary text
+COLORS.textDim    // #5f5f62 — disabled/hint text
+COLORS.accent     // #8fa3bf — cool grey-blue accent (replaces the old gold)
+COLORS.accentDim  // #5d6e86
+COLORS.accentGlow // #8fa3bf33
+COLORS.win        // #5fbf5f
+COLORS.loss       // #cc6060
+COLORS.draw       // #bdb76b
 ```
 
-- Display font: `Cinzel, serif` — headings, labels, nav, card names
-- Body font: `Crimson Pro, serif` — body text, card descriptions, prose
+- UI font: `FONT_MONO` from `src/lib/data.js` (Geist Mono, falling back to the
+  system monospace stack) — import it, never write a font name in a component
+- Corners are square — no `borderRadius` except `50%` for circular avatars
+- Emphasis comes from brightness, not hue. The only saturated colours in the UI
+  are the semantic win/loss/draw tokens and the game's own rune/rarity colours
+  in `src/lib/cards/data.js`
 - Never use system fonts (Arial, Inter, Roboto) anywhere in the UI
 
 ---

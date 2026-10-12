@@ -115,16 +115,16 @@ export default function SignupForm() {
 	return (
 		<div style={{ maxWidth: 440, margin: "0 auto", padding: "60px 24px" }}>
 			<div style={{
-				background: "linear-gradient(135deg, #0f1120 0%, #12101e 50%, #0f1120 100%)",
-				border: `1px solid ${COLORS.border}`, borderRadius: 16,
+				background: "linear-gradient(135deg, #1a1a1a 0%, #1a1a1a 50%, #1a1a1a 100%)",
+				border: `1px solid ${COLORS.border}`, borderRadius: 0,
 				padding: "36px 34px", position: "relative", overflow: "hidden",
 			}}>
 				{/* bg decoration */}
-				<div style={{ position: "absolute", top: -50, right: -50, width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle, #2a104044 0%, transparent 70%)", pointerEvents: "none" }} />
+				<div style={{ position: "absolute", top: -50, right: -50, width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle, #2a2a2a44 0%, transparent 70%)", pointerEvents: "none" }} />
 
 				{/* ── Header ── */}
 				<div style={{ marginBottom: 28, position: "relative" }}>
-					<h1 style={{ fontSize: 24, fontWeight: 900, color: COLORS.gold, letterSpacing: "0.08em", fontFamily: FONT }}>
+					<h1 style={{ fontSize: 24, fontWeight: 900, color: COLORS.accent, letterSpacing: "0.08em", fontFamily: FONT }}>
 						{phase === "done" ? "You're in" : "Create Account"}
 					</h1>
 					<div style={{ fontSize: 13, color: COLORS.textMuted, fontStyle: "italic", marginTop: 6, fontFamily: FONT }}>
@@ -136,12 +136,12 @@ export default function SignupForm() {
 
 				{/* ── Messages ── */}
 				{error && (
-					<div style={{ marginBottom: 18, padding: "10px 14px", background: "#2a0d0d", border: "1px solid #ef535044", borderRadius: 8, fontSize: 12, color: "#ef8a8a", fontFamily: FONT }}>
+					<div style={{ marginBottom: 18, padding: "10px 14px", background: "#202020", border: "1px solid #cc606044", borderRadius: 0, fontSize: 12, color: "#cc6060", fontFamily: FONT }}>
 						{error}
 					</div>
 				)}
 				{notice && !error && (
-					<div style={{ marginBottom: 18, padding: "10px 14px", background: "#0d1a20", border: "1px solid #4a509044", borderRadius: 8, fontSize: 12, color: "#8890cc", fontFamily: FONT }}>
+					<div style={{ marginBottom: 18, padding: "10px 14px", background: "#1a1a1a", border: "1px solid #8fa3bf44", borderRadius: 0, fontSize: 12, color: "#8fa3bf", fontFamily: FONT }}>
 						{notice}
 					</div>
 				)}
@@ -184,8 +184,8 @@ export default function SignupForm() {
 				{phase === "done" && (
 					<a href="/login" style={{ display: "block" }}>
 						<div style={{
-							background: "#1a1f35", border: "1px solid #4a5090", borderRadius: 8,
-							padding: "12px 20px", color: "#8890cc", textAlign: "center",
+							background: "#242424", border: "1px solid #5d6e86", borderRadius: 0,
+							padding: "12px 20px", color: "#8fa3bf", textAlign: "center",
 							fontFamily: FONT, fontSize: 11, letterSpacing: "0.12em", cursor: "pointer",
 						}}>
 							CONTINUE TO SIGN IN
@@ -197,7 +197,7 @@ export default function SignupForm() {
 				{phase === "signup" && (
 					<div style={{ marginTop: 22, textAlign: "center", fontSize: 12, color: COLORS.textDim, fontFamily: FONT }}>
 						Already have an account?{" "}
-						<a href="/login" style={{ color: COLORS.gold }}>Sign in</a>
+						<a href="/login" style={{ color: COLORS.accent }}>Sign in</a>
 					</div>
 				)}
 			</div>

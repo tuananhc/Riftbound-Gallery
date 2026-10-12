@@ -1,29 +1,21 @@
 "use client";
-import { Fragment, useState, useEffect, useMemo, useRef } from "react";
+import { Fragment, useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { COLORS } from "../../lib/data";
+import { COLORS, FONT_MONO } from "../../lib/data";
 import { countryFlag } from "../../lib/countries";
 import { useAuth } from "../../hooks/useAuth";
-import { useCards } from "../CardStoreProvider";
 import { saveMatchHistory, getPlayerTournaments, getProfile, addEloAccount, selectEloAccount, removeEloAccount } from "../../lib/api";
-
-// A legend's base printing (mirrors the check in DeckSources).
-function isBaseCard(id) {
-	const match = id?.match(/-(\d+)[^/]*\/(\d+)/);
-	if (!match) return true;
-	return parseInt(match[1], 10) < parseInt(match[2], 10);
-}
 
 // ── Dummy data ─────────────────────────────────────────────────────────────────
 
 const RANK_COLORS = {
-	"Bronze": { color: "#cd7f32", glow: "#cd7f3233", icon: "🥉" },
-	"Silver": { color: "#c0c0c0", glow: "#c0c0c033", icon: "🥈" },
-	"Gold": { color: "#ffd700", glow: "#ffd70033", icon: "🥇" },
-	"Platinum": { color: "#4fc3f7", glow: "#4fc3f733", icon: "💎" },
-	"Diamond": { color: "#b388ff", glow: "#b388ff33", icon: "🔷" },
-	"Master": { color: "#ff6d00", glow: "#ff6d0033", icon: "👑" },
+	"Bronze": { color: "#8a8a8d", glow: "#8a8a8d33", icon: "🥉" },
+	"Silver": { color: "#bebebe", glow: "#bebebe33", icon: "🥈" },
+	"Gold": { color: "#bdb76b", glow: "#bdb76b33", icon: "🥇" },
+	"Platinum": { color: "#8fa3bf", glow: "#8fa3bf33", icon: "💎" },
+	"Diamond": { color: "#a09bbf", glow: "#a09bbf33", icon: "🔷" },
+	"Master": { color: "#b08968", glow: "#b0896833", icon: "👑" },
 };
 
 const USER = {
@@ -40,19 +32,11 @@ const ELO_PAGE_SIZE = 10;
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
-export default function UserProfile() {
+// `legends` are fetched server-side in app/page.js — the pickers must work
+// without the Cards page having been visited.
+export default function UserProfile({ legends = [] }) {
 	const router = useRouter();
 	const { status, token } = useAuth();
-	const cards = useCards();
-
-	// Legends (Riftbound champions) for the match-row champion pickers.
-	const legends = useMemo(
-		() => cards
-			.filter(c => c.card_type_text?.includes("Legend") && isBaseCard(c.id))
-			.map(c => ({ id: c.id, name: c.name, image: c.image ?? null, tags_text: c.tags_text ?? "" }))
-			.sort((a, b) => a.tags_text.localeCompare(b.tags_text) || a.name.localeCompare(b.name)),
-		[cards]
-	);
 
 	// Redirect guests to sign-in once the session check resolves.
 	useEffect(() => {
@@ -155,8 +139,8 @@ export default function UserProfile() {
 		try {
 			await saveMatchHistory(token, linkedPlayer.id, matches);
 			setSaveMsg({ ok: true, text: `Saved ${matches.length} matches to your history.` });
-		} catch {
-			setSaveMsg({ ok: false, text: "Could not save — make sure the backend is deployed and you're signed in." });
+		} catch (err) {
+			setSaveMsg({ ok: false, text: `Could not save (${err.message}) — make sure the backend is deployed and you're signed in.` });
 		} finally {
 			setSaving(false);
 		}
@@ -262,43 +246,43 @@ export default function UserProfile() {
 
 	const totalGames = USER.stats.wins + USER.stats.losses + USER.stats.draws;
 	const winRate = Math.round((USER.stats.wins / totalGames) * 100);
-	const rank = RANK_COLORS[USER.rank] || { color: "#e8d090", glow: "#e8d09044", icon: "⭐" };
+	const rank = RANK_COLORS[USER.rank] || { color: "#8fa3bf", glow: "#8fa3bf44", icon: "⭐" };
 
 	return (
 		<div style={{ width: "100%", padding: "10px 12px", boxSizing: "border-box" }}>
 
 			{/* ── Profile Header ── */}
 			<div style={{
-				background: "linear-gradient(135deg, #0f1120 0%, #12101e 50%, #0f1120 100%)",
+				background: "linear-gradient(135deg, #1a1a1a 0%, #1a1a1a 50%, #1a1a1a 100%)",
 				border: `1px solid ${COLORS.border}`,
-				borderRadius: 4, padding: "10px 14px", marginBottom: 10,
+				borderRadius: 0, padding: "10px 14px", marginBottom: 10,
 				display: "flex", alignItems: "center", gap: 12,
 				position: "relative", zIndex: 70,
 			}}>
 				{/* bg decoration — clipped on its own layer so the profile dropdown can overflow the card */}
-				<div style={{ position: "absolute", inset: 0, borderRadius: 4, overflow: "hidden", pointerEvents: "none" }}>
-					<div style={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle, #2a104044 0%, transparent 70%)" }} />
+				<div style={{ position: "absolute", inset: 0, borderRadius: 0, overflow: "hidden", pointerEvents: "none" }}>
+					<div style={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle, #2a2a2a44 0%, transparent 70%)" }} />
 				</div>
 
 				{/* Avatar */}
 				<div style={{
-					width: 40, height: 40, borderRadius: 4, flexShrink: 0,
-					background: "linear-gradient(135deg, #2a1040, #1a0830)",
-					border: "2px solid #4a2060",
+					width: 40, height: 40, borderRadius: 0, flexShrink: 0,
+					background: "linear-gradient(135deg, #242424, #161616)",
+					border: "2px solid #333333",
 					display: "flex", alignItems: "center", justifyContent: "center",
-					fontSize: 20, boxShadow: "0 0 12px #6020a055",
+					fontSize: 20, boxShadow: "0 0 12px #00000055",
 				}}>{USER.avatar}</div>
 
 				{/* Info */}
 				<div style={{ flex: 1 }}>
 					<div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-						<h1 style={{ fontSize: 15, fontWeight: 900, color: COLORS.gold, letterSpacing: "0.08em", fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
+						<h1 style={{ fontSize: 15, fontWeight: 900, color: COLORS.accent, letterSpacing: "0.08em", fontFamily: FONT_MONO }}>
 							{USER.username}
 						</h1>
 						<span style={{
 							background: rank.glow, border: `1px solid ${rank.color}44`,
-							borderRadius: 3, padding: "0 6px",
-							fontSize: 10, color: rank.color, fontFamily: "'Segoe UI', system-ui, sans-serif", letterSpacing: "0.1em",
+							borderRadius: 0, padding: "0 6px",
+							fontSize: 10, color: rank.color, fontFamily: FONT_MONO, letterSpacing: "0.1em",
 						}}>{rank.icon} {USER.rank}</span>
 						{linkedPlayer && (
 							<ProfileSwitcher accounts={accounts} activeId={activeId}
@@ -307,24 +291,24 @@ export default function UserProfile() {
 								onAdd={() => { setAddingAccount(true); setEloResults([]); setEloError(null); }} />
 						)}
 					</div>
-					<div style={{ fontSize: 11, color: COLORS.textMuted, fontStyle: "italic", marginBottom: 2, fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
+					<div style={{ fontSize: 11, color: COLORS.textMuted, fontStyle: "italic", marginBottom: 2, fontFamily: FONT_MONO }}>
 						{USER.title}
 					</div>
-					<div style={{ fontSize: 9, color: COLORS.textDim, fontFamily: "'Segoe UI', system-ui, sans-serif", letterSpacing: "0.08em" }}>
-						MEMBER SINCE {USER.joinDate.toUpperCase()} &nbsp;·&nbsp; WIN STREAK: <span style={{ color: "#4caf50" }}>+{USER.stats.winStreak}</span>
+					<div style={{ fontSize: 9, color: COLORS.textDim, fontFamily: FONT_MONO, letterSpacing: "0.08em" }}>
+						MEMBER SINCE {USER.joinDate.toUpperCase()} &nbsp;·&nbsp; WIN STREAK: <span style={{ color: "#5fbf5f" }}>+{USER.stats.winStreak}</span>
 					</div>
 				</div>
 
 				{/* Stats */}
 				<div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
 					{[
-						{ label: "WINS", value: USER.stats.wins, color: "#4caf50" },
-						{ label: "LOSSES", value: USER.stats.losses, color: "#ef5350" },
-						{ label: "WIN%", value: `${winRate}%`, color: COLORS.gold },
+						{ label: "WINS", value: USER.stats.wins, color: "#5fbf5f" },
+						{ label: "LOSSES", value: USER.stats.losses, color: "#cc6060" },
+						{ label: "WIN%", value: `${winRate}%`, color: COLORS.accent },
 					].map(s => (
-						<div key={s.label} style={{ background: "#10121a", border: "1px solid #1e2030", borderRadius: 3, padding: "3px 10px", textAlign: "center", minWidth: 52 }}>
-							<div style={{ fontSize: 14, fontWeight: 900, color: s.color, fontFamily: "'Segoe UI', system-ui, sans-serif" }}>{s.value}</div>
-							<div style={{ fontSize: 8, color: COLORS.textDim, letterSpacing: "0.15em", marginTop: 1, fontFamily: "'Segoe UI', system-ui, sans-serif" }}>{s.label}</div>
+						<div key={s.label} style={{ background: "#1a1a1a", border: "1px solid #333333", borderRadius: 0, padding: "3px 10px", textAlign: "center", minWidth: 52 }}>
+							<div style={{ fontSize: 14, fontWeight: 900, color: s.color, fontFamily: FONT_MONO }}>{s.value}</div>
+							<div style={{ fontSize: 8, color: COLORS.textDim, letterSpacing: "0.15em", marginTop: 1, fontFamily: FONT_MONO }}>{s.label}</div>
 						</div>
 					))}
 				</div>
@@ -333,26 +317,26 @@ export default function UserProfile() {
 			{/* ── EloShowdown Search ── */}
 			<div style={{
 				background: COLORS.bgCard, border: `1px solid ${COLORS.border}`,
-				borderRadius: 4, padding: "8px 12px", marginBottom: 10,
+				borderRadius: 0, padding: "8px 12px", marginBottom: 10,
 			}}>
 				{profileStatus === "loading" && (
-					<div style={{ fontSize: 11, color: COLORS.textDim, fontFamily: "'Segoe UI', system-ui, sans-serif", letterSpacing: "0.1em", padding: "4px 0" }}>
+					<div style={{ fontSize: 11, color: COLORS.textDim, fontFamily: FONT_MONO, letterSpacing: "0.1em", padding: "4px 0" }}>
 						LOADING PROFILE…
 					</div>
 				)}
 
 				{linkError && (
-					<div style={{ marginBottom: 6, fontSize: 11, color: "#ef5350", fontFamily: "'Segoe UI', system-ui, sans-serif" }}>{linkError}</div>
+					<div style={{ marginBottom: 6, fontSize: 11, color: "#cc6060", fontFamily: FONT_MONO }}>{linkError}</div>
 				)}
 
 				{showSearch && (<>
 				<div style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
-					<div style={{ fontSize: 10, color: COLORS.textDim, letterSpacing: "0.18em", fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
+					<div style={{ fontSize: 10, color: COLORS.textDim, letterSpacing: "0.18em", fontFamily: FONT_MONO }}>
 						{addingAccount ? "Link another EloShowdown account" : "Find your latest match history with Riot ID"}
 					</div>
 					{addingAccount && (
 						<button onClick={() => { setAddingAccount(false); setEloResults([]); setEloQuery(""); setEloError(null); }}
-							style={{ marginLeft: "auto", background: "transparent", border: "none", color: COLORS.textMuted, cursor: "pointer", fontSize: 10, letterSpacing: "0.12em", fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
+							style={{ marginLeft: "auto", background: "transparent", border: "none", color: COLORS.textMuted, cursor: "pointer", fontSize: 10, letterSpacing: "0.12em", fontFamily: FONT_MONO }}>
 							CANCEL
 						</button>
 					)}
@@ -364,20 +348,20 @@ export default function UserProfile() {
 						placeholder="Enter your EloShowdown username…"
 						value={eloQuery}
 						onChange={e => setEloQuery(e.target.value)}
-						onFocus={e => { e.target.style.borderColor = "#4a5090"; }}
-						onBlur={e => { e.target.style.borderColor = "#1e2030"; }}
+						onFocus={e => { e.target.style.borderColor = "#5d6e86"; }}
+						onBlur={e => { e.target.style.borderColor = "#333333"; }}
 						style={{
-							background: "#0d0f18", border: "1px solid #1e2030", borderRadius: 3,
-							padding: "5px 8px", color: "#e8e0d0", fontFamily: "'Segoe UI', system-ui, sans-serif",
+							background: "#1a1a1a", border: "1px solid #333333", borderRadius: 0,
+							padding: "5px 8px", color: "#d8d8d8", fontFamily: FONT_MONO,
 							fontSize: 12, width: "100%", outline: "none", transition: "border-color 0.2s", boxSizing: "border-box",
 						}}
 					/>
 					<button type="submit" disabled={eloLoading || !eloQuery.trim()}
 						style={{
-							background: eloLoading || !eloQuery.trim() ? "#1a1c28" : "#1a1f35",
-							border: `1px solid ${eloLoading || !eloQuery.trim() ? "#1e2030" : "#4a5090"}`,
-							borderRadius: 3, padding: "5px 14px", color: eloLoading || !eloQuery.trim() ? COLORS.textDim : "#8890cc",
-							fontFamily: "'Segoe UI', system-ui, sans-serif", fontSize: 10, letterSpacing: "0.12em",
+							background: eloLoading || !eloQuery.trim() ? "#333333" : "#242424",
+							border: `1px solid ${eloLoading || !eloQuery.trim() ? "#333333" : "#5d6e86"}`,
+							borderRadius: 0, padding: "5px 14px", color: eloLoading || !eloQuery.trim() ? COLORS.textDim : "#8fa3bf",
+							fontFamily: FONT_MONO, fontSize: 10, letterSpacing: "0.12em",
 							cursor: eloLoading || !eloQuery.trim() ? "not-allowed" : "pointer",
 							whiteSpace: "nowrap", transition: "all 0.2s", flexShrink: 0,
 						}}>
@@ -386,24 +370,24 @@ export default function UserProfile() {
 				</form>
 
 				{ eloError && (
-					<div style={{ marginTop: 6, fontSize: 11, color: "#ef5350", fontFamily: "'Segoe UI', system-ui, sans-serif" }}>{eloError}</div>
+					<div style={{ marginTop: 6, fontSize: 11, color: "#cc6060", fontFamily: FONT_MONO }}>{eloError}</div>
 				) }
 
 				{ eloResults.length > 0 && (
-					<div style={{ marginTop: 6, background: "#0a0c14", border: `1px solid ${COLORS.border}`, borderRadius: 3, overflow: "hidden" }}>
+					<div style={{ marginTop: 6, background: "#121212", border: `1px solid ${COLORS.border}`, borderRadius: 0, overflow: "hidden" }}>
 						{eloResults.map((player, i) => (
 							<div key={player.id}
 								onClick={() => selectPlayer(player)}
-								onMouseEnter={e => { e.currentTarget.style.background = "#0d0f17"; }}
+								onMouseEnter={e => { e.currentTarget.style.background = "#1a1a1a"; }}
 								onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
 								style={{
 									display: "flex", alignItems: "center", gap: 10, padding: "3px 8px",
-									borderBottom: i < eloResults.length - 1 ? "1px solid #12141e" : "none",
+									borderBottom: i < eloResults.length - 1 ? "1px solid #202020" : "none",
 									cursor: "pointer", transition: "background 0.15s",
 								}}>
 								<div style={{ flex: 1 }}>
-									<div style={{ fontSize: 12, color: COLORS.text, fontFamily: "'Segoe UI', system-ui, sans-serif" }}>{player.display_name}</div>
-									<div style={{ fontSize: 10, color: COLORS.textMuted, fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
+									<div style={{ fontSize: 12, color: COLORS.text, fontFamily: FONT_MONO }}>{player.display_name}</div>
+									<div style={{ fontSize: 10, color: COLORS.textMuted, fontFamily: FONT_MONO }}>
 										{player.primary_community} · {countryFlag(player.country)} {player.country}
 									</div>
 								</div>
@@ -418,7 +402,7 @@ export default function UserProfile() {
 				{ linkedPlayer && !addingAccount && (
 					<div style={{ marginBottom: 4 }}>
 						{eloHistoryLoading && (
-							<div style={{ fontSize: 11, color: COLORS.textDim, fontFamily: "'Segoe UI', system-ui, sans-serif", letterSpacing: "0.1em", padding: "4px 0" }}>
+							<div style={{ fontSize: 11, color: COLORS.textDim, fontFamily: FONT_MONO, letterSpacing: "0.1em", padding: "4px 0" }}>
 								LOADING MATCH HISTORY…
 							</div>
 						)}
@@ -433,19 +417,19 @@ export default function UserProfile() {
 							return (
 								<div>
 									<div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 4 }}>
-										<div style={{ fontSize: 10, color: COLORS.textDim, letterSpacing: "0.15em", fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
+										<div style={{ fontSize: 10, color: COLORS.textDim, letterSpacing: "0.15em", fontFamily: FONT_MONO }}>
 											ELO
 										</div>
-										<div style={{ fontSize: 14, fontWeight: 700, color: COLORS.gold, fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
+										<div style={{ fontSize: 14, fontWeight: 700, color: COLORS.accent, fontFamily: FONT_MONO }}>
 											{current}
 										</div>
-										<div style={{ fontSize: 10, color: COLORS.textDim, letterSpacing: "0.1em", fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
+										<div style={{ fontSize: 10, color: COLORS.textDim, letterSpacing: "0.1em", fontFamily: FONT_MONO }}>
 											{eloHistory.season_slug.replace(/-/g, " ").toUpperCase()}
 										</div>
 									</div>
 									<div>
 										{recent.map((m, i) => {
-											const resultColor = m.result === "win" ? "#4caf50" : m.result === "loss" ? "#ef5350" : "#ffd700";
+											const resultColor = m.result === "win" ? "#5fbf5f" : m.result === "loss" ? "#cc6060" : "#bdb76b";
 											const changeSign = m.elo_change > 0 ? "+" : "";
 											const d = new Date(m.date);
 											const dateStr = d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
@@ -460,7 +444,7 @@ export default function UserProfile() {
 												)}
 												<div
 													style={{
-														position: "relative", height: 44, background: "#0a0c14",
+														position: "relative", height: 50, background: "#121212",
 														border: `1px solid ${COLORS.border}`, borderTop: "none",
 														marginBottom: endsGroup ? 12 : 0,
 														overflow: "visible",
@@ -471,11 +455,11 @@ export default function UserProfile() {
 														onSelect={id => setChampion(m.match_id, "opponent", id)} />
 													{/* 1fr | auto | 1fr keeps the opponent name centred regardless of the flanking widths. */}
 													<div style={{ position: "absolute", inset: 0, display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", columnGap: 10, pointerEvents: "none", zIndex: 3 }}>
-														<span style={{ justifySelf: "end", fontSize: 11, fontWeight: 700, color: resultColor, fontFamily: "'Segoe UI', system-ui, sans-serif", letterSpacing: "0.08em", textTransform: "uppercase", textShadow: "0 1px 4px #000" }}>
+														<span style={{ justifySelf: "end", fontSize: 11, fontWeight: 700, color: resultColor, fontFamily: FONT_MONO, letterSpacing: "0.08em", textTransform: "uppercase", textShadow: "0 1px 4px #000" }}>
 															{m.result}
 														</span>
-														<span style={{ fontSize: 14, color: COLORS.text, fontFamily: "'Segoe UI', system-ui, sans-serif", textShadow: "0 1px 4px #000" }}>{m.opponent_name}</span>
-														<span style={{ justifySelf: "start", fontSize: 14, fontWeight: 700, color: m.elo_change > 0 ? "#4caf50" : m.elo_change < 0 ? "#ef5350" : COLORS.textDim, fontFamily: "'Segoe UI', system-ui, sans-serif", textShadow: "0 1px 4px #000" }}>
+														<span style={{ fontSize: 14, color: COLORS.text, fontFamily: FONT_MONO, textShadow: "0 1px 4px #000" }}>{m.opponent_name}</span>
+														<span style={{ justifySelf: "start", fontSize: 14, fontWeight: 700, color: m.elo_change > 0 ? "#5fbf5f" : m.elo_change < 0 ? "#cc6060" : COLORS.textDim, fontFamily: FONT_MONO, textShadow: "0 1px 4px #000" }}>
 															{changeSign}{m.elo_change}
 														</span>
 													</div>
@@ -487,12 +471,12 @@ export default function UserProfile() {
 									{ hasMore && (
 										<button
 											onClick={() => setEloVisible(v => v + ELO_PAGE_SIZE)}
-											onMouseEnter={e => { e.currentTarget.style.borderColor = "#4a5090"; e.currentTarget.style.color = "#8890cc"; }}
-											onMouseLeave={e => { e.currentTarget.style.borderColor = "#1e2030"; e.currentTarget.style.color = COLORS.textMuted; }}
+											onMouseEnter={e => { e.currentTarget.style.borderColor = "#5d6e86"; e.currentTarget.style.color = "#8fa3bf"; }}
+											onMouseLeave={e => { e.currentTarget.style.borderColor = "#333333"; e.currentTarget.style.color = COLORS.textMuted; }}
 											style={{
 												width: "100%", marginTop: 4, padding: "4px 12px",
-												background: "#12141e", border: "1px solid #1e2030", borderRadius: 3,
-												color: COLORS.textMuted, fontFamily: "'Segoe UI', system-ui, sans-serif",
+												background: "#202020", border: "1px solid #333333", borderRadius: 0,
+												color: COLORS.textMuted, fontFamily: FONT_MONO,
 												fontSize: 10, letterSpacing: "0.14em", cursor: "pointer", transition: "all 0.2s",
 											}}>
 											LOAD MORE ({points.length - eloVisible} MORE)
@@ -501,21 +485,21 @@ export default function UserProfile() {
 
 									{/* Save the whole loaded history (with champion picks) to DynamoDB */}
 									<button onClick={handleSaveHistory} disabled={saving}
-										onMouseEnter={e => { if (!saving) e.currentTarget.style.boxShadow = "0 0 18px #e8d09055"; }}
+										onMouseEnter={e => { if (!saving) e.currentTarget.style.boxShadow = "0 0 18px #8fa3bf55"; }}
 										onMouseLeave={e => { e.currentTarget.style.boxShadow = "none"; }}
 										style={{
-											width: "100%", marginTop: 4, padding: "5px 12px", borderRadius: 3,
-											background: saving ? "#1a1c28" : "linear-gradient(135deg, #e8d090, #d4bc78)",
-											border: `1px solid ${saving ? "#1e2030" : "#f0dca0"}`,
-											color: saving ? COLORS.textDim : "#1a1206",
-											fontFamily: "'Segoe UI', system-ui, sans-serif", fontSize: 10, fontWeight: 800, letterSpacing: "0.14em",
+											width: "100%", marginTop: 4, padding: "5px 12px", borderRadius: 0,
+											background: saving ? "#333333" : "linear-gradient(135deg, #8fa3bf, #8fa3bf)",
+											border: `1px solid ${saving ? "#333333" : "#8fa3bf"}`,
+											color: saving ? COLORS.textDim : "#121212",
+											fontFamily: FONT_MONO, fontSize: 10, fontWeight: 800, letterSpacing: "0.14em",
 											cursor: saving ? "not-allowed" : "pointer", transition: "all 0.2s",
 										}}>
 										{saving ? "SAVING…" : "SAVE MATCH HISTORY"}
 									</button>
 
 									{saveMsg && (
-										<div style={{ marginTop: 4, fontSize: 11, textAlign: "center", color: saveMsg.ok ? "#4caf50" : "#ef5350", fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
+										<div style={{ marginTop: 4, fontSize: 11, textAlign: "center", color: saveMsg.ok ? "#5fbf5f" : "#cc6060", fontFamily: FONT_MONO }}>
 											{saveMsg.text}
 										</div>
 									)}
@@ -539,20 +523,20 @@ function ProfileSwitcher({ accounts, activeId, onSelect, onRemove, onAdd }) {
 	const font = "'Segoe UI', system-ui, sans-serif";
 	const active = accounts.find(a => a.id === activeId);
 	const hover = {
-		onMouseEnter: e => { e.currentTarget.style.background = "#161a28"; },
+		onMouseEnter: e => { e.currentTarget.style.background = "#242424"; },
 		onMouseLeave: e => { e.currentTarget.style.background = "transparent"; },
 	};
 
 	return (
 		<div style={{ position: "relative" }}>
 			<button onClick={() => setOpen(o => !o)}
-				onMouseEnter={e => { e.currentTarget.style.borderColor = "#4a5090"; }}
-				onMouseLeave={e => { e.currentTarget.style.borderColor = "#2a3060"; }}
+				onMouseEnter={e => { e.currentTarget.style.borderColor = "#5d6e86"; }}
+				onMouseLeave={e => { e.currentTarget.style.borderColor = "#4a4a4a"; }}
 				style={{
 					display: "flex", alignItems: "center", gap: 6,
-					background: "#0d1020", border: "1px solid #2a3060", borderRadius: 3,
+					background: "#1a1a1a", border: "1px solid #4a4a4a", borderRadius: 0,
 					padding: "1px 8px", cursor: "pointer", transition: "border-color 0.2s",
-					fontSize: 11, color: "#8890cc", fontFamily: font,
+					fontSize: 11, color: "#8fa3bf", fontFamily: font,
 				}}>
 				🔗 {active?.display_name ?? active?.id}
 				{accounts.length > 1 && <span style={{ fontSize: 10, color: COLORS.textMuted }}>+{accounts.length - 1}</span>}
@@ -566,7 +550,7 @@ function ProfileSwitcher({ accounts, activeId, onSelect, onRemove, onAdd }) {
 					<div style={{
 						position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 50,
 						width: 280, maxWidth: "calc(100vw - 32px)", maxHeight: 360, overflowY: "auto",
-						background: "#10121a", border: `1px solid ${COLORS.border}`, borderRadius: 3,
+						background: "#1a1a1a", border: `1px solid ${COLORS.border}`, borderRadius: 0,
 						boxShadow: "0 8px 24px #00000088",
 					}}>
 						{accounts.map(a => {
@@ -579,7 +563,7 @@ function ProfileSwitcher({ accounts, activeId, onSelect, onRemove, onAdd }) {
 										borderBottom: `1px solid ${COLORS.border}`, cursor: "pointer", transition: "background 0.15s",
 									}}>
 									<div style={{ flex: 1, minWidth: 0 }}>
-										<div style={{ fontSize: 12, fontWeight: isActive ? 700 : 400, color: isActive ? COLORS.gold : COLORS.text, fontFamily: font, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+										<div style={{ fontSize: 12, fontWeight: isActive ? 700 : 400, color: isActive ? COLORS.accent : COLORS.text, fontFamily: font, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
 											{isActive ? "✓ " : ""}{a.display_name ?? a.id}
 										</div>
 										{(a.primary_community || a.country) && (
@@ -590,7 +574,7 @@ function ProfileSwitcher({ accounts, activeId, onSelect, onRemove, onAdd }) {
 									</div>
 									<button title="Unlink this account"
 										onClick={e => { e.stopPropagation(); setOpen(false); onRemove(a.id); }}
-										onMouseEnter={e => { e.currentTarget.style.color = "#ef5350"; }}
+										onMouseEnter={e => { e.currentTarget.style.color = "#cc6060"; }}
 										onMouseLeave={e => { e.currentTarget.style.color = COLORS.textDim; }}
 										style={{ background: "transparent", border: "none", color: COLORS.textDim, cursor: "pointer", fontSize: 12, padding: "2px 4px", flexShrink: 0 }}>
 										✕
@@ -602,7 +586,7 @@ function ProfileSwitcher({ accounts, activeId, onSelect, onRemove, onAdd }) {
 							style={{
 								display: "block", width: "100%", textAlign: "left", padding: "8px 12px",
 								background: "transparent", border: "none", cursor: "pointer",
-								fontSize: 11, letterSpacing: "0.1em", color: "#8890cc", fontFamily: font, transition: "background 0.15s",
+								fontSize: 11, letterSpacing: "0.1em", color: "#8fa3bf", fontFamily: font, transition: "background 0.15s",
 							}}>
 							＋ ADD ACCOUNT
 						</button>
@@ -625,14 +609,14 @@ function TournamentHeader({ tournament, dateStr }) {
 	return (
 		<div style={{
 			display: "flex", alignItems: "center", gap: 8, height: 20, padding: "0 8px",
-			background: "#0d0f18", border: `1px solid ${COLORS.border}`, borderRadius: "3px 3px 0 0",
-			fontSize: 10, letterSpacing: "0.06em", fontFamily: "'Segoe UI', system-ui, sans-serif",
+			background: "#1a1a1a", border: `1px solid ${COLORS.border}`, borderRadius: 0,
+			fontSize: 10, letterSpacing: "0.06em", fontFamily: FONT_MONO,
 		}}>
 			{tournament ? (
 				<a href={tournament.url} target="_blank" rel="noopener noreferrer"
 					onMouseEnter={e => { e.currentTarget.style.textDecoration = "underline"; }}
 					onMouseLeave={e => { e.currentTarget.style.textDecoration = "none"; }}
-					style={{ color: COLORS.gold, fontWeight: 700, textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+					style={{ color: COLORS.accent, fontWeight: 700, textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
 					{label}
 				</a>
 			) : (
@@ -653,14 +637,16 @@ const PICKER_GAP = 4;
 
 function ChampionHalf({ champions, value, onSelect, label, side }) {
 	const [open, setOpen] = useState(false);
+	// Champions whose S3 icon 404s — those rows fall back to the card art.
+	const [iconless, setIconless] = useState([]);
 	const [openUp, setOpenUp] = useState(false);
 	const wrapperRef = useRef(null);
 	const champ = champions.find(c => c.id === value);
 	const isLeft = side === "left";
 	// Fade the art toward the row's centre so the match info stays readable.
 	const fade = isLeft
-		? "linear-gradient(90deg, rgba(10,12,20,0) 25%, rgba(10,12,20,0.96) 100%)"
-		: "linear-gradient(270deg, rgba(10,12,20,0) 25%, rgba(10,12,20,0.96) 100%)";
+		? "linear-gradient(90deg, rgba(26,26,26,0) 25%, rgba(26,26,26,0.96) 100%)"
+		: "linear-gradient(270deg, rgba(26,26,26,0) 25%, rgba(26,26,26,0.96) 100%)";
 
 	return (
 		<div ref={wrapperRef} style={{ position: "absolute", [isLeft ? "left" : "right"]: 0, top: 0, width: "50%", height: "100%", zIndex: open ? 60 : 1 }}>
@@ -677,7 +663,7 @@ function ChampionHalf({ champions, value, onSelect, label, side }) {
 				title={champ ? champ.tags_text : "Select champion"}
 				style={{
 					width: "100%", height: "100%", position: "relative", overflow: "hidden",
-					border: "none", background: champ ? "transparent" : "#0a0c14", cursor: "pointer", padding: 0,
+					border: "none", background: champ ? "transparent" : "#121212", cursor: "pointer", padding: 0,
 					display: "flex", alignItems: "center", justifyContent: isLeft ? "flex-start" : "flex-end",
 				}}>
 				{champ?.image && (
@@ -687,8 +673,8 @@ function ChampionHalf({ champions, value, onSelect, label, side }) {
 				<span style={{
 					position: "relative", zIndex: 1, padding: "0 8px",
 					fontSize: 10, letterSpacing: "0.1em", whiteSpace: "nowrap",
-					color: champ ? COLORS.gold : COLORS.textDim,
-					fontFamily: "'Segoe UI', system-ui, sans-serif",
+					color: champ ? COLORS.accent : COLORS.textDim,
+					fontFamily: FONT_MONO,
 				}}>
 					{champ ? `${label} · ${champ.tags_text}` : `＋ ${label}`}
 				</span>
@@ -701,24 +687,27 @@ function ChampionHalf({ champions, value, onSelect, label, side }) {
 					<div style={{
 						position: "absolute", [openUp ? "bottom" : "top"]: `calc(100% + ${PICKER_GAP}px)`, [isLeft ? "left" : "right"]: 8, zIndex: 50,
 						width: 280, maxWidth: "calc(100vw - 32px)", maxHeight: PICKER_MAX_HEIGHT, overflowY: "auto",
-						background: "#10121a", border: `1px solid ${COLORS.border}`, borderRadius: 3,
+						background: "#1a1a1a", border: `1px solid ${COLORS.border}`, borderRadius: 0,
 						boxShadow: "0 8px 24px #00000088",
 					}}>
 						{champions.length === 0 && (
-							<div style={{ padding: "12px 14px", fontSize: 11, color: COLORS.textDim, fontFamily: "'Segoe UI', system-ui, sans-serif", letterSpacing: "0.06em" }}>
-								Visit the Cards page first to load legends.
+							<div style={{ padding: "12px 14px", fontSize: 11, color: COLORS.textDim, fontFamily: FONT_MONO, letterSpacing: "0.06em" }}>
+								No legends found.
 							</div>
 						)}
 						{champions.map(c => (
 							<div key={c.id}
 								onClick={() => { onSelect(c.id); setOpen(false); }}
-								onMouseEnter={e => { e.currentTarget.style.background = "#161a28"; }}
+								onMouseEnter={e => { e.currentTarget.style.background = "#242424"; }}
 								onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
 								style={{ display: "flex", alignItems: "center", gap: 12, padding: "6px 12px", cursor: "pointer", transition: "background 0.15s" }}>
-								<div style={{ position: "relative", width: 27, height: 36, borderRadius: 2, overflow: "hidden", background: "#0a0c14", flexShrink: 0 }}>
-									{c.image && <Image src={c.image} alt={c.tags_text} fill sizes="27px" style={{ objectFit: "cover", objectPosition: "top" }} />}
+								<div style={{ position: "relative", width: 32, height: 32, overflow: "hidden", background: COLORS.bg, flexShrink: 0 }}>
+									{c.icon && !iconless.includes(c.id)
+										? <Image src={c.icon} alt="" fill sizes="32px" style={{ objectFit: "cover" }}
+											onError={() => setIconless(prev => prev.includes(c.id) ? prev : [...prev, c.id])} />
+										: c.image && <Image src={c.image} alt="" fill sizes="32px" style={{ objectFit: "cover", objectPosition: "top" }} />}
 								</div>
-								<span style={{ fontSize: 14, color: c.id === value ? COLORS.gold : COLORS.text, fontFamily: "'Segoe UI', system-ui, sans-serif" }}>{c.tags_text}</span>
+								<span style={{ fontSize: 14, color: c.id === value ? COLORS.accent : COLORS.text, fontFamily: FONT_MONO }}>{c.tags_text}</span>
 							</div>
 						))}
 					</div>

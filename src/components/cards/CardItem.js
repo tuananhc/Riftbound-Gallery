@@ -7,8 +7,8 @@ export default function CardItem({ card, onClick, deckCount = 0 }) {
 
 	return (
 		<div onClick={onClick} style={{
-			cursor: "pointer", borderRadius: 10, overflow: "visible", position: "relative",
-			aspectRatio: "744 / 1039", background: "#0a0c14",
+			cursor: "pointer", borderRadius: 0, overflow: "visible", position: "relative",
+			aspectRatio: "744 / 1039", background: "#121212",
 			transition: "transform 0.2s ease, box-shadow 0.2s ease, outline 0.15s ease",
 			outline: inDeck ? "2px solid #34ed40" : "none",
 			outlineOffset: "2px",
@@ -23,8 +23,8 @@ export default function CardItem({ card, onClick, deckCount = 0 }) {
 			{card.banned && (
 				<div style={{
 					position: "absolute", top: 8, right: 8,
-					background: "#e84a4a", color: "#fff", fontSize: 15, fontWeight: 700,
-					padding: "2px 6px", borderRadius: 4, letterSpacing: "0.1em",
+					background: "#e84a4a", color: "#e8e8e8", fontSize: 15, fontWeight: 700,
+					padding: "2px 6px", borderRadius: 0, letterSpacing: "0.1em",
 				}}>
 					BANNED
 				</div>
@@ -32,8 +32,8 @@ export default function CardItem({ card, onClick, deckCount = 0 }) {
 			{inDeck && (
 				<div style={{
 					position: "absolute", bottom: -14, left: "50%", transform: "translateX(-50%)",
-					background: "#34ed40", color: "#0a0c14", fontSize: 13, fontWeight: 900,
-					width: 28, height: 28, borderRadius: 6, display: "flex", alignItems: "center",
+					background: "#34ed40", color: "#121212", fontSize: 13, fontWeight: 900,
+					width: 28, height: 28, borderRadius: 0, display: "flex", alignItems: "center",
 					justifyContent: "center", letterSpacing: "0.05em",
 				}}>
 					{deckCount}

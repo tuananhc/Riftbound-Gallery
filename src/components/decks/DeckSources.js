@@ -1,6 +1,6 @@
 "use client";
 import { useState, useMemo } from "react";
-import { COLORS } from "../../lib/data";
+import { COLORS, FONT_MONO } from "../../lib/data";
 import { useCards } from "../CardStoreProvider";
 import { SOURCES } from "./sources";
 import { FILTER_DEFAULTS } from "./DeckFilters";
@@ -96,13 +96,13 @@ export default function DeckSources() {
 	return (
 		<div style={{ maxWidth: 1100, margin: "0 auto", padding: "40px 24px" }}>
 			<div style={{ marginBottom: 28 }}>
-				<h1 style={{ fontSize: 22, fontWeight: 900, color: COLORS.gold, letterSpacing: "0.1em", fontFamily: "'Segoe UI', system-ui, sans-serif", margin: "0 0 8px" }}>
+				<h1 style={{ fontSize: 22, fontWeight: 900, color: COLORS.accent, letterSpacing: "0.1em", fontFamily: FONT_MONO, margin: "0 0 8px" }}>
 					COMMUNITY DECKS
 				</h1>
-				<p style={{ fontSize: 13, color: COLORS.textMuted, fontFamily: "'Segoe UI', system-ui, sans-serif", lineHeight: 1.6, margin: 0 }}>
+				<p style={{ fontSize: 13, color: COLORS.textMuted, fontFamily: FONT_MONO, lineHeight: 1.6, margin: 0 }}>
 					Select one or more sources — the crawler will pull decklists from all of them.
 					{selectedIds.size > 0 && (
-						<span style={{ color: COLORS.gold, marginLeft: 6 }}>
+						<span style={{ color: COLORS.accent, marginLeft: 6 }}>
 							{selectedIds.size} source{selectedIds.size > 1 ? "s" : ""} selected.
 						</span>
 					)}
@@ -134,12 +134,12 @@ export default function DeckSources() {
 						disabled={searching}
 						style={{
 							display: "inline-flex", alignItems: "center", gap: 10,
-							background: searching ? "#1e2030" : COLORS.gold,
-							color: searching ? COLORS.textMuted : "#080b12",
-							border: `1px solid ${searching ? "#2a2c3a" : COLORS.gold}`,
-							borderRadius: 8, padding: "11px 28px",
+							background: searching ? "#333333" : COLORS.accent,
+							color: searching ? COLORS.textMuted : "#121212",
+							border: `1px solid ${searching ? "#4a4a4a" : COLORS.accent}`,
+							borderRadius: 0, padding: "11px 28px",
 							fontSize: 12, fontWeight: 700, letterSpacing: "0.12em",
-							fontFamily: "'Segoe UI', system-ui, sans-serif",
+							fontFamily: FONT_MONO,
 							cursor: searching ? "not-allowed" : "pointer",
 							transition: "all 0.2s",
 						}}
@@ -148,7 +148,7 @@ export default function DeckSources() {
 							<span style={{
 								width: 13, height: 13, borderRadius: "50%",
 								border: `2px solid ${COLORS.textDim}`,
-								borderTopColor: COLORS.gold,
+								borderTopColor: COLORS.accent,
 								display: "inline-block",
 								animation: "spin 0.7s linear infinite",
 							}} />

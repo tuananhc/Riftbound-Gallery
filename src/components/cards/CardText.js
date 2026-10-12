@@ -9,7 +9,7 @@ export default function CardText({ text, style = {} }) {
 				seg.type === "keyword" ? (
 					<span key={i} style={{
 						...seg.style,
-						borderRadius: 3,
+						borderRadius: 0,
 						padding: "1px 6px",
 						fontSize: 11,
 						fontWeight: 700,
