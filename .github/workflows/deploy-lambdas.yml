@@ -5,9 +5,10 @@
 # hand from the Actions tab).
 #
 # Auth is OIDC: GitHub mints a short-lived token and assumes an IAM role. No AWS
-# keys are stored in GitHub. Required repo settings:
+# keys are stored in GitHub. Required repo settings (Settings → Secrets and
+# variables → Actions → **Variables**, not Secrets):
 #   - Variable AWS_DEPLOY_ROLE  = arn:aws:iam::<account-id>:role/<role-name>
-#   - Variable AWS_REGION       = ap-southeast-2
+#   - Variable AWS_REGION       = ap-southeast-2 (optional; defaults below)
 # See .github/workflows/README.md for the one-time AWS setup.
 #
 # Each handler is a single .mjs file with no dependencies (the AWS SDK v3 is
@@ -34,6 +35,12 @@ concurrency:
   group: deploy-lambdas
   cancel-in-progress: false
 
+# The region the project's AWS resources live in. The AWS_REGION repo variable
+# overrides it; without this default, an unset variable fails the deploy with
+# "Input required and not supplied: aws-region".
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'ap-southeast-2' }}
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -51,6 +58,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Fail with a readable message instead of a cryptic action error.
+      - name: Check deploy role is configured
+        run: |
+          if [ -z "${{ vars.AWS_DEPLOY_ROLE }}" ]; then
+            echo "::error::Repo variable AWS_DEPLOY_ROLE is not set. Add it under"
+            echo "::error::Settings → Secrets and variables → Actions → Variables"
+            echo "::error::as arn:aws:iam::<account-id>:role/github-deploy-riftbound"
+            exit 1
+          fi
+
       - name: Syntax check
         run: node --check "lambda/${{ matrix.file }}"
 
@@ -63,7 +80,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE }}
-          aws-region: ${{ vars.AWS_REGION }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Deploy ${{ matrix.function }}
         run: |

@@ -76,10 +76,13 @@ GitHub → repo → Settings → Secrets and variables → Actions → **Variabl
 | Name | Value |
 | --- | --- |
 | `AWS_DEPLOY_ROLE` | `arn:aws:iam::<account-id>:role/github-deploy-riftbound` |
-| `AWS_REGION` | `ap-southeast-2` |
+| `AWS_REGION` | `ap-southeast-2` (optional — the workflow defaults to this) |
 
-These are variables, not secrets — a role ARN isn't a credential, and plain
-variables make failed runs easier to read.
+These go under the **Variables** tab, not Secrets — a role ARN isn't a
+credential, and plain variables make failed runs easier to read. A value added
+as a Secret, or under an Environment instead of the repository, won't be seen
+by `vars.*`: the run then fails with "Input required and not supplied:
+aws-region" (region) or an empty `role-to-assume` (role).
 
 ## 4. Run it
 

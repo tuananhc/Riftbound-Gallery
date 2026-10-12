@@ -232,6 +232,7 @@ avatar: "🧙",
 | `undefined.md` on Vercel | `params.slug` accessed directly in Next.js 15 | Use `await props.params` instead |
 | `.next` tracked by git | Committed before `.gitignore` rule existed | Run `git rm -r --cached .next` |
 | Vercel build failing | Output directory set to `build` | Set output directory to `.next` in Vercel project settings |
+| `Error: Region is missing` on Vercel build | `AWS_*` env names are reserved by Vercel and never reach the build | Set `RIFTBOUND_AWS_REGION` / `RIFTBOUND_AWS_ACCESS_KEY_ID` / `RIFTBOUND_AWS_SECRET_ACCESS_KEY` in Vercel project settings |
 | 0 cards returned | Table name casing mismatch or missing env var | Check `DYNAMODB_TABLE_CARDS` in `.env.local`, verify table name in AWS Console |
 
 ---
@@ -241,6 +242,7 @@ avatar: "🧙",
 All environment variables must be defined in `.env.local` for local development and in Vercel project settings for production. Never commit `.env.local` to git.
 
 ```bash
+# Local only — Vercel reserves the AWS_* names, see below
 AWS_REGION=ap-southeast-2
 AWS_ACCESS_KEY_ID=
 AWS_SECRET_ACCESS_KEY=
@@ -254,6 +256,7 @@ NEXT_PUBLIC_COGNITO_POOL_ID=      # Cognito User Pool ID
 NEXT_PUBLIC_COGNITO_CLIENT_ID=    # Cognito App Client ID
 ```
 
+- **On Vercel, set `RIFTBOUND_AWS_REGION`, `RIFTBOUND_AWS_ACCESS_KEY_ID` and `RIFTBOUND_AWS_SECRET_ACCESS_KEY` instead of the `AWS_*` names.** Vercel reserves `AWS_*` for its own Lambda runtime, so those values never reach the build and prerendering fails with `Error: Region is missing`. `src/lib/db.js` reads the `RIFTBOUND_AWS_*` names first and falls back to `AWS_*` locally
 - Variables prefixed `NEXT_PUBLIC_` are exposed to the browser — never put secrets here
 - AWS credentials, secret keys, and connection strings must never have the `NEXT_PUBLIC_` prefix
 - Restart `npm run dev` after any change to `.env.local`
