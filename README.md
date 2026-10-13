@@ -2,6 +2,8 @@
 
 A full-stack card database and community app for the Riftbound TCG, built with Next.js 14 (App Router).
 
+**Live:** [riftbound-gallery.vercel.app](https://riftbound-gallery.vercel.app/)
+
 ## Project Structure
 
 ```txt
