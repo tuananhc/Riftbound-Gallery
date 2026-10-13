@@ -1,5 +1,6 @@
 "use client";
 import Image from "next/image";
+import { COLORS } from "../../lib/data";
 
 export default function CardItem({ card, onClick, deckCount = 0 }) {
 	const isBattlefield = card.card_type_text?.includes("Battlefield");
@@ -8,12 +9,12 @@ export default function CardItem({ card, onClick, deckCount = 0 }) {
 	return (
 		<div onClick={onClick} style={{
 			cursor: "pointer", borderRadius: 0, overflow: "visible", position: "relative",
-			aspectRatio: "744 / 1039", background: "#121212",
+			aspectRatio: "744 / 1039", background: COLORS.bg,
 			transition: "transform 0.2s ease, box-shadow 0.2s ease, outline 0.15s ease",
 			outline: inDeck ? "2px solid #34ed40" : "none",
 			outlineOffset: "2px",
 		}}
-			onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = "0 12px 32px rgba(0,0,0,0.6)"; }}
+			onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = "0 12px 32px var(--shadow)"; }}
 			onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}
 		>
 			{card.image
@@ -32,7 +33,7 @@ export default function CardItem({ card, onClick, deckCount = 0 }) {
 			{inDeck && (
 				<div style={{
 					position: "absolute", bottom: -14, left: "50%", transform: "translateX(-50%)",
-					background: "#34ed40", color: "#121212", fontSize: 13, fontWeight: 900,
+					background: "#34ed40", color: COLORS.bg, fontSize: 13, fontWeight: 900,
 					width: 28, height: 28, borderRadius: 0, display: "flex", alignItems: "center",
 					justifyContent: "center", letterSpacing: "0.05em",
 				}}>

@@ -3,7 +3,7 @@ import Image from "next/image";
 import parse, { Text, Element } from "html-react-parser";
 import { ALL_COLORS, COLOR_CONFIG, cardGradient, cardGlow } from "../../lib/cards/data";
 import CardText from "./CardText";
-import { FONT_MONO } from "../../lib/data";
+import { COLORS, FONT_MONO } from "../../lib/data";
 
 function Field({ label, html }) {
 	const parsed = parse(html, {
@@ -19,7 +19,7 @@ function Field({ label, html }) {
 
 	return (
 		<div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-			<h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "#e8e8e8", letterSpacing: "0.05em", fontFamily: FONT_MONO }}>{label}</h3>
+			<h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: COLORS.textStrong, letterSpacing: "0.05em", fontFamily: FONT_MONO }}>{label}</h3>
 			<div style={{ display: "flex", flexDirection: label.includes("Ability") ? "column" : "row" }}>{parsed}</div>
 		</div>
 	);
@@ -29,22 +29,22 @@ export default function CardModal({ card, onClose, deckOpen, onAddToDeck, deckCo
 	if (!card) return null;
 
 	const colors = ALL_COLORS.filter(c => card.domain_text?.includes(c));
-	const primaryGlow = colors.length > 0 ? COLOR_CONFIG[colors[0]].glow : "#4a4a4a";
+	const primaryGlow = colors.length > 0 ? COLOR_CONFIG[colors[0]].glow : COLORS.borderHover;
 
 	return (
 		<div className="modal-overlay" onClick={onClose} style={{ display: "flex", flexDirection: "column"}}>
 			<div className="modal-card" onClick={e => e.stopPropagation()} style={{
 				width: "60vw", height: "70vh",
-				background: colors.length > 0 ? cardGradient(colors) : "#1a1a1a",
+				background: colors.length > 0 ? cardGradient(colors) : COLORS.bgCard,
 				border: `1px solid ${primaryGlow}55`,
 				borderRadius: 0, overflow: "hidden", position: "relative",
-				boxShadow: (colors.length > 0 ? cardGlow(colors) : "none") + ", 0 30px 80px rgba(0,0,0,0.8)",
+				boxShadow: (colors.length > 0 ? cardGlow(colors) : "none") + ", 0 30px 80px var(--shadow)",
 				display: "flex", flexDirection: "column",
 			}}>
 				{/* Row 1: Title */}
-				<div style={{ padding: "18px 24px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
-					<button onClick={onClose} style={{ position: "absolute", top: 14, right: 14, background: "transparent", border: "none", color: "#4a4a4a", fontSize: 18, cursor: "pointer" }}>✕</button>
-					<div style={{ fontSize: 20, fontWeight: 700, color: "#f0e8c8", letterSpacing: "0.05em", lineHeight: 1.2, fontFamily: FONT_MONO }}>{card.name}</div>
+				<div style={{ padding: "18px 24px 12px", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
+					<button onClick={onClose} style={{ position: "absolute", top: 14, right: 14, background: "transparent", border: "none", color: COLORS.borderHover, fontSize: 18, cursor: "pointer" }}>✕</button>
+					<div style={{ fontSize: 20, fontWeight: 700, color: COLORS.textStrong, letterSpacing: "0.05em", lineHeight: 1.2, fontFamily: FONT_MONO }}>{card.name}</div>
 				</div>
 
 				{deckOpen && (
@@ -53,15 +53,15 @@ export default function CardModal({ card, onClose, deckOpen, onAddToDeck, deckCo
 						disabled={deckCount >= deckMax}
 						style={{
 							position: "absolute", bottom: 14, right: 14, zIndex: 10,
-							background: deckCount >= deckMax ? "#333333" : "#1a2040",
-							border: `1px solid ${deckCount >= deckMax ? "#4a4a4a" : "#5d6e86"}`,
+							background: deckCount >= deckMax ? COLORS.border : "color-mix(in srgb, var(--accent) 13%, transparent)",
+							border: `1px solid ${deckCount >= deckMax ? COLORS.borderHover : COLORS.accentDim}`,
 							borderRadius: 0, padding: "8px 16px", cursor: deckCount >= deckMax ? "default" : "pointer",
-							color: deckCount >= deckMax ? "#5f5f62" : "#8fa3bf",
+							color: deckCount >= deckMax ? COLORS.textDim : COLORS.accent,
 							fontFamily: FONT_MONO, fontSize: 11,
 							letterSpacing: "0.12em", fontWeight: 700, transition: "all 0.2s",
 						}}
-						onMouseEnter={e => { if (deckCount < deckMax) { e.currentTarget.style.background = "#242860"; e.currentTarget.style.color = "#8fa3bf"; e.currentTarget.style.borderColor = "#8fa3bf"; } }}
-						onMouseLeave={e => { e.currentTarget.style.background = deckCount >= deckMax ? "#333333" : "#1a2040"; e.currentTarget.style.color = deckCount >= deckMax ? "#5f5f62" : "#8fa3bf"; e.currentTarget.style.borderColor = deckCount >= deckMax ? "#4a4a4a" : "#5d6e86"; }}
+						onMouseEnter={e => { if (deckCount < deckMax) { e.currentTarget.style.background = "color-mix(in srgb, var(--accent) 20%, transparent)"; e.currentTarget.style.color = COLORS.accent; e.currentTarget.style.borderColor = COLORS.accent; } }}
+						onMouseLeave={e => { e.currentTarget.style.background = deckCount >= deckMax ? COLORS.border : "color-mix(in srgb, var(--accent) 13%, transparent)"; e.currentTarget.style.color = deckCount >= deckMax ? COLORS.textDim : COLORS.accent; e.currentTarget.style.borderColor = deckCount >= deckMax ? COLORS.borderHover : COLORS.accentDim; }}
 					>
 						{deckCount >= deckMax ? "MAX COPIES" : `ADD TO DECK${deckCount > 0 ? ` (${deckCount}/${deckMax})` : ""}`}
 					</button>
@@ -70,7 +70,7 @@ export default function CardModal({ card, onClose, deckOpen, onAddToDeck, deckCo
 				{/* Row 2: Image + Details */}
 				<div style={{ display: "flex", flex: 1, minHeight: 0 }}>
 					{/* Image */}
-					<div style={{ width: "50%", flexShrink: 0, position: "relative", background: "#121212" }}>
+					<div style={{ width: "50%", flexShrink: 0, position: "relative", background: COLORS.bg }}>
 						{card.image
 							? <Image src={card.image} alt={card.name} fill sizes="200px" style={{ objectFit: "contain", padding: "10%" }} />
 							: <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 48, opacity: 0.2 }}>

@@ -88,6 +88,21 @@ export function isBaseCard(id) {
 	return parseInt(match[1], 10) < parseInt(match[2], 10);
 }
 
+// Card names are stored in caps ("EMPEROR OF THE SANDS"); this is display-only —
+// filters and saved decks still match on the raw name.
+const MINOR_WORDS = new Set(["a", "an", "and", "as", "at", "by", "for", "from", "in", "of", "on", "or", "the", "to", "with"]);
+export function titleCase(str) {
+	return str.toLowerCase().split(" ").map((word, i) =>
+		i > 0 && MINOR_WORDS.has(word) ? word : word.replace(/(^|-)(\p{L})/gu, (_, sep, ch) => sep + ch.toUpperCase())
+	).join(" ");
+}
+
+// "Azir - Emperor of the Sands" — how a legend option is labelled in the pickers.
+export function legendLabel(legend) {
+	const name = titleCase(legend.name);
+	return legend.tags_text ? `${legend.tags_text} - ${name}` : name;
+}
+
 // The legend options used by the champion pickers, sorted by champion name.
 export function legendOptions(cards) {
 	return cards

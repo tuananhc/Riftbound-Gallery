@@ -25,10 +25,10 @@ export function Input({ value, onChange, ...rest }) {
 		<input
 			value={value}
 			onChange={e => onChange(e.target.value)}
-			onFocus={e => { e.target.style.borderColor = "#5d6e86"; }}
-			onBlur={e => { e.target.style.borderColor = "#333333"; }}
+			onFocus={e => { e.target.style.borderColor = COLORS.accentDim; }}
+			onBlur={e => { e.target.style.borderColor = COLORS.border; }}
 			style={{
-				background: "#1a1a1a", border: "1px solid #333333", borderRadius: 0,
+				background: COLORS.bgCard, border: "1px solid var(--border)", borderRadius: 0,
 				padding: "11px 14px", color: COLORS.text, fontFamily: FONT, fontSize: 14,
 				width: "100%", outline: "none", transition: "border-color 0.2s", boxSizing: "border-box",
 			}}
@@ -41,15 +41,15 @@ export function SubmitButton({ loading, disabled, children }) {
 	const off = loading || disabled;
 	return (
 		<button type="submit" disabled={off}
-			onMouseEnter={e => { if (!off) { e.currentTarget.style.background = "linear-gradient(135deg, #8fa3bf, #8fa3bf)"; e.currentTarget.style.boxShadow = "0 0 22px #8fa3bf55"; } }}
-			onMouseLeave={e => { if (!off) { e.currentTarget.style.background = "linear-gradient(135deg, #8fa3bf, #8fa3bf)"; e.currentTarget.style.boxShadow = "0 0 14px #8fa3bf33"; } }}
+			onMouseEnter={e => { if (!off) { e.currentTarget.style.background = "linear-gradient(135deg, var(--accent), var(--accent))"; e.currentTarget.style.boxShadow = "0 0 22px color-mix(in srgb, var(--accent) 33%, transparent)"; } }}
+			onMouseLeave={e => { if (!off) { e.currentTarget.style.background = "linear-gradient(135deg, var(--accent), var(--accent))"; e.currentTarget.style.boxShadow = "0 0 14px color-mix(in srgb, var(--accent) 20%, transparent)"; } }}
 			style={{
-				background: off ? "#333333" : "linear-gradient(135deg, #8fa3bf, #8fa3bf)",
-				border: `1px solid ${off ? "#333333" : "#8fa3bf"}`,
+				background: off ? COLORS.border : "linear-gradient(135deg, var(--accent), var(--accent))",
+				border: `1px solid ${off ? COLORS.border : COLORS.accent}`,
 				borderRadius: 0, padding: "14px 20px",
-				color: off ? COLORS.textDim : "#121212",
+				color: off ? COLORS.textDim : COLORS.bg,
 				fontFamily: FONT, fontSize: 12, fontWeight: 800, letterSpacing: "0.14em",
-				boxShadow: off ? "none" : "0 0 14px #8fa3bf33",
+				boxShadow: off ? "none" : "0 0 14px color-mix(in srgb, var(--accent) 20%, transparent)",
 				cursor: off ? "not-allowed" : "pointer", transition: "all 0.2s", marginTop: 8,
 			}}>
 			{children}

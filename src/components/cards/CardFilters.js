@@ -32,7 +32,7 @@ export default function CardFilters({
 			<div>
 				<div style={{ fontSize: 10, letterSpacing: "0.2em", color: COLORS.text, marginBottom: 10, fontFamily: FONT_MONO }}>SEARCH</div>
 				<div style={{ position: "relative" }}>
-					<span style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "#5f5f62", fontSize: 14 }}>⚔</span>
+					<span style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: COLORS.textDim, fontSize: 14 }}>⚔</span>
 					<input className="search-input" placeholder="Name or ability text..." value={search} onChange={e => setSearch(e.target.value)} />
 				</div>
 			</div>
@@ -41,16 +41,16 @@ export default function CardFilters({
 			<div>
 				<div style={{ fontSize: 10, letterSpacing: "0.2em", color: COLORS.text, marginBottom: 10, fontFamily: FONT_MONO, display: "flex", justifyContent: "space-between" }}>
 					<span>COST</span>
-					<span style={{ color: "#8a8a8d" }}>{costRange[0]}–{costRange[1]}</span>
+					<span style={{ color: COLORS.textMuted }}>{costRange[0]}–{costRange[1]}</span>
 				</div>
 				<div style={{ display: "flex", gap: 5, marginBottom: 8, flexWrap: "wrap" }}>
 					{[0,1,2,3,4,5,6,7,8,9,10,11,12].map(n => (
 						<div key={n} onClick={() => setCostRange([n, Math.max(n, costRange[1])])} style={{
 							width: 22, height: 22, borderRadius: 0, cursor: "pointer",
-							background: n >= costRange[0] && n <= costRange[1] ? "#1e2240" : "#1a1a1a",
-							border: `1px solid ${n >= costRange[0] && n <= costRange[1] ? "#3a4070" : "#333333"}`,
+							background: n >= costRange[0] && n <= costRange[1] ? "color-mix(in srgb, var(--accent) 13%, transparent)" : COLORS.bgCard,
+							border: `1px solid ${n >= costRange[0] && n <= costRange[1] ? COLORS.accentDim : COLORS.border}`,
 							display: "flex", alignItems: "center", justifyContent: "center",
-							fontSize: 10, color: n >= costRange[0] && n <= costRange[1] ? "#8fa3bf" : "#2a2a4a",
+							fontSize: 10, color: n >= costRange[0] && n <= costRange[1] ? COLORS.accent : COLORS.textDim,
 							fontFamily: FONT_MONO, transition: "all 0.15s",
 						}}>{n}</div>
 					))}
@@ -69,9 +69,9 @@ export default function CardFilters({
 						return (
 							<button key={color} className="filter-btn" onClick={() => toggleColor(color)} style={{
 								display: "flex", alignItems: "center", gap: 8, textAlign: "left",
-								background: active ? c.bg : "#202020",
-								borderColor: active ? c.glow + "88" : "#333333",
-								color: active ? c.accent : "#8a8a8d",
+								background: active ? c.bg : COLORS.bgRaised,
+								borderColor: active ? c.glow + "88" : COLORS.border,
+								color: active ? c.accent : COLORS.textMuted,
 								boxShadow: active ? `0 0 10px ${c.glow}33` : "none",
 							}}>
 								<div style={{ display: "flex" }}>
@@ -92,9 +92,9 @@ export default function CardFilters({
 						const active = selectedTags.includes(tag);
 						return (
 							<button key={tag} className="filter-btn" onClick={() => toggleTag(tag)} style={{
-								background: active ? "#242424" : "#202020",
-								borderColor: active ? "#5d6e86" : "#333333",
-								color: active ? "#8fa3bf" : "#666",
+								background: active ? COLORS.bgHover : COLORS.bgRaised,
+								borderColor: active ? COLORS.accentDim : COLORS.border,
+								color: active ? COLORS.accent : COLORS.textDim,
 								textAlign: "left",
 							}}>
 								<div style={{ display: "flex" }}>

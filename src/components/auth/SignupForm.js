@@ -115,12 +115,12 @@ export default function SignupForm() {
 	return (
 		<div style={{ maxWidth: 440, margin: "0 auto", padding: "60px 24px" }}>
 			<div style={{
-				background: "linear-gradient(135deg, #1a1a1a 0%, #1a1a1a 50%, #1a1a1a 100%)",
+				background: "linear-gradient(135deg, var(--bg-card) 0%, var(--bg-card) 50%, var(--bg-card) 100%)",
 				border: `1px solid ${COLORS.border}`, borderRadius: 0,
 				padding: "36px 34px", position: "relative", overflow: "hidden",
 			}}>
 				{/* bg decoration */}
-				<div style={{ position: "absolute", top: -50, right: -50, width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle, #2a2a2a44 0%, transparent 70%)", pointerEvents: "none" }} />
+				<div style={{ position: "absolute", top: -50, right: -50, width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle, color-mix(in srgb, var(--bg-hover) 27%, transparent) 0%, transparent 70%)", pointerEvents: "none" }} />
 
 				{/* ── Header ── */}
 				<div style={{ marginBottom: 28, position: "relative" }}>
@@ -136,12 +136,12 @@ export default function SignupForm() {
 
 				{/* ── Messages ── */}
 				{error && (
-					<div style={{ marginBottom: 18, padding: "10px 14px", background: "#202020", border: "1px solid #cc606044", borderRadius: 0, fontSize: 12, color: "#cc6060", fontFamily: FONT }}>
+					<div style={{ marginBottom: 18, padding: "10px 14px", background: COLORS.bgRaised, border: "1px solid color-mix(in srgb, var(--loss) 27%, transparent)", borderRadius: 0, fontSize: 12, color: COLORS.loss, fontFamily: FONT }}>
 						{error}
 					</div>
 				)}
 				{notice && !error && (
-					<div style={{ marginBottom: 18, padding: "10px 14px", background: "#1a1a1a", border: "1px solid #8fa3bf44", borderRadius: 0, fontSize: 12, color: "#8fa3bf", fontFamily: FONT }}>
+					<div style={{ marginBottom: 18, padding: "10px 14px", background: COLORS.bgCard, border: "1px solid color-mix(in srgb, var(--accent) 27%, transparent)", borderRadius: 0, fontSize: 12, color: COLORS.accent, fontFamily: FONT }}>
 						{notice}
 					</div>
 				)}
@@ -184,8 +184,8 @@ export default function SignupForm() {
 				{phase === "done" && (
 					<a href="/login" style={{ display: "block" }}>
 						<div style={{
-							background: "#242424", border: "1px solid #5d6e86", borderRadius: 0,
-							padding: "12px 20px", color: "#8fa3bf", textAlign: "center",
+							background: COLORS.bgHover, border: "1px solid var(--accent-dim)", borderRadius: 0,
+							padding: "12px 20px", color: COLORS.accent, textAlign: "center",
 							fontFamily: FONT, fontSize: 11, letterSpacing: "0.12em", cursor: "pointer",
 						}}>
 							CONTINUE TO SIGN IN

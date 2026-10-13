@@ -2,7 +2,8 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
-import { COLORS, FONT_MONO } from "../../lib/data";
+import { COLORS, FONT_MONO, alpha } from "../../lib/data";
+import { legendLabel } from "../../lib/cards/data";
 
 export default function LegendSelect({ legends, value, onChange }) {
 	const [open, setOpen] = useState(false);
@@ -52,26 +53,25 @@ export default function LegendSelect({ legends, value, onChange }) {
 			style={{
 				position: "fixed",
 				top: pos.top, left: pos.left, width: pos.width,
-				background: "#202020", border: "1px solid #4a4a4a",
+				background: COLORS.bgRaised, border: "1px solid var(--border-hover)",
 				borderRadius: 0, zIndex: 9999,
 				maxHeight: pos.maxHeight,
 				display: "flex", flexDirection: "column",
-				boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
+				boxShadow: "0 8px 32px var(--shadow)",
 			}}
 		>
-			<div style={{ padding: "10px 12px", borderBottom: "1px solid #333333", flexShrink: 0 }}>
+			<div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
 				<input
 					ref={searchRef}
 					value={search}
 					onChange={e => setSearch(e.target.value)}
 					placeholder="Search legends..."
 					style={{
-						width: "100%", background: "#121212",
-						border: "1px solid #4a4a4a", borderRadius: 0,
+						width: "100%", background: COLORS.bg,
+						border: "1px solid var(--border-hover)", borderRadius: 0,
 						padding: "6px 10px", fontSize: 12,
 						color: COLORS.text, outline: "none",
 						fontFamily: FONT_MONO,
-						colorScheme: "dark",
 					}}
 				/>
 			</div>
@@ -83,11 +83,11 @@ export default function LegendSelect({ legends, value, onChange }) {
 						style={{
 							display: "flex", alignItems: "center", gap: 14,
 							padding: "10px 14px", cursor: "pointer",
-							background: value === "" ? "#333333" : "transparent",
-							borderBottom: "1px solid #333333",
+							background: value === "" ? COLORS.border : "transparent",
+							borderBottom: "1px solid var(--border)",
 						}}
 					>
-						<div style={{ width: 52, height: 52, borderRadius: 0, background: "#333333", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+						<div style={{ width: 52, height: 52, borderRadius: 0, background: COLORS.border, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
 							<svg width="16" height="16" viewBox="0 0 12 12"><path d="M2 6h8M6 2v8" stroke={COLORS.textDim} strokeWidth="1.5" strokeLinecap="round" /></svg>
 						</div>
 						<span style={{ fontSize: 13, color: value === "" ? COLORS.accent : COLORS.textMuted, fontFamily: FONT_MONO }}>
@@ -112,14 +112,14 @@ export default function LegendSelect({ legends, value, onChange }) {
 							style={{
 								display: "flex", alignItems: "center", gap: 14,
 								padding: "10px 14px", cursor: "pointer",
-								background: value === l.name ? "#333333" : "transparent",
+								background: value === l.name ? COLORS.border : "transparent",
 								transition: "background 0.1s",
 							}}
 						>
 							{l.image ? (
 								<Image src={l.image} alt={l.name} width={52} height={52} style={{ objectFit: "contain", borderRadius: 0, flexShrink: 0 }} />
 							) : (
-								<div style={{ width: 52, height: 52, borderRadius: 0, background: "#333333", flexShrink: 0 }} />
+								<div style={{ width: 52, height: 52, borderRadius: 0, background: COLORS.border, flexShrink: 0 }} />
 							)}
 							<span style={{
 								fontSize: 13,
@@ -127,7 +127,7 @@ export default function LegendSelect({ legends, value, onChange }) {
 								fontFamily: FONT_MONO,
 								overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
 							}}>
-								{l.tags_text ? `${l.tags_text} - ${l.name}` : l.name}
+								{legendLabel(l)}
 							</span>
 						</div>
 					))
@@ -143,7 +143,7 @@ export default function LegendSelect({ legends, value, onChange }) {
 				onClick={() => open ? setOpen(false) : openDropdown()}
 				style={{
 					width: "100%", display: "flex", alignItems: "center", gap: 10,
-					background: "#202020", border: `1px solid ${open ? COLORS.accent + "55" : "#4a4a4a"}`,
+					background: COLORS.bgRaised, border: `1px solid ${open ? alpha(COLORS.accent, 33) : COLORS.borderHover}`,
 					borderRadius: 0, padding: "7px 12px",
 					cursor: "pointer", transition: "border-color 0.15s",
 				}}
@@ -151,7 +151,7 @@ export default function LegendSelect({ legends, value, onChange }) {
 				{selected?.image ? (
 					<Image src={selected.image} alt={selected.name} width={40} height={40} style={{ objectFit: "contain", borderRadius: 0, flexShrink: 0 }} />
 				) : (
-					<div style={{ width: 40, height: 40, borderRadius: 0, background: "#333333", flexShrink: 0 }} />
+					<div style={{ width: 40, height: 40, borderRadius: 0, background: COLORS.border, flexShrink: 0 }} />
 				)}
 				<span style={{
 					flex: 1, textAlign: "left", fontSize: 12,
@@ -159,7 +159,7 @@ export default function LegendSelect({ legends, value, onChange }) {
 					fontFamily: FONT_MONO,
 					overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
 				}}>
-					{selected ? `${selected.tags_text} - ${selected.name}` : "All legends"}
+					{selected ? legendLabel(selected) : "All legends"}
 				</span>
 				<svg width="10" height="6" viewBox="0 0 10 6" style={{ flexShrink: 0, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
 					<path d="M0 0l5 6 5-6z" fill={COLORS.textDim} />

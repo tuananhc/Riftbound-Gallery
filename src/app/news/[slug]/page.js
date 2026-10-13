@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { getAllPosts, getPostBySlug } from "../../../lib/posts";
 import { ALL_COLORS } from "../../../lib/cards/data";
-import { FONT_MONO } from "../../../lib/data";
+import { COLORS, FONT_MONO, alpha } from "../../../lib/data";
 
 const CATEGORY_CONFIG = {
-	"Set Release":  { color: "#b08968", bg: "#1a1a1a", icon: "🃏" },
-	"Meta Report":  { color: "#8fa3bf", bg: "#1a1a1a", icon: "📊" },
-	"Announcement": { color: "#ffe57a", bg: "#1a1a1a", icon: "📣" },
-	"Dev Diary":    { color: "#5fbf5f", bg: "#1a1a1a", icon: "📝" },
-	"Tournament":   { color: "#a09bbf", bg: "#1a1a1a", icon: "🏆" },
+	"Set Release":  { color: "#b08968", bg: COLORS.bgCard, icon: "🃏" },
+	"Meta Report":  { color: COLORS.accent, bg: COLORS.bgCard, icon: "📊" },
+	"Announcement": { color: "#ffe57a", bg: COLORS.bgCard, icon: "📣" },
+	"Dev Diary":    { color: COLORS.win, bg: COLORS.bgCard, icon: "📝" },
+	"Tournament":   { color: "#a09bbf", bg: COLORS.bgCard, icon: "🏆" },
 };
 
 export async function generateStaticParams() {
@@ -25,25 +25,25 @@ export async function generateMetadata(props) {
 export default async function PostPage(props) {
 	const params = await props.params;
 	const post = await getPostBySlug(params.slug);
-	const cat  = CATEGORY_CONFIG[post.category] || { color: "#8a8a8d", bg: "#333333", icon: "📄" };
+	const cat  = CATEGORY_CONFIG[post.category] || { color: COLORS.textMuted, bg: COLORS.border, icon: "📄" };
 
 	return (
 		<>
 			<style>{`
-				.prose { font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 17px; line-height: 1.8; color: #d8d8d8; }
-				.prose h2 { font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 20px; font-weight: 700; color: #8fa3bf; letter-spacing: 0.08em; margin: 36px 0 14px; }
-				.prose h3 { font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 16px; font-weight: 600; color: #8fa3bf; letter-spacing: 0.06em; margin: 28px 0 10px; }
+				.prose { font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 17px; line-height: 1.8; color: var(--text); }
+				.prose h2 { font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 20px; font-weight: 700; color: var(--accent); letter-spacing: 0.08em; margin: 36px 0 14px; }
+				.prose h3 { font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 16px; font-weight: 600; color: var(--accent); letter-spacing: 0.06em; margin: 28px 0 10px; }
 				.prose p  { margin-bottom: 18px; }
 				.prose ul, .prose ol { margin: 0 0 18px 24px; }
 				.prose li { margin-bottom: 6px; }
-				.prose strong { color: #d8d8d8; font-weight: 600; }
-				.prose em { color: #8a8a8d; }
-				.prose blockquote { border-left: 3px solid #333333; margin: 24px 0; padding: 12px 20px; background: #1a1a1a; border-radius: 0 8px 8px 0; font-style: italic; color: #8a8a8d; }
-				.prose a { color: #8fa3bf; text-decoration: underline; }
-				.prose hr { border: none; border-top: 1px solid #333333; margin: 32px 0; }
-				.prose code { background: #333333; border-radius: 0; padding: 2px 6px; font-size: 13px; color: #8fa3bf; }
-				.back-link { color: #5f5f62; transition: color 0.2s; }
-				.back-link:hover { color: #8a8a8d; }
+				.prose strong { color: var(--text); font-weight: 600; }
+				.prose em { color: var(--text-muted); }
+				.prose blockquote { border-left: 3px solid var(--border); margin: 24px 0; padding: 12px 20px; background: var(--bg-card); border-radius: 0 8px 8px 0; font-style: italic; color: var(--text-muted); }
+				.prose a { color: var(--accent); text-decoration: underline; }
+				.prose hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+				.prose code { background: var(--border); border-radius: 0; padding: 2px 6px; font-size: 13px; color: var(--accent); }
+				.back-link { color: var(--text-dim); transition: color 0.2s; }
+				.back-link:hover { color: var(--text-muted); }
 			`}</style>
 
 			<div style={{ maxWidth: 720, margin: "0 auto", padding: "40px 24px" }}>
@@ -55,7 +55,7 @@ export default async function PostPage(props) {
 
 				{/* Category */}
 				<div style={{ marginBottom: 16 }}>
-					<span style={{ display: "inline-flex", alignItems: "center", gap: 5, background: cat.bg, border: `1px solid ${cat.color}44`, borderRadius: 0, padding: "3px 14px", fontSize: 10, color: cat.color, fontFamily: FONT_MONO, letterSpacing: "0.1em" }}>
+					<span style={{ display: "inline-flex", alignItems: "center", gap: 5, background: cat.bg, border: `1px solid ${alpha(cat.color, 27)}`, borderRadius: 0, padding: "3px 14px", fontSize: 10, color: cat.color, fontFamily: FONT_MONO, letterSpacing: "0.1em" }}>
 						{cat.icon} {(post.category || "NEWS").toUpperCase()}
 					</span>
 				</div>

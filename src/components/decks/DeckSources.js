@@ -134,9 +134,9 @@ export default function DeckSources() {
 						disabled={searching}
 						style={{
 							display: "inline-flex", alignItems: "center", gap: 10,
-							background: searching ? "#333333" : COLORS.accent,
-							color: searching ? COLORS.textMuted : "#121212",
-							border: `1px solid ${searching ? "#4a4a4a" : COLORS.accent}`,
+							background: searching ? COLORS.border : COLORS.accent,
+							color: searching ? COLORS.textMuted : COLORS.bg,
+							border: `1px solid ${searching ? COLORS.borderHover : COLORS.accent}`,
 							borderRadius: 0, padding: "11px 28px",
 							fontSize: 12, fontWeight: 700, letterSpacing: "0.12em",
 							fontFamily: FONT_MONO,

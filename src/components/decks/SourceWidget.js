@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { COLORS, FONT_MONO } from "../../lib/data";
+import { COLORS, FONT_MONO, alpha } from "../../lib/data";
 
 export default function SourceWidget({ source, selected, onSelect }) {
 	const [hovered, setHovered] = useState(false);
@@ -12,8 +12,8 @@ export default function SourceWidget({ source, selected, onSelect }) {
 			onMouseEnter={() => setHovered(true)}
 			onMouseLeave={() => setHovered(false)}
 			style={{
-				background: selected ? "linear-gradient(135deg, #1a1a1a, #202020)" : "#1a1a1a",
-				border: `1px solid ${highlighted ? source.accentColor + "66" : "#333333"}`,
+				background: selected ? "linear-gradient(135deg, var(--bg-card), var(--bg-raised))" : COLORS.bgCard,
+				border: `1px solid ${highlighted ? alpha(source.accentColor, 40) : COLORS.border}`,
 				borderRadius: 0,
 				padding: "22px 24px",
 				cursor: "pointer",
@@ -22,15 +22,15 @@ export default function SourceWidget({ source, selected, onSelect }) {
 				overflow: "hidden",
 				boxShadow: selected
 					? `0 0 28px ${source.glowColor}, inset 0 0 20px ${source.glowColor}`
-					: hovered ? "0 4px 20px rgba(0,0,0,0.4)" : "none",
+					: hovered ? "0 4px 20px var(--shadow)" : "none",
 				transform: hovered && !selected ? "translateY(-2px)" : "none",
 			}}
 		>
 			{selected && (
 				<div style={{
 					position: "absolute", top: 10, right: 12,
-					background: source.accentColor + "22",
-					border: `1px solid ${source.accentColor}55`,
+					background: alpha(source.accentColor, 13),
+					border: `1px solid ${alpha(source.accentColor, 33)}`,
 					borderRadius: 0, padding: "2px 10px",
 					fontSize: 9, fontFamily: FONT_MONO,
 					letterSpacing: "0.15em", color: source.accentColor, fontWeight: 700,
@@ -43,7 +43,7 @@ export default function SourceWidget({ source, selected, onSelect }) {
 				<div style={{
 					width: 44, height: 44, borderRadius: 0, flexShrink: 0,
 					background: source.glowColor,
-					border: `1px solid ${source.accentColor}44`,
+					border: `1px solid ${alpha(source.accentColor, 27)}`,
 					display: "flex", alignItems: "center", justifyContent: "center",
 					fontSize: 20,
 				}}>
@@ -77,8 +77,8 @@ export default function SourceWidget({ source, selected, onSelect }) {
 			<div style={{ display: "flex", gap: 6 }}>
 				{source.tags.map(tag => (
 					<span key={tag} style={{
-						background: highlighted ? source.accentColor + "18" : "#333333",
-						border: `1px solid ${highlighted ? source.accentColor + "44" : "#4a4a4a"}`,
+						background: highlighted ? alpha(source.accentColor, 9) : COLORS.border,
+						border: `1px solid ${highlighted ? alpha(source.accentColor, 27) : COLORS.borderHover}`,
 						borderRadius: 0, padding: "2px 8px",
 						fontSize: 9, color: highlighted ? source.accentColor : COLORS.textMuted,
 						fontFamily: FONT_MONO, letterSpacing: "0.1em",

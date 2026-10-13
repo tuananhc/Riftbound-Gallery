@@ -58,12 +58,12 @@ export default function SignInForm() {
 	return (
 		<div style={{ maxWidth: 440, margin: "0 auto", padding: "60px 24px" }}>
 			<div style={{
-				background: "linear-gradient(135deg, #1a1a1a 0%, #1a1a1a 50%, #1a1a1a 100%)",
+				background: "linear-gradient(135deg, var(--bg-card) 0%, var(--bg-card) 50%, var(--bg-card) 100%)",
 				border: `1px solid ${COLORS.border}`, borderRadius: 0,
 				padding: "36px 34px", position: "relative", overflow: "hidden",
 			}}>
 				{/* bg decoration */}
-				<div style={{ position: "absolute", top: -50, right: -50, width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle, #2a2a2a44 0%, transparent 70%)", pointerEvents: "none" }} />
+				<div style={{ position: "absolute", top: -50, right: -50, width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle, color-mix(in srgb, var(--bg-hover) 27%, transparent) 0%, transparent 70%)", pointerEvents: "none" }} />
 
 				{/* ── Header ── */}
 				<div style={{ marginBottom: 28, position: "relative" }}>
@@ -77,7 +77,7 @@ export default function SignInForm() {
 
 				{/* ── Error ── */}
 				{error && (
-					<div style={{ marginBottom: 18, padding: "10px 14px", background: "#202020", border: "1px solid #cc606044", borderRadius: 0, fontSize: 12, color: "#cc6060", fontFamily: FONT }}>
+					<div style={{ marginBottom: 18, padding: "10px 14px", background: COLORS.bgRaised, border: "1px solid color-mix(in srgb, var(--loss) 27%, transparent)", borderRadius: 0, fontSize: 12, color: COLORS.loss, fontFamily: FONT }}>
 						{error}
 					</div>
 				)}

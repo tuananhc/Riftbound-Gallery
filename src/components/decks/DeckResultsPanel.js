@@ -1,6 +1,6 @@
 "use client";
 import Image from "next/image";
-import { COLORS } from "../../lib/data";
+import { COLORS, alpha } from "../../lib/data";
 
 const FONT = "'Segoe UI', system-ui, sans-serif";
 
@@ -8,7 +8,7 @@ function SourceChips({ sources }) {
 	return (
 		<div style={{
 			padding: "16px 24px",
-			borderBottom: "1px solid #333333",
+			borderBottom: "1px solid var(--border)",
 			display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12,
 		}}>
 			<div>
@@ -19,8 +19,8 @@ function SourceChips({ sources }) {
 					{sources.map(s => (
 						<span key={s.id} style={{
 							display: "inline-flex", alignItems: "center", gap: 6,
-							background: s.accentColor + "15",
-							border: `1px solid ${s.accentColor}44`,
+							background: alpha(s.accentColor, 8),
+							border: `1px solid ${alpha(s.accentColor, 27)}`,
 							borderRadius: 0, padding: "3px 12px",
 							fontSize: 11, color: s.accentColor,
 							fontFamily: FONT, letterSpacing: "0.08em",
@@ -42,15 +42,15 @@ function SkeletonRows() {
 				<div key={i} style={{
 					display: "flex", alignItems: "center", gap: 16,
 					padding: "14px 0",
-					borderBottom: i < 5 ? "1px solid #333333" : "none",
+					borderBottom: i < 5 ? "1px solid var(--border)" : "none",
 					opacity: 1 - i * 0.12,
 				}}>
-					<div style={{ width: 44, height: 60, borderRadius: 0, background: "#333333", flexShrink: 0 }} />
+					<div style={{ width: 44, height: 60, borderRadius: 0, background: COLORS.border, flexShrink: 0 }} />
 					<div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
-						<div style={{ height: 12, background: "#333333", borderRadius: 0, width: `${50 + (i % 3) * 14}%` }} />
-						<div style={{ height: 9, background: "#1a1a1a", borderRadius: 0, width: `${25 + (i % 2) * 15}%` }} />
+						<div style={{ height: 12, background: COLORS.border, borderRadius: 0, width: `${50 + (i % 3) * 14}%` }} />
+						<div style={{ height: 9, background: COLORS.bgCard, borderRadius: 0, width: `${25 + (i % 2) * 15}%` }} />
 					</div>
-					<div style={{ width: 56, height: 22, background: "#333333", borderRadius: 0, flexShrink: 0 }} />
+					<div style={{ width: 56, height: 22, background: COLORS.border, borderRadius: 0, flexShrink: 0 }} />
 				</div>
 			))}
 		</div>
@@ -68,10 +68,10 @@ function DeckRow({ deck }) {
 			style={{
 				display: "flex", alignItems: "center", gap: 16,
 				padding: "12px 24px", textDecoration: "none",
-				borderBottom: "1px solid #333333",
+				borderBottom: "1px solid var(--border)",
 				transition: "background 0.15s",
 			}}
-			onMouseEnter={e => e.currentTarget.style.background = "#1a1a1a"}
+			onMouseEnter={e => e.currentTarget.style.background = COLORS.bgCard}
 			onMouseLeave={e => e.currentTarget.style.background = "transparent"}
 		>
 			{deck.thumbnail ? (
@@ -80,10 +80,10 @@ function DeckRow({ deck }) {
 					alt={deck.name}
 					width={44}
 					height={60}
-					style={{ objectFit: "contain", borderRadius: 0, flexShrink: 0, background: "#1a1a1a" }}
+					style={{ objectFit: "contain", borderRadius: 0, flexShrink: 0, background: COLORS.bgCard }}
 				/>
 			) : (
-				<div style={{ width: 44, height: 60, borderRadius: 0, background: "#333333", flexShrink: 0 }} />
+				<div style={{ width: 44, height: 60, borderRadius: 0, background: COLORS.border, flexShrink: 0 }} />
 			)}
 
 			<div style={{ flex: 1, minWidth: 0 }}>
@@ -111,8 +111,8 @@ function DeckRow({ deck }) {
 export default function DeckResultsPanel({ sources, searching, decks, error }) {
 	return (
 		<div style={{
-			background: "#1a1a1a",
-			border: "1px solid #333333",
+			background: COLORS.bgCard,
+			border: "1px solid var(--border)",
 			borderRadius: 0,
 			overflow: "hidden",
 		}}>
@@ -129,7 +129,7 @@ export default function DeckResultsPanel({ sources, searching, decks, error }) {
 
 			{!searching && error && (
 				<div style={{ padding: "32px 24px", textAlign: "center" }}>
-					<div style={{ fontSize: 13, color: "#cc6060", fontFamily: FONT, marginBottom: 6 }}>
+					<div style={{ fontSize: 13, color: COLORS.loss, fontFamily: FONT, marginBottom: 6 }}>
 						Crawl failed
 					</div>
 					<div style={{ fontSize: 11, color: COLORS.textMuted, fontFamily: FONT, maxWidth: 480, margin: "0 auto" }}>
@@ -148,7 +148,7 @@ export default function DeckResultsPanel({ sources, searching, decks, error }) {
 
 			{!searching && !error && decks !== null && decks.length > 0 && (
 				<>
-					<div style={{ padding: "12px 24px", borderBottom: "1px solid #333333", fontSize: 11, color: COLORS.textDim, fontFamily: FONT, letterSpacing: "0.08em" }}>
+					<div style={{ padding: "12px 24px", borderBottom: "1px solid var(--border)", fontSize: 11, color: COLORS.textDim, fontFamily: FONT, letterSpacing: "0.08em" }}>
 						{decks.length} deck{decks.length !== 1 ? "s" : ""} found
 					</div>
 					<div>

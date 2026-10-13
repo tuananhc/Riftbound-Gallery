@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { COLORS, FONT_MONO } from "../lib/data";
 import { useAuth } from "../hooks/useAuth";
+import { useTheme } from "../hooks/useTheme";
 
 const NAV_LINKS = [
   { href: "/", label: "Profile" },
@@ -46,7 +47,7 @@ export default function Navbar() {
       padding: "0 32px",
       height: 62,
       display: "flex", alignItems: "center", justifyContent: "space-between",
-      background: "linear-gradient(180deg, #121212 0%, #121212 100%)",
+      background: "linear-gradient(180deg, var(--bg) 0%, var(--bg) 100%)",
       position: "sticky", top: 0, zIndex: 50,
       backdropFilter: "blur(8px)",
     }}>
@@ -54,10 +55,10 @@ export default function Navbar() {
       <Link href="/" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none" }}>
         <div style={{
           width: 38, height: 38, borderRadius: 0,
-          background: "linear-gradient(135deg, #1a1a1a, #202020)",
-          border: "1px solid #333333",
+          background: "linear-gradient(135deg, var(--bg-card), var(--bg-raised))",
+          border: "1px solid var(--border)",
           display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 18, boxShadow: "0 0 14px #00000055",
+          fontSize: 18, boxShadow: "0 0 14px var(--shadow)",
         }}>⚡</div>
         <div>
           <div style={{ fontSize: 17, fontWeight: 900, letterSpacing: "0.14em", color: COLORS.accent, fontFamily: FONT_MONO }}>
@@ -87,7 +88,7 @@ export default function Navbar() {
                 letterSpacing: "0.14em",
                 fontWeight: active ? 700 : 500,
                 color: active ? COLORS.accent : COLORS.textMuted,
-                background: active ? "linear-gradient(180deg, transparent 0%, rgba(143,163,191,0.06) 100%)" : "transparent",
+                background: active ? "linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--accent) 6%, transparent) 100%)" : "transparent",
                 transition: "color 0.2s, background 0.2s",
                 textDecoration: "none",
               }}>
@@ -95,7 +96,7 @@ export default function Navbar() {
               <span style={{
                 position: "absolute", left: 12, right: 12, bottom: -1, height: 2, borderRadius: 0,
                 background: COLORS.accent,
-                boxShadow: "0 0 10px rgba(143,163,191,0.6)",
+                boxShadow: "0 0 10px color-mix(in srgb, var(--accent) 60%, transparent)",
                 opacity: active ? 1 : 0,
                 transform: active ? "scaleX(1)" : "scaleX(0.4)",
                 transition: "opacity 0.2s, transform 0.2s",
@@ -114,8 +115,8 @@ export default function Navbar() {
           fontFamily: FONT_MONO,
           letterSpacing: "0.12em",
           fontWeight: "bold",
-          color: "#e8e8e8",
-          backgroundColor: "rgba(143,163,191,0.96)",
+          color: COLORS.bg,
+          backgroundColor: COLORS.accent,
           transition: "all 0.2s",
           textDecoration: "none",
         }}>
@@ -127,17 +128,17 @@ export default function Navbar() {
         {/* Avatar + username — indicates a successful login */}
         <button onClick={() => setMenuOpen(o => !o)}
           title={user?.email ?? "Account"}
-          onMouseEnter={e => e.currentTarget.style.borderColor = "#4a4a4a"}
-          onMouseLeave={e => e.currentTarget.style.borderColor = menuOpen ? "#4a4a4a" : COLORS.border}
+          onMouseEnter={e => e.currentTarget.style.borderColor = COLORS.borderHover}
+          onMouseLeave={e => e.currentTarget.style.borderColor = menuOpen ? COLORS.borderHover : COLORS.border}
           style={{
             display: "flex", alignItems: "center", gap: 9,
-            background: "#1a1a1a", border: `1px solid ${menuOpen ? "#4a4a4a" : COLORS.border}`,
+            background: COLORS.bgCard, border: `1px solid ${menuOpen ? COLORS.borderHover : COLORS.border}`,
             borderRadius: 0, padding: "4px 14px 4px 4px", cursor: "pointer", transition: "all 0.2s",
           }}>
           <div style={{
             width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
-            background: "linear-gradient(135deg, #242424, #161616)",
-            border: "1px solid #333333",
+            background: "linear-gradient(135deg, var(--bg-hover), var(--bg-alt))",
+            border: "1px solid var(--border)",
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: 14,
           }}>🧙</div>
@@ -152,16 +153,16 @@ export default function Navbar() {
         {menuOpen && (
           <div style={{
             position: "absolute", top: "calc(100% + 8px)", right: 0, minWidth: 160,
-            background: "#1a1a1a", border: `1px solid ${COLORS.border}`,
+            background: COLORS.bgCard, border: `1px solid ${COLORS.border}`,
             borderRadius: 0, overflow: "hidden", zIndex: 100,
-            boxShadow: "0 8px 24px #00000066",
+            boxShadow: "0 8px 24px var(--shadow)",
           }}>
             <Link href="/" onClick={() => setMenuOpen(false)} style={{
               display: "block", padding: "10px 16px", textDecoration: "none",
               fontSize: 12, color: COLORS.textMuted, fontFamily: FONT_MONO,
               letterSpacing: "0.08em", transition: "background 0.15s",
             }}
-              onMouseEnter={e => e.currentTarget.style.background = "#202020"}
+              onMouseEnter={e => e.currentTarget.style.background = COLORS.bgRaised}
               onMouseLeave={e => e.currentTarget.style.background = "transparent"}
             >
               VIEW PROFILE
@@ -171,10 +172,10 @@ export default function Navbar() {
               style={{
                 display: "block", width: "100%", padding: "10px 16px", textAlign: "left",
                 background: "transparent", border: "none", cursor: "pointer",
-                fontSize: 12, color: "#cc6060", fontFamily: FONT_MONO,
+                fontSize: 12, color: COLORS.loss, fontFamily: FONT_MONO,
                 letterSpacing: "0.08em", transition: "background 0.15s",
               }}
-              onMouseEnter={e => e.currentTarget.style.background = "#1a1a1a"}
+              onMouseEnter={e => e.currentTarget.style.background = COLORS.bgCard}
               onMouseLeave={e => e.currentTarget.style.background = "transparent"}
             >
               LOG OUT
@@ -188,17 +189,51 @@ export default function Navbar() {
         <Link href="/login" style={{
           padding: "7px 20px", borderRadius: 0, fontSize: 11,
           fontFamily: FONT_MONO, letterSpacing: "0.12em",
-          fontWeight: 700, color: "#121212",
-          background: "linear-gradient(135deg, #8fa3bf, #8fa3bf)",
-          border: "1px solid #8fa3bf", transition: "all 0.2s", textDecoration: "none",
+          fontWeight: 700, color: COLORS.bg,
+          background: "linear-gradient(135deg, var(--accent), var(--accent))",
+          border: "1px solid var(--accent)", transition: "all 0.2s", textDecoration: "none",
         }}
-          onMouseEnter={e => e.currentTarget.style.boxShadow = "0 0 14px #8fa3bf55"}
+          onMouseEnter={e => e.currentTarget.style.boxShadow = "0 0 14px color-mix(in srgb, var(--accent) 33%, transparent)"}
           onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}
         >
           LOG IN
         </Link>
       )}
+
+      <ThemeToggle />
       </div>
     </header>
+  );
+}
+
+// Square icon button at the far right of the navbar. Shows the theme you'd
+// switch to: a sun while dark, a moon while light.
+function ThemeToggle() {
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === "dark";
+  const label = isDark ? "Switch to light mode" : "Switch to dark mode";
+
+  return (
+    <button onClick={toggleTheme} aria-label={label} title={label}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = COLORS.borderHover; e.currentTarget.style.color = COLORS.text; }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = COLORS.border; e.currentTarget.style.color = COLORS.textMuted; }}
+      style={{
+        width: 30, height: 30, flexShrink: 0,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        background: COLORS.bgRaised, border: `1px solid ${COLORS.border}`, borderRadius: 0,
+        color: COLORS.textMuted, cursor: "pointer", padding: 0,
+        transition: "border-color 0.15s, color 0.15s",
+      }}>
+      {isDark ? (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+        </svg>
+      ) : (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+        </svg>
+      )}
+    </button>
   );
 }

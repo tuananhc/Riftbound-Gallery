@@ -1,5 +1,5 @@
 "use client";
-import { COLORS, FONT_MONO } from "../../lib/data";
+import { COLORS, FONT_MONO, alpha } from "../../lib/data";
 import LegendSelect from "./LegendSelect";
 
 export const DECK_TYPES = [
@@ -37,15 +37,15 @@ export default function DeckFilters({ legends, filters, onChange, onClear }) {
 
 	return (
 		<div style={{
-			background: "#121212",
-			border: "1px solid #333333",
+			background: COLORS.bg,
+			border: "1px solid var(--border)",
 			borderRadius: 0,
 			marginBottom: 24,
 			overflow: "hidden",
 		}}>
 			<div style={{
 				padding: "14px 20px",
-				borderBottom: "1px solid #333333",
+				borderBottom: "1px solid var(--border)",
 				display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
 			}}>
 				<div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -54,8 +54,8 @@ export default function DeckFilters({ legends, filters, onChange, onClear }) {
 					</span>
 					{count > 0 && (
 						<span style={{
-							background: COLORS.accent + "20",
-							border: `1px solid ${COLORS.accent}44`,
+							background: alpha(COLORS.accent, 13),
+							border: `1px solid ${alpha(COLORS.accent, 27)}`,
 							borderRadius: 0, padding: "1px 9px",
 							fontSize: 10, color: COLORS.accent,
 							fontFamily: FONT_MONO, letterSpacing: "0.1em",
@@ -98,8 +98,8 @@ export default function DeckFilters({ legends, filters, onChange, onClear }) {
 								const on = filters.deckType === t.id;
 								return (
 									<button key={t.id} onClick={() => onChange("deckType", t.id)} style={{
-										background: on ? "#333333" : "none",
-										border: `1px solid ${on ? COLORS.accent + "55" : "#4a4a4a"}`,
+										background: on ? COLORS.border : "none",
+										border: `1px solid ${on ? alpha(COLORS.accent, 33) : COLORS.borderHover}`,
 										borderRadius: 0, padding: "5px 12px",
 										fontSize: 10, color: on ? COLORS.accent : COLORS.textMuted,
 										fontFamily: FONT_MONO, letterSpacing: "0.1em",
@@ -120,12 +120,11 @@ export default function DeckFilters({ legends, filters, onChange, onClear }) {
 							value={filters.ranking}
 							onChange={e => onChange("ranking", e.target.value)}
 							style={{
-								background: "#202020", border: "1px solid #4a4a4a",
+								background: COLORS.bgRaised, border: "1px solid var(--border-hover)",
 								borderRadius: 0, padding: "5px 32px 5px 12px",
 								fontSize: 11, color: COLORS.text,
 								fontFamily: FONT_MONO,
 								cursor: "pointer", outline: "none",
-								colorScheme: "dark",
 								appearance: "none",
 								backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236a6a8a'/%3E%3C/svg%3E")`,
 								backgroundRepeat: "no-repeat",
@@ -148,11 +147,11 @@ export default function DeckFilters({ legends, filters, onChange, onClear }) {
 								value={filters.dateFrom}
 								onChange={e => onChange("dateFrom", e.target.value)}
 								style={{
-									background: "#202020", border: "1px solid #4a4a4a",
+									background: COLORS.bgRaised, border: "1px solid var(--border-hover)",
 									borderRadius: 0, padding: "5px 10px",
 									fontSize: 11, color: filters.dateFrom ? COLORS.text : COLORS.textDim,
 									fontFamily: FONT_MONO,
-									outline: "none", colorScheme: "dark",
+									outline: "none",
 								}}
 							/>
 							<span style={{ fontSize: 11, color: COLORS.textDim, fontFamily: FONT_MONO }}>to</span>
@@ -162,11 +161,11 @@ export default function DeckFilters({ legends, filters, onChange, onClear }) {
 								min={filters.dateFrom || undefined}
 								onChange={e => onChange("dateTo", e.target.value)}
 								style={{
-									background: "#202020", border: "1px solid #4a4a4a",
+									background: COLORS.bgRaised, border: "1px solid var(--border-hover)",
 									borderRadius: 0, padding: "5px 10px",
 									fontSize: 11, color: filters.dateTo ? COLORS.text : COLORS.textDim,
 									fontFamily: FONT_MONO,
-									outline: "none", colorScheme: "dark",
+									outline: "none",
 								}}
 							/>
 						</div>

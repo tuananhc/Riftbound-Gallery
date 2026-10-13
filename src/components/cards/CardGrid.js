@@ -126,36 +126,36 @@ export default function CardGrid({ initialCards }) {
 	return (
 		<>
 			<style suppressHydrationWarning>{`
-				.card-item { background: #1a1a1a; border: 1px solid #333333; border-radius: 0; padding: 14px; cursor: pointer; transition: all 0.25s ease; }
+				.card-item { background: var(--bg-card); border: 1px solid var(--border); border-radius: 0; padding: 14px; cursor: pointer; transition: all 0.25s ease; }
 				.card-item:hover { transform: translateY(-3px); }
-				.filter-btn { background: #202020; border: 1px solid #333333; border-radius: 0; padding: 6px 12px; cursor: pointer; font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; color: #8a8a8d; transition: all 0.2s; letter-spacing: 0.05em; }
-				.filter-attribute-btn { background: #202020; border: 1px solid #333333; border-radius: 0; padding: 3px 6px; cursor: pointer; font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; color: #8a8a8d; transition: all 0.2s; letter-spacing: 0.05em; }
-				.filter-btn:hover { border-color: #444; color: #ccc; }
-				.search-input { width: 100%; background: #1a1a1a; border: 1px solid #333333; border-radius: 0; padding: 11px 14px 11px 40px; color: #d8d8d8; font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 15px; outline: none; transition: border-color 0.2s; }
-				.search-input:focus { border-color: #4a4a4a; }
-				.search-input::placeholder { color: #5f5f62; }
-				.sort-select { background: #202020; border: 1px solid #333333; border-radius: 0; padding: 7px 12px; color: #aaa; font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; cursor: pointer; outline: none; }
+				.filter-btn { background: var(--bg-raised); border: 1px solid var(--border); border-radius: 0; padding: 6px 12px; cursor: pointer; font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; color: var(--text-muted); transition: all 0.2s; letter-spacing: 0.05em; }
+				.filter-attribute-btn { background: var(--bg-raised); border: 1px solid var(--border); border-radius: 0; padding: 3px 6px; cursor: pointer; font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; color: var(--text-muted); transition: all 0.2s; letter-spacing: 0.05em; }
+				.filter-btn:hover { border-color: var(--border-hover); color: var(--text); }
+				.search-input { width: 100%; background: var(--bg-card); border: 1px solid var(--border); border-radius: 0; padding: 11px 14px 11px 40px; color: var(--text); font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 15px; outline: none; transition: border-color 0.2s; }
+				.search-input:focus { border-color: var(--border-hover); }
+				.search-input::placeholder { color: var(--text-dim); }
+				.sort-select { background: var(--bg-raised); border: 1px solid var(--border); border-radius: 0; padding: 7px 12px; color: var(--text-muted); font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; cursor: pointer; outline: none; }
 				.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; z-index: 100; animation: fadeIn 0.2s ease; }
 				.modal-card { animation: fadeUp 0.25s ease; }
-				.cost-badge { width: 28px; height: 28px; background: #333333; border: 1px solid #4a4a4a; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #8fa3bf; font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; flex-shrink: 0; }
-				.tag-chip { display: inline-flex; align-items: center; gap: 4px; background: #333333; border: 1px solid #4a4a4a; border-radius: 0; padding: 2px 8px; font-size: 11px; color: #8a8a8d; font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: 0.04em; }
-				.range-slider { -webkit-appearance: none; width: 100%; height: 4px; background: #333333; border-radius: 0; outline: none; }
-				.range-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #5a6090; cursor: pointer; border: 2px solid #8fa3bf; }
-				.clear-btn { background: transparent; border: 1px solid #2a1a1a; border-radius: 0; padding: 8px; color: #6a3a3a; font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 10px; letter-spacing: 0.15em; cursor: pointer; transition: all 0.2s; width: 100%; }
-				.clear-btn:hover { border-color: #6a2a2a; color: #cc6060; }
+				.cost-badge { width: 28px; height: 28px; background: var(--border); border: 1px solid var(--border-hover); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: var(--accent); font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; flex-shrink: 0; }
+				.tag-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--border); border: 1px solid var(--border-hover); border-radius: 0; padding: 2px 8px; font-size: 11px; color: var(--text-muted); font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: 0.04em; }
+				.range-slider { -webkit-appearance: none; width: 100%; height: 4px; background: var(--border); border-radius: 0; outline: none; }
+				.range-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--accent-dim); cursor: pointer; border: 2px solid var(--accent); }
+				.clear-btn { background: transparent; border: 1px solid color-mix(in srgb, var(--loss) 20%, transparent); border-radius: 0; padding: 8px; color: color-mix(in srgb, var(--loss) 60%, transparent); font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 10px; letter-spacing: 0.15em; cursor: pointer; transition: all 0.2s; width: 100%; }
+				.clear-btn:hover { border-color: color-mix(in srgb, var(--loss) 45%, transparent); color: var(--loss); }
 				.card-wrapper { position: relative; }
-				.add-deck-btn { position: absolute; bottom: 8px; right: 8px; width: 28px; height: 28px; background: rgba(26,26,26,0.85); border: 1px solid #4a4a4a; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; color: #8fa3bf; opacity: 0; transition: opacity 0.15s, background 0.15s; z-index: 2; }
+				.add-deck-btn { position: absolute; bottom: 8px; right: 8px; width: 28px; height: 28px; background: color-mix(in srgb, var(--bg-card) 85%, transparent); border: 1px solid var(--border-hover); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; color: var(--accent); opacity: 0; transition: opacity 0.15s, background 0.15s; z-index: 2; }
 				.card-wrapper:hover .add-deck-btn { opacity: 1; }
-				.add-deck-btn:hover { background: #1e2240; color: #8fa3bf; border-color: #8fa3bf; }
-				.deck-row { display: flex; align-items: center; justify-content: space-between; padding: 5px 10px; border-radius: 0; font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; color: #c0bab0; transition: background 0.15s; }
-				.deck-row:hover { background: #13151f; }
-				.deck-count-btn { background: #333333; border: 1px solid #4a4a4a; border-radius: 0; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #8a8a8d; font-size: 13px; line-height: 1; transition: border-color 0.15s, color 0.15s; }
-				.deck-count-btn:hover { border-color: #5a6090; color: #8fa3bf; }
-				.deck-panel { position: fixed; top: 62px; right: 0; bottom: 0; width: 300px; background: #121212; border-left: 1px solid #333333; display: flex; flex-direction: column; z-index: 50; transition: transform 0.3s cubic-bezier(0.4,0,0.2,1); }
-				.deck-btn { background: #202020; border: 1px solid #333333; border-radius: 0; padding: 7px 14px; color: #aaa; font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; cursor: pointer; letter-spacing: 0.08em; transition: all 0.2s; display: flex; align-items: center; gap: 7px; margin-right: 8px; }
-				.deck-btn:hover { border-color: #4a4a4a; color: #8fa3bf; }
-				.deck-btn.active { background: #1a2040; border-color: #5d6e86; color: #8fa3bf; }
-				.deck-badge { background: #4a4a4a; color: #c0c8f0; border-radius: 0; padding: 1px 7px; font-size: 10px; font-weight: 700; }
+				.add-deck-btn:hover { background: color-mix(in srgb, var(--accent) 13%, transparent); color: var(--accent); border-color: var(--accent); }
+				.deck-row { display: flex; align-items: center; justify-content: space-between; padding: 5px 10px; border-radius: 0; font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; color: var(--text); transition: background 0.15s; }
+				.deck-row:hover { background: var(--bg-hover); }
+				.deck-count-btn { background: var(--border); border: 1px solid var(--border-hover); border-radius: 0; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-muted); font-size: 13px; line-height: 1; transition: border-color 0.15s, color 0.15s; }
+				.deck-count-btn:hover { border-color: var(--accent-dim); color: var(--accent); }
+				.deck-panel { position: fixed; top: 62px; right: 0; bottom: 0; width: 300px; background: var(--bg); border-left: 1px solid var(--border); display: flex; flex-direction: column; z-index: 50; transition: transform 0.3s cubic-bezier(0.4,0,0.2,1); }
+				.deck-btn { background: var(--bg-raised); border: 1px solid var(--border); border-radius: 0; padding: 7px 14px; color: var(--text-muted); font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; cursor: pointer; letter-spacing: 0.08em; transition: all 0.2s; display: flex; align-items: center; gap: 7px; margin-right: 8px; }
+				.deck-btn:hover { border-color: var(--border-hover); color: var(--accent); }
+				.deck-btn.active { background: color-mix(in srgb, var(--accent) 13%, transparent); border-color: var(--accent-dim); color: var(--accent); }
+				.deck-badge { background: var(--border-hover); color: var(--text); border-radius: 0; padding: 1px 7px; font-size: 10px; font-weight: 700; }
 			`}</style>
 
 			<div style={{ display: "flex", minHeight: "calc(100vh - 62px)" }}>
@@ -189,7 +189,7 @@ export default function CardGrid({ initialCards }) {
 					</div>
 
 					{filtered.length === 0 ? (
-						<div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 300, color: "#2a2a4a", gap: 12 }}>
+						<div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 300, color: COLORS.textDim, gap: 12 }}>
 							<div style={{ fontSize: 40 }}>🌀</div>
 							<div style={{ fontSize: 14, letterSpacing: "0.15em", fontFamily: FONT_MONO }}>THE RIFT REVEALS NOTHING</div>
 						</div>

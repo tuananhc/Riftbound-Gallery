@@ -1,6 +1,6 @@
 "use client";
 import Image from "next/image";
-import { COLORS, FONT_MONO } from "../../lib/data";
+import { COLORS, FONT_MONO, alpha } from "../../lib/data";
 import { ALL_COLORS, COLOR_CONFIG } from "../../lib/cards/data";
 
 const SECTIONS = [
@@ -14,19 +14,19 @@ const SECTIONS = [
 function ChampionCard({ entry, role, onRemove }) {
 	const { card } = entry;
 	const colors = ALL_COLORS.filter(c => card.domain_text?.includes(c));
-	const accent = colors.length > 0 ? COLOR_CONFIG[colors[0]].glow : "#4a4a4a";
+	const accent = colors.length > 0 ? COLOR_CONFIG[colors[0]].glow : COLORS.borderHover;
 	const isLegend = role === "legend";
 
 	return (
-		<div style={{ display: "flex", gap: 10, background: "#1a1a1a", border: `1px solid ${accent}55`, borderRadius: 0, padding: 8 }}>
-			<div style={{ width: 52, flexShrink: 0, aspectRatio: "744/1039", position: "relative", borderRadius: 0, overflow: "hidden", background: "#121212" }}>
+		<div style={{ display: "flex", gap: 10, background: COLORS.bgCard, border: `1px solid ${alpha(accent, 33)}`, borderRadius: 0, padding: 8 }}>
+			<div style={{ width: 52, flexShrink: 0, aspectRatio: "744/1039", position: "relative", borderRadius: 0, overflow: "hidden", background: COLORS.bg }}>
 				{card.image
 					? <Image src={card.image} alt={card.name} fill sizes="52px" style={{ objectFit: "contain" }} />
 					: <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, opacity: 0.2 }}>🃏</div>
 				}
 			</div>
 			<div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 4 }}>
-				<div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.14em", color: isLegend ? COLORS.accent : "#8fa3bf", fontFamily: FONT_MONO }}>
+				<div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.14em", color: isLegend ? COLORS.accent : COLORS.accent, fontFamily: FONT_MONO }}>
 					{isLegend ? "LEGEND" : "CHOSEN CHAMPION"}
 				</div>
 				<div style={{ fontSize: 12, fontWeight: 700, color: COLORS.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: FONT_MONO }}>
@@ -94,7 +94,7 @@ export default function DeckPanel({ deck, deckOpen, deckTotal, legendId, champio
 
 	return (
 		<div className="deck-panel" style={{ transform: deckOpen ? "translateX(0)" : "translateX(100%)" }}>
-			<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid #333333", flexShrink: 0 }}>
+			<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
 				<div style={{ display: "flex", alignItems: "center", gap: 10 }}>
 					<span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.18em", color: COLORS.accent, fontFamily: FONT_MONO }}>DECK BUILDER</span>
 					<span style={{
@@ -103,8 +103,8 @@ export default function DeckPanel({ deck, deckOpen, deckTotal, legendId, champio
 						letterSpacing: "0.08em",
 						padding: deckTotal > 0 ? "6px 8px" : "0",
 						borderRadius: 0,
-						color: deckTotal === 0 ? COLORS.textDim : deckTotal === 40 ? "#4ade80" : "#cc6060",
-						background: deckTotal === 0 ? "transparent" : deckTotal === 40 ? "#4ade8018" : "#cc606018",
+						color: deckTotal === 0 ? COLORS.textDim : deckTotal === 40 ? COLORS.win : COLORS.loss,
+						background: deckTotal === 0 ? "transparent" : deckTotal === 40 ? "color-mix(in srgb, var(--win) 9%, transparent)" : "color-mix(in srgb, var(--loss) 9%, transparent)",
 					}}>
 						{deckTotal > 0 ? `${deckTotal}/40 CARD${deckTotal !== 1 ? "S" : ""}` : "EMPTY"}
 					</span>
@@ -122,7 +122,7 @@ export default function DeckPanel({ deck, deckOpen, deckTotal, legendId, champio
 						<ChosenChampionSection legendEntry={legendEntry} championEntry={championEntry} onAdd={onAdd} onRemove={onRemove} />
 						{sections.map((s, i) => (
 							<div key={s.label}>
-								{(i > 0 || hasChampionSection) && <div style={{ height: 1, background: "#333333", margin: "4px 10px" }} />}
+								{(i > 0 || hasChampionSection) && <div style={{ height: 1, background: COLORS.border, margin: "4px 10px" }} />}
 								<DeckSection label={s.label} entries={s.entries} onAdd={onAdd} onRemove={onRemove} />
 							</div>
 						))}
@@ -130,19 +130,19 @@ export default function DeckPanel({ deck, deckOpen, deckTotal, legendId, champio
 				)}
 			</div>
 
-			<div style={{ padding: "12px 16px", borderTop: "1px solid #333333", display: "flex", gap: 8, flexShrink: 0 }}>
+			<div style={{ padding: "12px 16px", borderTop: "1px solid var(--border)", display: "flex", gap: 8, flexShrink: 0 }}>
 				<button
 					onClick={onCopyList}
 					disabled={deckTotal === 0}
-					style={{ flex: 1, background: "transparent", border: "1px solid #4a4a4a", borderRadius: 0, padding: "8px", color: deckTotal === 0 ? "#4a4a4a" : "#8a8a8d", fontFamily: FONT_MONO, fontSize: 10, letterSpacing: "0.1em", cursor: deckTotal === 0 ? "default" : "pointer", transition: "all 0.2s" }}
+					style={{ flex: 1, background: "transparent", border: "1px solid var(--border-hover)", borderRadius: 0, padding: "8px", color: deckTotal === 0 ? COLORS.borderHover : COLORS.textMuted, fontFamily: FONT_MONO, fontSize: 10, letterSpacing: "0.1em", cursor: deckTotal === 0 ? "default" : "pointer", transition: "all 0.2s" }}
 				>
 					COPY LIST
 				</button>
 				<button
 					onClick={onClear}
-					style={{ flex: 1, background: "transparent", border: "1px solid #6a2a2a", borderRadius: 0, padding: "8px", color: "#cc6060", fontFamily: FONT_MONO, fontSize: 10, letterSpacing: "0.1em", cursor: "pointer", transition: "all 0.2s" }}
-					onMouseEnter={e => { e.currentTarget.style.background = "#2a1010"; e.currentTarget.style.borderColor = "#cc4444"; e.currentTarget.style.color = "#ff8080"; }}
-					onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "#6a2a2a"; e.currentTarget.style.color = "#cc6060"; }}
+					style={{ flex: 1, background: "transparent", border: "1px solid color-mix(in srgb, var(--loss) 45%, transparent)", borderRadius: 0, padding: "8px", color: COLORS.loss, fontFamily: FONT_MONO, fontSize: 10, letterSpacing: "0.1em", cursor: "pointer", transition: "all 0.2s" }}
+					onMouseEnter={e => { e.currentTarget.style.background = "color-mix(in srgb, var(--loss) 12%, transparent)"; e.currentTarget.style.borderColor = COLORS.loss; e.currentTarget.style.color = COLORS.loss; }}
+					onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "color-mix(in srgb, var(--loss) 45%, transparent)"; e.currentTarget.style.color = COLORS.loss; }}
 				>
 					CLEAR DECK
 				</button>

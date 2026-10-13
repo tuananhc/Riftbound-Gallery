@@ -2,7 +2,8 @@
 import { Fragment, useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { COLORS, FONT_MONO } from "../../lib/data";
+import { COLORS, FONT_MONO, alpha } from "../../lib/data";
+import { legendLabel } from "../../lib/cards/data";
 import { countryFlag } from "../../lib/countries";
 import { useAuth } from "../../hooks/useAuth";
 import { saveMatchHistory, getPlayerTournaments, getProfile, addEloAccount, selectEloAccount, removeEloAccount } from "../../lib/api";
@@ -10,9 +11,9 @@ import { saveMatchHistory, getPlayerTournaments, getProfile, addEloAccount, sele
 // ── Dummy data ─────────────────────────────────────────────────────────────────
 
 const RANK_COLORS = {
-	"Bronze": { color: "#8a8a8d", glow: "#8a8a8d33", icon: "🥉" },
+	"Bronze": { color: COLORS.textMuted, glow: "color-mix(in srgb, var(--text-muted) 20%, transparent)", icon: "🥉" },
 	"Silver": { color: "#bebebe", glow: "#bebebe33", icon: "🥈" },
-	"Gold": { color: "#bdb76b", glow: "#bdb76b33", icon: "🥇" },
+	"Gold": { color: COLORS.draw, glow: "color-mix(in srgb, var(--draw) 20%, transparent)", icon: "🥇" },
 	"Platinum": { color: "#8fa3bf", glow: "#8fa3bf33", icon: "💎" },
 	"Diamond": { color: "#a09bbf", glow: "#a09bbf33", icon: "🔷" },
 	"Master": { color: "#b08968", glow: "#b0896833", icon: "👑" },
@@ -246,14 +247,14 @@ export default function UserProfile({ legends = [] }) {
 
 	const totalGames = USER.stats.wins + USER.stats.losses + USER.stats.draws;
 	const winRate = Math.round((USER.stats.wins / totalGames) * 100);
-	const rank = RANK_COLORS[USER.rank] || { color: "#8fa3bf", glow: "#8fa3bf44", icon: "⭐" };
+	const rank = RANK_COLORS[USER.rank] || { color: COLORS.accent, glow: "color-mix(in srgb, var(--accent) 27%, transparent)", icon: "⭐" };
 
 	return (
 		<div style={{ width: "100%", padding: "10px 12px", boxSizing: "border-box" }}>
 
 			{/* ── Profile Header ── */}
 			<div style={{
-				background: "linear-gradient(135deg, #1a1a1a 0%, #1a1a1a 50%, #1a1a1a 100%)",
+				background: "linear-gradient(135deg, var(--bg-card) 0%, var(--bg-card) 50%, var(--bg-card) 100%)",
 				border: `1px solid ${COLORS.border}`,
 				borderRadius: 0, padding: "10px 14px", marginBottom: 10,
 				display: "flex", alignItems: "center", gap: 12,
@@ -261,16 +262,16 @@ export default function UserProfile({ legends = [] }) {
 			}}>
 				{/* bg decoration — clipped on its own layer so the profile dropdown can overflow the card */}
 				<div style={{ position: "absolute", inset: 0, borderRadius: 0, overflow: "hidden", pointerEvents: "none" }}>
-					<div style={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle, #2a2a2a44 0%, transparent 70%)" }} />
+					<div style={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle, color-mix(in srgb, var(--bg-hover) 27%, transparent) 0%, transparent 70%)" }} />
 				</div>
 
 				{/* Avatar */}
 				<div style={{
 					width: 40, height: 40, borderRadius: 0, flexShrink: 0,
-					background: "linear-gradient(135deg, #242424, #161616)",
-					border: "2px solid #333333",
+					background: "linear-gradient(135deg, var(--bg-hover), var(--bg-alt))",
+					border: "2px solid var(--border)",
 					display: "flex", alignItems: "center", justifyContent: "center",
-					fontSize: 20, boxShadow: "0 0 12px #00000055",
+					fontSize: 20, boxShadow: "0 0 12px var(--shadow)",
 				}}>{USER.avatar}</div>
 
 				{/* Info */}
@@ -280,7 +281,7 @@ export default function UserProfile({ legends = [] }) {
 							{USER.username}
 						</h1>
 						<span style={{
-							background: rank.glow, border: `1px solid ${rank.color}44`,
+							background: rank.glow, border: `1px solid ${alpha(rank.color, 27)}`,
 							borderRadius: 0, padding: "0 6px",
 							fontSize: 10, color: rank.color, fontFamily: FONT_MONO, letterSpacing: "0.1em",
 						}}>{rank.icon} {USER.rank}</span>
@@ -295,18 +296,18 @@ export default function UserProfile({ legends = [] }) {
 						{USER.title}
 					</div>
 					<div style={{ fontSize: 9, color: COLORS.textDim, fontFamily: FONT_MONO, letterSpacing: "0.08em" }}>
-						MEMBER SINCE {USER.joinDate.toUpperCase()} &nbsp;·&nbsp; WIN STREAK: <span style={{ color: "#5fbf5f" }}>+{USER.stats.winStreak}</span>
+						MEMBER SINCE {USER.joinDate.toUpperCase()} &nbsp;·&nbsp; WIN STREAK: <span style={{ color: COLORS.win }}>+{USER.stats.winStreak}</span>
 					</div>
 				</div>
 
 				{/* Stats */}
 				<div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
 					{[
-						{ label: "WINS", value: USER.stats.wins, color: "#5fbf5f" },
-						{ label: "LOSSES", value: USER.stats.losses, color: "#cc6060" },
+						{ label: "WINS", value: USER.stats.wins, color: COLORS.win },
+						{ label: "LOSSES", value: USER.stats.losses, color: COLORS.loss },
 						{ label: "WIN%", value: `${winRate}%`, color: COLORS.accent },
 					].map(s => (
-						<div key={s.label} style={{ background: "#1a1a1a", border: "1px solid #333333", borderRadius: 0, padding: "3px 10px", textAlign: "center", minWidth: 52 }}>
+						<div key={s.label} style={{ background: COLORS.bgCard, border: "1px solid var(--border)", borderRadius: 0, padding: "3px 10px", textAlign: "center", minWidth: 52 }}>
 							<div style={{ fontSize: 14, fontWeight: 900, color: s.color, fontFamily: FONT_MONO }}>{s.value}</div>
 							<div style={{ fontSize: 8, color: COLORS.textDim, letterSpacing: "0.15em", marginTop: 1, fontFamily: FONT_MONO }}>{s.label}</div>
 						</div>
@@ -326,7 +327,7 @@ export default function UserProfile({ legends = [] }) {
 				)}
 
 				{linkError && (
-					<div style={{ marginBottom: 6, fontSize: 11, color: "#cc6060", fontFamily: FONT_MONO }}>{linkError}</div>
+					<div style={{ marginBottom: 6, fontSize: 11, color: COLORS.loss, fontFamily: FONT_MONO }}>{linkError}</div>
 				)}
 
 				{showSearch && (<>
@@ -348,19 +349,19 @@ export default function UserProfile({ legends = [] }) {
 						placeholder="Enter your EloShowdown username…"
 						value={eloQuery}
 						onChange={e => setEloQuery(e.target.value)}
-						onFocus={e => { e.target.style.borderColor = "#5d6e86"; }}
-						onBlur={e => { e.target.style.borderColor = "#333333"; }}
+						onFocus={e => { e.target.style.borderColor = COLORS.accentDim; }}
+						onBlur={e => { e.target.style.borderColor = COLORS.border; }}
 						style={{
-							background: "#1a1a1a", border: "1px solid #333333", borderRadius: 0,
-							padding: "5px 8px", color: "#d8d8d8", fontFamily: FONT_MONO,
+							background: COLORS.bgCard, border: "1px solid var(--border)", borderRadius: 0,
+							padding: "5px 8px", color: COLORS.text, fontFamily: FONT_MONO,
 							fontSize: 12, width: "100%", outline: "none", transition: "border-color 0.2s", boxSizing: "border-box",
 						}}
 					/>
 					<button type="submit" disabled={eloLoading || !eloQuery.trim()}
 						style={{
-							background: eloLoading || !eloQuery.trim() ? "#333333" : "#242424",
-							border: `1px solid ${eloLoading || !eloQuery.trim() ? "#333333" : "#5d6e86"}`,
-							borderRadius: 0, padding: "5px 14px", color: eloLoading || !eloQuery.trim() ? COLORS.textDim : "#8fa3bf",
+							background: eloLoading || !eloQuery.trim() ? COLORS.border : COLORS.bgHover,
+							border: `1px solid ${eloLoading || !eloQuery.trim() ? COLORS.border : COLORS.accentDim}`,
+							borderRadius: 0, padding: "5px 14px", color: eloLoading || !eloQuery.trim() ? COLORS.textDim : COLORS.accent,
 							fontFamily: FONT_MONO, fontSize: 10, letterSpacing: "0.12em",
 							cursor: eloLoading || !eloQuery.trim() ? "not-allowed" : "pointer",
 							whiteSpace: "nowrap", transition: "all 0.2s", flexShrink: 0,
@@ -370,19 +371,19 @@ export default function UserProfile({ legends = [] }) {
 				</form>
 
 				{ eloError && (
-					<div style={{ marginTop: 6, fontSize: 11, color: "#cc6060", fontFamily: FONT_MONO }}>{eloError}</div>
+					<div style={{ marginTop: 6, fontSize: 11, color: COLORS.loss, fontFamily: FONT_MONO }}>{eloError}</div>
 				) }
 
 				{ eloResults.length > 0 && (
-					<div style={{ marginTop: 6, background: "#121212", border: `1px solid ${COLORS.border}`, borderRadius: 0, overflow: "hidden" }}>
+					<div style={{ marginTop: 6, background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 0, overflow: "hidden" }}>
 						{eloResults.map((player, i) => (
 							<div key={player.id}
 								onClick={() => selectPlayer(player)}
-								onMouseEnter={e => { e.currentTarget.style.background = "#1a1a1a"; }}
+								onMouseEnter={e => { e.currentTarget.style.background = COLORS.bgCard; }}
 								onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
 								style={{
 									display: "flex", alignItems: "center", gap: 10, padding: "3px 8px",
-									borderBottom: i < eloResults.length - 1 ? "1px solid #202020" : "none",
+									borderBottom: i < eloResults.length - 1 ? "1px solid var(--bg-raised)" : "none",
 									cursor: "pointer", transition: "background 0.15s",
 								}}>
 								<div style={{ flex: 1 }}>
@@ -429,7 +430,7 @@ export default function UserProfile({ legends = [] }) {
 									</div>
 									<div>
 										{recent.map((m, i) => {
-											const resultColor = m.result === "win" ? "#5fbf5f" : m.result === "loss" ? "#cc6060" : "#bdb76b";
+											const resultColor = m.result === "win" ? COLORS.win : m.result === "loss" ? COLORS.loss : COLORS.draw;
 											const changeSign = m.elo_change > 0 ? "+" : "";
 											const d = new Date(m.date);
 											const dateStr = d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
@@ -444,7 +445,7 @@ export default function UserProfile({ legends = [] }) {
 												)}
 												<div
 													style={{
-														position: "relative", height: 50, background: "#121212",
+														position: "relative", height: 50, background: COLORS.bg,
 														border: `1px solid ${COLORS.border}`, borderTop: "none",
 														marginBottom: endsGroup ? 12 : 0,
 														overflow: "visible",
@@ -455,11 +456,11 @@ export default function UserProfile({ legends = [] }) {
 														onSelect={id => setChampion(m.match_id, "opponent", id)} />
 													{/* 1fr | auto | 1fr keeps the opponent name centred regardless of the flanking widths. */}
 													<div style={{ position: "absolute", inset: 0, display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", columnGap: 10, pointerEvents: "none", zIndex: 3 }}>
-														<span style={{ justifySelf: "end", fontSize: 11, fontWeight: 700, color: resultColor, fontFamily: FONT_MONO, letterSpacing: "0.08em", textTransform: "uppercase", textShadow: "0 1px 4px #000" }}>
+														<span style={{ justifySelf: "end", fontSize: 11, fontWeight: 700, color: resultColor, fontFamily: FONT_MONO, letterSpacing: "0.08em", textTransform: "uppercase", textShadow: "0 1px 4px var(--bg)" }}>
 															{m.result}
 														</span>
-														<span style={{ fontSize: 14, color: COLORS.text, fontFamily: FONT_MONO, textShadow: "0 1px 4px #000" }}>{m.opponent_name}</span>
-														<span style={{ justifySelf: "start", fontSize: 14, fontWeight: 700, color: m.elo_change > 0 ? "#5fbf5f" : m.elo_change < 0 ? "#cc6060" : COLORS.textDim, fontFamily: FONT_MONO, textShadow: "0 1px 4px #000" }}>
+														<span style={{ fontSize: 14, color: COLORS.text, fontFamily: FONT_MONO, textShadow: "0 1px 4px var(--bg)" }}>{m.opponent_name}</span>
+														<span style={{ justifySelf: "start", fontSize: 14, fontWeight: 700, color: m.elo_change > 0 ? COLORS.win : m.elo_change < 0 ? COLORS.loss : COLORS.textDim, fontFamily: FONT_MONO, textShadow: "0 1px 4px var(--bg)" }}>
 															{changeSign}{m.elo_change}
 														</span>
 													</div>
@@ -471,11 +472,11 @@ export default function UserProfile({ legends = [] }) {
 									{ hasMore && (
 										<button
 											onClick={() => setEloVisible(v => v + ELO_PAGE_SIZE)}
-											onMouseEnter={e => { e.currentTarget.style.borderColor = "#5d6e86"; e.currentTarget.style.color = "#8fa3bf"; }}
-											onMouseLeave={e => { e.currentTarget.style.borderColor = "#333333"; e.currentTarget.style.color = COLORS.textMuted; }}
+											onMouseEnter={e => { e.currentTarget.style.borderColor = COLORS.accentDim; e.currentTarget.style.color = COLORS.accent; }}
+											onMouseLeave={e => { e.currentTarget.style.borderColor = COLORS.border; e.currentTarget.style.color = COLORS.textMuted; }}
 											style={{
 												width: "100%", marginTop: 4, padding: "4px 12px",
-												background: "#202020", border: "1px solid #333333", borderRadius: 0,
+												background: COLORS.bgRaised, border: "1px solid var(--border)", borderRadius: 0,
 												color: COLORS.textMuted, fontFamily: FONT_MONO,
 												fontSize: 10, letterSpacing: "0.14em", cursor: "pointer", transition: "all 0.2s",
 											}}>
@@ -485,13 +486,13 @@ export default function UserProfile({ legends = [] }) {
 
 									{/* Save the whole loaded history (with champion picks) to DynamoDB */}
 									<button onClick={handleSaveHistory} disabled={saving}
-										onMouseEnter={e => { if (!saving) e.currentTarget.style.boxShadow = "0 0 18px #8fa3bf55"; }}
+										onMouseEnter={e => { if (!saving) e.currentTarget.style.boxShadow = "0 0 18px color-mix(in srgb, var(--accent) 33%, transparent)"; }}
 										onMouseLeave={e => { e.currentTarget.style.boxShadow = "none"; }}
 										style={{
 											width: "100%", marginTop: 4, padding: "5px 12px", borderRadius: 0,
-											background: saving ? "#333333" : "linear-gradient(135deg, #8fa3bf, #8fa3bf)",
-											border: `1px solid ${saving ? "#333333" : "#8fa3bf"}`,
-											color: saving ? COLORS.textDim : "#121212",
+											background: saving ? COLORS.border : "linear-gradient(135deg, var(--accent), var(--accent))",
+											border: `1px solid ${saving ? COLORS.border : COLORS.accent}`,
+											color: saving ? COLORS.textDim : COLORS.bg,
 											fontFamily: FONT_MONO, fontSize: 10, fontWeight: 800, letterSpacing: "0.14em",
 											cursor: saving ? "not-allowed" : "pointer", transition: "all 0.2s",
 										}}>
@@ -499,7 +500,7 @@ export default function UserProfile({ legends = [] }) {
 									</button>
 
 									{saveMsg && (
-										<div style={{ marginTop: 4, fontSize: 11, textAlign: "center", color: saveMsg.ok ? "#5fbf5f" : "#cc6060", fontFamily: FONT_MONO }}>
+										<div style={{ marginTop: 4, fontSize: 11, textAlign: "center", color: saveMsg.ok ? COLORS.win : COLORS.loss, fontFamily: FONT_MONO }}>
 											{saveMsg.text}
 										</div>
 									)}
@@ -523,20 +524,20 @@ function ProfileSwitcher({ accounts, activeId, onSelect, onRemove, onAdd }) {
 	const font = "'Segoe UI', system-ui, sans-serif";
 	const active = accounts.find(a => a.id === activeId);
 	const hover = {
-		onMouseEnter: e => { e.currentTarget.style.background = "#242424"; },
+		onMouseEnter: e => { e.currentTarget.style.background = COLORS.bgHover; },
 		onMouseLeave: e => { e.currentTarget.style.background = "transparent"; },
 	};
 
 	return (
 		<div style={{ position: "relative" }}>
 			<button onClick={() => setOpen(o => !o)}
-				onMouseEnter={e => { e.currentTarget.style.borderColor = "#5d6e86"; }}
-				onMouseLeave={e => { e.currentTarget.style.borderColor = "#4a4a4a"; }}
+				onMouseEnter={e => { e.currentTarget.style.borderColor = COLORS.accentDim; }}
+				onMouseLeave={e => { e.currentTarget.style.borderColor = COLORS.borderHover; }}
 				style={{
 					display: "flex", alignItems: "center", gap: 6,
-					background: "#1a1a1a", border: "1px solid #4a4a4a", borderRadius: 0,
+					background: COLORS.bgCard, border: "1px solid var(--border-hover)", borderRadius: 0,
 					padding: "1px 8px", cursor: "pointer", transition: "border-color 0.2s",
-					fontSize: 11, color: "#8fa3bf", fontFamily: font,
+					fontSize: 11, color: COLORS.accent, fontFamily: font,
 				}}>
 				🔗 {active?.display_name ?? active?.id}
 				{accounts.length > 1 && <span style={{ fontSize: 10, color: COLORS.textMuted }}>+{accounts.length - 1}</span>}
@@ -550,8 +551,8 @@ function ProfileSwitcher({ accounts, activeId, onSelect, onRemove, onAdd }) {
 					<div style={{
 						position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 50,
 						width: 280, maxWidth: "calc(100vw - 32px)", maxHeight: 360, overflowY: "auto",
-						background: "#1a1a1a", border: `1px solid ${COLORS.border}`, borderRadius: 0,
-						boxShadow: "0 8px 24px #00000088",
+						background: COLORS.bgCard, border: `1px solid ${COLORS.border}`, borderRadius: 0,
+						boxShadow: "0 8px 24px var(--shadow)",
 					}}>
 						{accounts.map(a => {
 							const isActive = a.id === activeId;
@@ -574,7 +575,7 @@ function ProfileSwitcher({ accounts, activeId, onSelect, onRemove, onAdd }) {
 									</div>
 									<button title="Unlink this account"
 										onClick={e => { e.stopPropagation(); setOpen(false); onRemove(a.id); }}
-										onMouseEnter={e => { e.currentTarget.style.color = "#cc6060"; }}
+										onMouseEnter={e => { e.currentTarget.style.color = COLORS.loss; }}
 										onMouseLeave={e => { e.currentTarget.style.color = COLORS.textDim; }}
 										style={{ background: "transparent", border: "none", color: COLORS.textDim, cursor: "pointer", fontSize: 12, padding: "2px 4px", flexShrink: 0 }}>
 										✕
@@ -586,7 +587,7 @@ function ProfileSwitcher({ accounts, activeId, onSelect, onRemove, onAdd }) {
 							style={{
 								display: "block", width: "100%", textAlign: "left", padding: "8px 12px",
 								background: "transparent", border: "none", cursor: "pointer",
-								fontSize: 11, letterSpacing: "0.1em", color: "#8fa3bf", fontFamily: font, transition: "background 0.15s",
+								fontSize: 11, letterSpacing: "0.1em", color: COLORS.accent, fontFamily: font, transition: "background 0.15s",
 							}}>
 							＋ ADD ACCOUNT
 						</button>
@@ -608,9 +609,9 @@ function TournamentHeader({ tournament, dateStr }) {
 			: "Tournament not found";
 	return (
 		<div style={{
-			display: "flex", alignItems: "center", gap: 8, height: 20, padding: "0 8px",
-			background: "#1a1a1a", border: `1px solid ${COLORS.border}`, borderRadius: 0,
-			fontSize: 10, letterSpacing: "0.06em", fontFamily: FONT_MONO,
+			display: "flex", alignItems: "center", gap: 8, height: 30, padding: "0 10px",
+			background: COLORS.bgCard, border: `1px solid ${COLORS.border}`, borderRadius: 0,
+			fontSize: 13, letterSpacing: "0.04em", fontFamily: FONT_MONO,
 		}}>
 			{tournament ? (
 				<a href={tournament.url} target="_blank" rel="noopener noreferrer"
@@ -622,7 +623,7 @@ function TournamentHeader({ tournament, dateStr }) {
 			) : (
 				<span style={{ color: COLORS.textDim, fontStyle: "italic" }}>{label}</span>
 			)}
-			<span style={{ color: COLORS.textDim, marginLeft: "auto", flexShrink: 0 }}>{dateStr}</span>
+			<span style={{ color: COLORS.textDim, marginLeft: "auto", flexShrink: 0, fontSize: 11 }}>{dateStr}</span>
 		</div>
 	);
 }
@@ -640,13 +641,21 @@ function ChampionHalf({ champions, value, onSelect, label, side }) {
 	// Champions whose S3 icon 404s — those rows fall back to the card art.
 	const [iconless, setIconless] = useState([]);
 	const [openUp, setOpenUp] = useState(false);
+	const [search, setSearch] = useState("");
 	const wrapperRef = useRef(null);
 	const champ = champions.find(c => c.id === value);
 	const isLeft = side === "left";
+	const term = search.trim().toLowerCase();
+	const filtered = champions.filter(c =>
+		c.tags_text.toLowerCase().includes(term) ||
+		c.name.toLowerCase().includes(term)
+	);
+	const close = () => { setOpen(false); setSearch(""); };
+	const pick = (id) => { onSelect(id); close(); };
 	// Fade the art toward the row's centre so the match info stays readable.
 	const fade = isLeft
-		? "linear-gradient(90deg, rgba(26,26,26,0) 25%, rgba(26,26,26,0.96) 100%)"
-		: "linear-gradient(270deg, rgba(26,26,26,0) 25%, rgba(26,26,26,0.96) 100%)";
+		? "linear-gradient(90deg, color-mix(in srgb, var(--bg-card) 0%, transparent) 25%, color-mix(in srgb, var(--bg-card) 96%, transparent) 100%)"
+		: "linear-gradient(270deg, color-mix(in srgb, var(--bg-card) 0%, transparent) 25%, color-mix(in srgb, var(--bg-card) 96%, transparent) 100%)";
 
 	return (
 		<div ref={wrapperRef} style={{ position: "absolute", [isLeft ? "left" : "right"]: 0, top: 0, width: "50%", height: "100%", zIndex: open ? 60 : 1 }}>
@@ -657,13 +666,15 @@ function ChampionHalf({ champions, value, onSelect, label, side }) {
 					const rect = wrapperRef.current.getBoundingClientRect();
 					const spaceBelow = window.innerHeight - rect.bottom;
 					setOpenUp(spaceBelow < PICKER_MAX_HEIGHT + PICKER_GAP && rect.top > spaceBelow);
+					setOpen(true);
+				} else {
+					close();
 				}
-				setOpen(o => !o);
 			}}
 				title={champ ? champ.tags_text : "Select champion"}
 				style={{
 					width: "100%", height: "100%", position: "relative", overflow: "hidden",
-					border: "none", background: champ ? "transparent" : "#121212", cursor: "pointer", padding: 0,
+					border: "none", background: champ ? "transparent" : COLORS.bg, cursor: "pointer", padding: 0,
 					display: "flex", alignItems: "center", justifyContent: isLeft ? "flex-start" : "flex-end",
 				}}>
 				{champ?.image && (
@@ -683,33 +694,63 @@ function ChampionHalf({ champions, value, onSelect, label, side }) {
 			{open && (
 				<>
 					{/* click-away backdrop */}
-					<div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
+					<div onClick={close} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
 					<div style={{
 						position: "absolute", [openUp ? "bottom" : "top"]: `calc(100% + ${PICKER_GAP}px)`, [isLeft ? "left" : "right"]: 8, zIndex: 50,
-						width: 280, maxWidth: "calc(100vw - 32px)", maxHeight: PICKER_MAX_HEIGHT, overflowY: "auto",
-						background: "#1a1a1a", border: `1px solid ${COLORS.border}`, borderRadius: 0,
-						boxShadow: "0 8px 24px #00000088",
+						width: 330, maxWidth: "calc(100vw - 32px)", maxHeight: PICKER_MAX_HEIGHT,
+						display: "flex", flexDirection: "column",
+						background: COLORS.bgCard, border: `1px solid ${COLORS.border}`, borderRadius: 0,
+						boxShadow: "0 8px 24px var(--shadow)",
 					}}>
-						{champions.length === 0 && (
-							<div style={{ padding: "12px 14px", fontSize: 11, color: COLORS.textDim, fontFamily: FONT_MONO, letterSpacing: "0.06em" }}>
-								No legends found.
-							</div>
-						)}
-						{champions.map(c => (
-							<div key={c.id}
-								onClick={() => { onSelect(c.id); setOpen(false); }}
-								onMouseEnter={e => { e.currentTarget.style.background = "#242424"; }}
-								onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
-								style={{ display: "flex", alignItems: "center", gap: 12, padding: "6px 12px", cursor: "pointer", transition: "background 0.15s" }}>
-								<div style={{ position: "relative", width: 32, height: 32, overflow: "hidden", background: COLORS.bg, flexShrink: 0 }}>
-									{c.icon && !iconless.includes(c.id)
-										? <Image src={c.icon} alt="" fill sizes="32px" style={{ objectFit: "cover" }}
-											onError={() => setIconless(prev => prev.includes(c.id) ? prev : [...prev, c.id])} />
-										: c.image && <Image src={c.image} alt="" fill sizes="32px" style={{ objectFit: "cover", objectPosition: "top" }} />}
+						{/* Search stays pinned above the scrolling list; Enter picks the top match. */}
+						<div style={{ padding: 8, borderBottom: `1px solid ${COLORS.border}`, flexShrink: 0 }}>
+							<input
+								autoFocus
+								value={search}
+								onChange={e => setSearch(e.target.value)}
+								onKeyDown={e => {
+									if (e.key === "Enter" && filtered.length > 0) pick(filtered[0].id);
+									if (e.key === "Escape") close();
+								}}
+								onFocus={e => { e.target.style.borderColor = COLORS.accentDim; }}
+								onBlur={e => { e.target.style.borderColor = COLORS.borderHover; }}
+								placeholder="Search legends..."
+								style={{
+									width: "100%", background: COLORS.bg,
+									border: `1px solid ${COLORS.borderHover}`, borderRadius: 0,
+									padding: "6px 10px", fontSize: 12,
+									color: COLORS.text, outline: "none",
+									fontFamily: FONT_MONO,
+								}}
+							/>
+						</div>
+						<div style={{ overflowY: "auto", flex: 1 }}>
+							{filtered.length === 0 && (
+								<div style={{ padding: "12px 14px", fontSize: 11, color: COLORS.textDim, fontFamily: FONT_MONO, letterSpacing: "0.06em" }}>
+									{champions.length === 0 ? "No legends found." : <>No legends match &ldquo;{search}&rdquo;.</>}
 								</div>
-								<span style={{ fontSize: 14, color: c.id === value ? COLORS.accent : COLORS.text, fontFamily: FONT_MONO }}>{c.tags_text}</span>
-							</div>
-						))}
+							)}
+							{filtered.map(c => (
+								<div key={c.id}
+									onClick={() => pick(c.id)}
+									onMouseEnter={e => { e.currentTarget.style.background = COLORS.bgHover; }}
+									onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+									style={{ display: "flex", alignItems: "center", gap: 12, padding: "6px 12px", cursor: "pointer", transition: "background 0.15s" }}>
+									<div style={{ position: "relative", width: 35, height: 35, overflow: "hidden", background: COLORS.bg, flexShrink: 0 }}>
+										{c.icon && !iconless.includes(c.id)
+											? <Image src={c.icon} alt="" fill sizes="35px" style={{ objectFit: "cover" }}
+												onError={() => setIconless(prev => prev.includes(c.id) ? prev : [...prev, c.id])} />
+											: c.image && <Image src={c.image} alt="" fill sizes="35px" style={{ objectFit: "cover", objectPosition: "top" }} />}
+									</div>
+									<span style={{
+										fontSize: 14, color: c.id === value ? COLORS.accent : COLORS.text, fontFamily: FONT_MONO,
+										minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+									}}>
+										{legendLabel(c)}
+									</span>
+								</div>
+							))}
+						</div>
 					</div>
 				</>
 			)}

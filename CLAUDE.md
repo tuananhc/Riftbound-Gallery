@@ -12,7 +12,7 @@ This file defines the architecture rules, coding conventions, and best practices
 - **Database:** DynamoDB (Cards, Users, Decks, DeckVersions, MatchHistory)
 - **News/Blog:** Markdown files in `content/news/`
 - **Styling:** Inline styles only — no CSS modules, no Tailwind, no styled-components
-- **Theme:** flat dark grey surfaces, hairline grey borders, square corners, one cool grey-blue accent
+- **Theme:** flat grey surfaces (dark by default, light via the navbar toggle), hairline grey borders, square corners, one sky blue accent
 - **Fonts:** Geist Mono (whole UI, via `FONT_MONO` in `src/lib/data.js`)
 
 ---
@@ -153,24 +153,42 @@ src/
 
 ### Colour and typography tokens (from `src/lib/data.js`)
 
+The site has a dark (default) and a light theme, switched by the toggle at the
+top right of the navbar. Each `COLORS` value is a CSS variable (`COLORS.bgCard`
+is `"var(--bg-card)"`); `BASE_STYLES` points the variables at the palette in
+`THEMES.dark` or `THEMES.light`, keyed off `<html data-theme="light">`. The
+choice is saved in localStorage and applied before first paint by the inline
+script in `src/app/layout.js`; `useTheme` (`src/hooks/useTheme.js`) reads and flips it.
+
 ```js
-COLORS.bg         // #121212 — page background
-COLORS.bgAlt      // #161616 — sidebar background
-COLORS.bgCard     // #1a1a1a — card background
-COLORS.bgRaised   // #202020 — inputs, buttons, raised rows
-COLORS.bgHover    // #242424 — row / menu item hover
-COLORS.border     // #333333 — default hairline border
-COLORS.borderHover// #4a4a4a
-COLORS.text       // #d8d8d8 — primary text
-COLORS.textMuted  // #8a8a8d — secondary text
-COLORS.textDim    // #5f5f62 — disabled/hint text
-COLORS.accent     // #8fa3bf — cool grey-blue accent (replaces the old gold)
-COLORS.accentDim  // #5d6e86
-COLORS.accentGlow // #8fa3bf33
-COLORS.win        // #5fbf5f
-COLORS.loss       // #cc6060
-COLORS.draw       // #bdb76b
+// token          dark      light
+COLORS.bg // #121212 #f3f3f3 — page background
+COLORS.bgAlt // #161616 #ebebeb — sidebar background
+COLORS.bgCard // #1a1a1a #ffffff — card background
+COLORS.bgRaised // #202020 #f7f7f7 — inputs, buttons, raised rows
+COLORS.bgHover // #242424 #e9e9e9 — row / menu item hover
+COLORS.border // #333333 #d6d6d6 — default hairline border
+COLORS.borderHover // #4a4a4a #b4b4b4
+COLORS.text // #d8d8d8 #1c1c1c — primary text
+COLORS.textStrong // #e8e8e8 #0a0a0a — headings, titles
+COLORS.textMuted // #8a8a8d #5e5e62 — secondary text
+COLORS.textDim // #5f5f62 #8e8e92 — disabled/hint text
+COLORS.accent // #8ecbff #1f6fb8 — sky blue accent (deeper in light mode for contrast)
+COLORS.accentDim // #5a88b0 #8db6dd
+COLORS.accentGlow // accent at 20%
+COLORS.shadow // popover / lifted-card drop shadow
+COLORS.win // #5fbf5f #2e8a3a
+COLORS.loss // #cc6060 #c24848
+COLORS.draw // #bdb76b #8c8628
 ```
+
+- Never write a theme colour as a hex literal in a component — it won't switch
+  with the theme. Use the `COLORS` token
+- For a translucent token use `alpha(COLORS.accent, 33)` from `src/lib/data.js`.
+  Appending a hex alpha suffix (`COLORS.accent + "55"`) produces invalid CSS
+  because the token is a `var()`
+- To add a token, add it to both `THEMES.dark` and `THEMES.light`; `COLORS` and
+  the CSS variables are generated from them
 
 - UI font: `FONT_MONO` from `src/lib/data.js` (Geist Mono, falling back to the
   system monospace stack) — import it, never write a font name in a component
