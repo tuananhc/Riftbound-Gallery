@@ -113,6 +113,8 @@ export function legendOptions(cards) {
 			image: c.image ?? null,
 			tags_text: c.tags_text ?? "",
 			icon: championIconUrl(c.tags_text),
+			// "Mind, Chaos" → ["Mind", "Chaos"]; drops "Colorless", which has no rune.
+			domains: (c.domain_text ?? "").split(",").map(d => d.trim()).filter(d => COLOR_CONFIG[d]),
 		}))
 		.sort((a, b) => a.tags_text.localeCompare(b.tags_text) || a.name.localeCompare(b.name));
 }

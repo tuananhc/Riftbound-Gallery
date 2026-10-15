@@ -28,6 +28,25 @@ export function saveMatchHistory(token, eloPlayerId, matches) {
 	});
 }
 
+// Stop following cursors after this many pages (200 matches each).
+const MAX_HISTORY_PAGES = 20;
+
+// One linked account's saved match history (MatchHistory items), following the
+// Lambda's pagination cursor until every page is loaded.
+export async function getMatchHistory(token, eloPlayerId) {
+	const matches = [];
+	let cursor = null;
+	for (let page = 0; page < MAX_HISTORY_PAGES; page++) {
+		const params = new URLSearchParams({ eloPlayerId });
+		if (cursor) params.set("cursor", cursor);
+		const res = await authFetch(`/history?${params}`, token);
+		matches.push(...res.matches);
+		cursor = res.nextCursor;
+		if (!cursor) break;
+	}
+	return matches;
+}
+
 // The caller's Users row, including `eloPlayers` (linked EloShowdown accounts)
 // and `activeEloPlayerId`.
 export function getProfile(token) {

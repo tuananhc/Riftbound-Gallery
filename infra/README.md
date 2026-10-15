@@ -88,7 +88,7 @@ Nothing in the app uses these once steps 4–5 are done:
 - **Change a Lambda:** edit the file in `lambda/` and push.
 - **Add a Lambda:** add the `.mjs` file, then in `backend.yml` add a Role,
   LogGroup and Function (plus Integration, Route and API Permission if it's an
-  HTTP endpoint), following the existing three. Name the role
+  HTTP endpoint), following the existing ones. Name the role
   `${AWS::StackName}-fn-…` — the execution role may only manage roles with
   that prefix.
 - **Change an environment setting** (allowed origins, table names, pool IDs):

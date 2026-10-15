@@ -19,7 +19,8 @@ export default function LegendSelect({ legends, value, onChange }) {
 		setPos({
 			top: rect.bottom + 6,
 			left: rect.left,
-			width: rect.width,
+			// Wider than the trigger when needed so "Champion - Legend Name" fits.
+			width: Math.max(rect.width, Math.min(360, window.innerWidth - rect.left - 16)),
 			maxHeight: window.innerHeight - rect.bottom - 18,
 		});
 		setOpen(true);
@@ -125,7 +126,7 @@ export default function LegendSelect({ legends, value, onChange }) {
 								fontSize: 13,
 								color: value === l.name ? COLORS.accent : COLORS.text,
 								fontFamily: FONT_MONO,
-								overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+								minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
 							}}>
 								{legendLabel(l)}
 							</span>

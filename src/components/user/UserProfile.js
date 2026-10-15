@@ -1,12 +1,14 @@
 "use client";
 import { Fragment, useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { COLORS, FONT_MONO, alpha } from "../../lib/data";
 import { legendLabel } from "../../lib/cards/data";
+import RuneIcons from "../cards/RuneIcons";
 import { countryFlag } from "../../lib/countries";
 import { useAuth } from "../../hooks/useAuth";
-import { saveMatchHistory, getPlayerTournaments, getProfile, addEloAccount, selectEloAccount, removeEloAccount } from "../../lib/api";
+import { saveMatchHistory, getMatchHistory, getPlayerTournaments, getProfile, addEloAccount, selectEloAccount, removeEloAccount } from "../../lib/api";
 
 // ── Dummy data ─────────────────────────────────────────────────────────────────
 
@@ -30,6 +32,43 @@ const USER = {
 
 // How many match-history rows to reveal per "Load More" click.
 const ELO_PAGE_SIZE = 10;
+
+// ── Match history data ────────────────────────────────────────────────────────
+// The rows render EloShowdown's elo-history shape — { season_slug, points } with
+// points oldest first — whether it came from our MatchHistory table or from a
+// fresh EloShowdown search.
+
+const byPlayed = (a, b) => (a.date ?? "").localeCompare(b.date ?? "") || Number(a.match_id) - Number(b.match_id);
+
+// Saved MatchHistory items → { history, picks }, picks keyed "playerId:matchId".
+function fromSaved(playerId, items) {
+	const points = items.map(m => ({
+		match_id: m.matchId,
+		date: m.playedAt,
+		result: m.result.toLowerCase(),
+		opponent_name: m.opponent,
+		elo_change: m.eloChange,
+		elo_after: m.eloAfter,
+		season: m.season,
+	})).sort(byPlayed);
+	const picks = Object.fromEntries(items
+		.filter(m => m.myChampion || m.opponentChampion)
+		.map(m => [`${playerId}:${m.matchId}`, { mine: m.myChampion, opponent: m.opponentChampion }]));
+	return { history: { season_slug: points.at(-1)?.season ?? null, points }, picks };
+}
+
+// Overlay a fresh EloShowdown elo-history on the saved one: EloShowdown's data
+// wins for matches in both, and saved matches it no longer returns (e.g. from an
+// earlier season) are kept.
+function mergeHistory(saved, fresh) {
+	const byId = new Map((saved?.points ?? []).map(p => [String(p.match_id), p]));
+	for (const p of fresh.points ?? []) {
+		const id = String(p.match_id);
+		byId.set(id, { ...byId.get(id), ...p, season: fresh.season_slug });
+	}
+	const points = [...byId.values()].sort(byPlayed);
+	return { season_slug: points.at(-1)?.season ?? fresh.season_slug, points };
+}
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
@@ -57,10 +96,17 @@ export default function UserProfile({ legends = [] }) {
 	// True while a linked user is searching for another account to add.
 	const [addingAccount, setAddingAccount] = useState(false);
 	const [linkError, setLinkError] = useState(null);
-	// Account whose elo-history was requested last — older responses are dropped.
+	// Account whose history was requested last — older responses are dropped.
 	const historyRequest = useRef(null);
 	const [eloHistory, setEloHistory] = useState(null);
 	const [eloHistoryLoading, setEloHistoryLoading] = useState(false);
+	// Saved history for the active account: "loading" | "ready" | "error". Saving
+	// is blocked unless "ready" — an empty pick on the page clears the stored one,
+	// so saving without the stored picks loaded would wipe them.
+	const [savedStatus, setSavedStatus] = useState("loading");
+	// True while the Search button is pulling the latest matches from EloShowdown.
+	const [syncing, setSyncing] = useState(false);
+	const [syncError, setSyncError] = useState(null);
 	const [eloVisible, setEloVisible] = useState(ELO_PAGE_SIZE);
 	// Per-match champion picks: { ["playerId:matchId"]: { mine, opponent } }.
 	const [matchChampions, setMatchChampions] = useState({});
@@ -86,7 +132,9 @@ export default function UserProfile({ legends = [] }) {
 	}, [linkedPlayer, eloHistory, eloVisible]);
 
 	// Restore the EloShowdown accounts saved on the user's profile, so they don't
-	// have to search for themselves on every visit.
+	// have to search for themselves on every visit, and show the active account's
+	// saved history from the MatchHistory table. EloShowdown is only queried when
+	// the user clicks Search.
 	useEffect(() => {
 		if (!token) return;
 		let cancelled = false;
@@ -100,10 +148,16 @@ export default function UserProfile({ legends = [] }) {
 				setActiveId(active.id);
 				historyRequest.current = active.id;
 				setEloHistoryLoading(true);
-				fetch(`/api/elo/players/${active.id}/elo-history`)
-					.then(res => { if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.json(); })
-					.then(data => { if (!cancelled && historyRequest.current === active.id) setEloHistory(data); })
-					.catch(() => {})
+				setSavedStatus("loading");
+				getMatchHistory(token, active.id)
+					.then(items => {
+						if (cancelled || historyRequest.current !== active.id) return;
+						const { history, picks } = fromSaved(active.id, items);
+						setEloHistory(history);
+						setMatchChampions(prev => ({ ...prev, ...picks }));
+						setSavedStatus("ready");
+					})
+					.catch(() => { if (!cancelled && historyRequest.current === active.id) setSavedStatus("error"); })
 					.finally(() => { if (!cancelled && historyRequest.current === active.id) setEloHistoryLoading(false); });
 			})
 			.catch(() => {}) // no backend / no row yet — fall back to the search box
@@ -119,10 +173,12 @@ export default function UserProfile({ legends = [] }) {
 		setMatchChampions(prev => ({ ...prev, [key]: { ...prev[key], [side]: championId } }));
 	}
 
-	// Send the loaded match history (with champion picks) to DynamoDB. The Lambda
+	// Send every row on the page (with champion picks) to DynamoDB. The Lambda
 	// derives the userId from the JWT and keys each match by account + matchId.
+	// Picks go as null when a row has none, which clears any stored pick — the
+	// saved rows always end up matching the page.
 	async function handleSaveHistory() {
-		if (!linkedPlayer || !eloHistory?.points?.length) return;
+		if (!linkedPlayer || !eloHistory?.points?.length || savedStatus !== "ready") return;
 		setSaving(true);
 		setSaveMsg(null);
 		const matches = eloHistory.points.map(m => {
@@ -134,7 +190,10 @@ export default function UserProfile({ legends = [] }) {
 				opponent: m.opponent_name,
 				myChampion: picks.mine ?? null,
 				opponentChampion: picks.opponent ?? null,
-				eventName: tournaments[`${linkedPlayer.id}:${m.date}`]?.name ?? null,
+				eventName: tournaments[`${linkedPlayer.id}:${m.date}`]?.name,
+				eloChange: m.elo_change,
+				eloAfter: m.elo_after,
+				season: m.season ?? eloHistory.season_slug ?? undefined,
 			};
 		});
 		try {
@@ -152,11 +211,12 @@ export default function UserProfile({ legends = [] }) {
 		setActiveId(res.activeEloPlayerId ?? null);
 	}
 
-	// Show an account's history, resetting per-account view state.
+	// Show an account's saved history, resetting per-account view state.
 	function showAccount(id) {
 		setActiveId(id);
 		setSaveMsg(null);
-		if (id) fetchEloHistory(id);
+		setSyncError(null);
+		if (id) loadSavedHistory(id);
 		else { historyRequest.current = null; setEloHistory(null); setEloHistoryLoading(false); }
 	}
 
@@ -224,23 +284,47 @@ export default function UserProfile({ legends = [] }) {
 		}
 	}
 
-	async function fetchEloHistory(playerId) {
+	// Load an account's rows (and legend picks) from the MatchHistory table.
+	async function loadSavedHistory(playerId) {
 		historyRequest.current = playerId;
 		setEloHistory(null);
 		setEloHistoryLoading(true);
 		setEloVisible(ELO_PAGE_SIZE);
-		let data = null;
+		setSavedStatus("loading");
+		try {
+			const items = await getMatchHistory(token, playerId);
+			// A newer account switch happened while this was in flight — drop it.
+			if (historyRequest.current !== playerId) return;
+			const { history, picks } = fromSaved(playerId, items);
+			setEloHistory(history);
+			setMatchChampions(prev => ({ ...prev, ...picks }));
+			setSavedStatus("ready");
+		} catch {
+			if (historyRequest.current === playerId) setSavedStatus("error");
+		} finally {
+			if (historyRequest.current === playerId) setEloHistoryLoading(false);
+		}
+	}
+
+	// Search button: pull the latest matches from EloShowdown and merge them into
+	// the rows. Picks are untouched, so nothing already chosen is lost.
+	async function handleSync() {
+		const playerId = linkedPlayer?.id;
+		if (!playerId || syncing) return;
+		setSyncing(true);
+		setSyncError(null);
+		setSaveMsg(null);
 		try {
 			const res = await fetch(`/api/elo/players/${playerId}/elo-history`);
 			if (!res.ok) throw new Error(`HTTP ${res.status}`);
-			data = await res.json();
+			const fresh = await res.json();
+			if (historyRequest.current !== playerId) return;
+			setEloHistory(prev => mergeHistory(prev, fresh));
 		} catch {
-			// leave history empty
+			if (historyRequest.current === playerId) setSyncError("Could not reach EloShowdown. Please try again.");
+		} finally {
+			setSyncing(false);
 		}
-		// A newer account switch happened while this was in flight — drop it.
-		if (historyRequest.current !== playerId) return;
-		setEloHistory(data);
-		setEloHistoryLoading(false);
 	}
 
 	const showSearch = profileStatus === "ready" && (!linkedPlayer || addingAccount);
@@ -402,32 +486,64 @@ export default function UserProfile({ legends = [] }) {
 				{/* ── ELO History ── */}
 				{ linkedPlayer && !addingAccount && (
 					<div style={{ marginBottom: 4 }}>
+						{/* Current Elo + season from the rows shown, and Search to pull the latest from EloShowdown. */}
+						<div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, fontFamily: FONT_MONO }}>
+							<div style={{ fontSize: 10, color: COLORS.textDim, letterSpacing: "0.15em" }}>
+								ELO
+							</div>
+							{eloHistory?.points.at(-1)?.elo_after != null && (
+								<div style={{ fontSize: 14, fontWeight: 700, color: COLORS.accent }}>
+									{eloHistory.points.at(-1).elo_after}
+								</div>
+							)}
+							{eloHistory?.season_slug && (
+								<div style={{ fontSize: 10, color: COLORS.textDim, letterSpacing: "0.1em" }}>
+									{eloHistory.season_slug.replace(/-/g, " ").toUpperCase()}
+								</div>
+							)}
+							<button onClick={handleSync} disabled={syncing || eloHistoryLoading}
+								title="Load the latest matches from EloShowdown"
+								onMouseEnter={e => { if (!syncing) { e.currentTarget.style.borderColor = COLORS.accentDim; e.currentTarget.style.color = COLORS.accent; } }}
+								onMouseLeave={e => { e.currentTarget.style.borderColor = COLORS.border; e.currentTarget.style.color = COLORS.textMuted; }}
+								style={{
+									marginLeft: "auto", padding: "3px 12px",
+									background: COLORS.bgRaised, border: `1px solid ${COLORS.border}`, borderRadius: 0,
+									color: COLORS.textMuted, fontFamily: FONT_MONO,
+									fontSize: 10, letterSpacing: "0.14em",
+									cursor: syncing || eloHistoryLoading ? "not-allowed" : "pointer", transition: "all 0.2s",
+								}}>
+								{syncing ? "SEARCHING…" : "SEARCH"}
+							</button>
+						</div>
 						{eloHistoryLoading && (
 							<div style={{ fontSize: 11, color: COLORS.textDim, fontFamily: FONT_MONO, letterSpacing: "0.1em", padding: "4px 0" }}>
 								LOADING MATCH HISTORY…
 							</div>
 						)}
-						{ eloHistory && (() => {
+						{syncError && (
+							<div style={{ fontSize: 11, color: COLORS.loss, fontFamily: FONT_MONO, padding: "4px 0" }}>{syncError}</div>
+						)}
+						{savedStatus === "error" && (
+							<div style={{ fontSize: 11, color: COLORS.loss, fontFamily: FONT_MONO, padding: "4px 0" }}>
+								Couldn&rsquo;t load your saved matches. Reload the page to try again &mdash; saving is off until they load, so your saved legends can&rsquo;t be overwritten.
+							</div>
+						)}
+						{!eloHistoryLoading && savedStatus === "ready" && !eloHistory?.points?.length && (
+							<div style={{ fontSize: 11, color: COLORS.textMuted, fontFamily: FONT_MONO, padding: "4px 0" }}>
+								No saved matches yet. Click Search to load your matches from EloShowdown.
+							</div>
+						)}
+						{ eloHistory?.points?.length > 0 && (() => {
 							const points = [...eloHistory.points].reverse();
-							const current = eloHistory.points[eloHistory.points.length - 1]?.elo_after;
 							const recent = points.slice(0, eloVisible);
 							const hasMore = points.length > eloVisible;
 							const tournamentFor = m => tournaments[`${linkedPlayer.id}:${m.date}`];
 							// Rows group by resolved tournament, or by day while unresolved.
-							const groupKeyFor = m => tournamentFor(m)?.id ?? `${tournamentFor(m)}-${m.date.slice(0, 10)}`;
+							const groupKeyFor = m => tournamentFor(m)?.id ?? `${tournamentFor(m)}-${m.date?.slice(0, 10)}`;
+							// Saving is off mid-save, and until the stored picks have loaded.
+							const saveOff = saving || savedStatus !== "ready";
 							return (
 								<div>
-									<div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 4 }}>
-										<div style={{ fontSize: 10, color: COLORS.textDim, letterSpacing: "0.15em", fontFamily: FONT_MONO }}>
-											ELO
-										</div>
-										<div style={{ fontSize: 14, fontWeight: 700, color: COLORS.accent, fontFamily: FONT_MONO }}>
-											{current}
-										</div>
-										<div style={{ fontSize: 10, color: COLORS.textDim, letterSpacing: "0.1em", fontFamily: FONT_MONO }}>
-											{eloHistory.season_slug.replace(/-/g, " ").toUpperCase()}
-										</div>
-									</div>
 									<div>
 										{recent.map((m, i) => {
 											const resultColor = m.result === "win" ? COLORS.win : m.result === "loss" ? COLORS.loss : COLORS.draw;
@@ -443,27 +559,27 @@ export default function UserProfile({ legends = [] }) {
 												{showHeader && (
 													<TournamentHeader tournament={tournamentFor(m)} dateStr={dateStr} />
 												)}
+												{/* You | result + Elo | opponent. Equal side columns keep the result centred. */}
 												<div
 													style={{
-														position: "relative", height: 50, background: COLORS.bg,
+														display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto minmax(0, 1fr)",
+														alignItems: "center", columnGap: 16,
+														height: 50, padding: "0 4px", background: COLORS.bg,
 														border: `1px solid ${COLORS.border}`, borderTop: "none",
 														marginBottom: endsGroup ? 12 : 0,
-														overflow: "visible",
 													}}>
-													<ChampionHalf side="left" label="YOU" champions={legends} value={picks.mine}
+													<LegendPick side="left" player="You" champions={legends} value={picks.mine}
 														onSelect={id => setChampion(m.match_id, "mine", id)} />
-													<ChampionHalf side="right" label="OPP" champions={legends} value={picks.opponent}
-														onSelect={id => setChampion(m.match_id, "opponent", id)} />
-													{/* 1fr | auto | 1fr keeps the opponent name centred regardless of the flanking widths. */}
-													<div style={{ position: "absolute", inset: 0, display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center", columnGap: 10, pointerEvents: "none", zIndex: 3 }}>
-														<span style={{ justifySelf: "end", fontSize: 11, fontWeight: 700, color: resultColor, fontFamily: FONT_MONO, letterSpacing: "0.08em", textTransform: "uppercase", textShadow: "0 1px 4px var(--bg)" }}>
+													<div style={{ display: "flex", alignItems: "baseline", gap: 10, fontFamily: FONT_MONO }}>
+														<span style={{ fontSize: 11, fontWeight: 700, color: resultColor, letterSpacing: "0.08em", textTransform: "uppercase" }}>
 															{m.result}
 														</span>
-														<span style={{ fontSize: 14, color: COLORS.text, fontFamily: FONT_MONO, textShadow: "0 1px 4px var(--bg)" }}>{m.opponent_name}</span>
-														<span style={{ justifySelf: "start", fontSize: 14, fontWeight: 700, color: m.elo_change > 0 ? COLORS.win : m.elo_change < 0 ? COLORS.loss : COLORS.textDim, fontFamily: FONT_MONO, textShadow: "0 1px 4px var(--bg)" }}>
-															{changeSign}{m.elo_change}
+														<span style={{ fontSize: 14, fontWeight: 700, color: m.elo_change > 0 ? COLORS.win : m.elo_change < 0 ? COLORS.loss : COLORS.textDim }}>
+															{m.elo_change == null ? "—" : `${changeSign}${m.elo_change}`}
 														</span>
 													</div>
+													<LegendPick side="right" player={m.opponent_name} champions={legends} value={picks.opponent}
+														onSelect={id => setChampion(m.match_id, "opponent", id)} />
 												</div>
 												</Fragment>
 											);
@@ -485,16 +601,16 @@ export default function UserProfile({ legends = [] }) {
 									) }
 
 									{/* Save the whole loaded history (with champion picks) to DynamoDB */}
-									<button onClick={handleSaveHistory} disabled={saving}
-										onMouseEnter={e => { if (!saving) e.currentTarget.style.boxShadow = "0 0 18px color-mix(in srgb, var(--accent) 33%, transparent)"; }}
+									<button onClick={handleSaveHistory} disabled={saveOff}
+										onMouseEnter={e => { if (!saveOff) e.currentTarget.style.boxShadow = "0 0 18px color-mix(in srgb, var(--accent) 33%, transparent)"; }}
 										onMouseLeave={e => { e.currentTarget.style.boxShadow = "none"; }}
 										style={{
 											width: "100%", marginTop: 4, padding: "5px 12px", borderRadius: 0,
-											background: saving ? COLORS.border : "linear-gradient(135deg, var(--accent), var(--accent))",
-											border: `1px solid ${saving ? COLORS.border : COLORS.accent}`,
-											color: saving ? COLORS.textDim : COLORS.bg,
+											background: saveOff ? COLORS.border : "linear-gradient(135deg, var(--accent), var(--accent))",
+											border: `1px solid ${saveOff ? COLORS.border : COLORS.accent}`,
+											color: saveOff ? COLORS.textDim : COLORS.bg,
 											fontFamily: FONT_MONO, fontSize: 10, fontWeight: 800, letterSpacing: "0.14em",
-											cursor: saving ? "not-allowed" : "pointer", transition: "all 0.2s",
+											cursor: saveOff ? "not-allowed" : "pointer", transition: "all 0.2s",
 										}}>
 										{saving ? "SAVING…" : "SAVE MATCH HISTORY"}
 									</button>
@@ -628,21 +744,24 @@ function TournamentHeader({ tournament, dateStr }) {
 	);
 }
 
-// ── Champion half ────────────────────────────────────────────────────────────
-// Fills its half (left/right) of a match row with the selected champion's art,
-// clipped so it never overflows the row. Click opens the legend picker.
+// ── Legend pick ──────────────────────────────────────────────────────────────
+// One side of a match row: "[icon] Player - Legend - runes", with the icon on
+// the outer edge (mirrored on the right). Click opens the legend picker, which
+// is portalled to <body> so no other card on the page can cover it.
 
 // Tallest the legend picker gets; it opens upward when there isn't this much room below.
 const PICKER_MAX_HEIGHT = 360;
 const PICKER_GAP = 4;
+const PICK_ICON_SIZE = 32;
 
-function ChampionHalf({ champions, value, onSelect, label, side }) {
+function LegendPick({ champions, value, onSelect, player, side }) {
 	const [open, setOpen] = useState(false);
-	// Champions whose S3 icon 404s — those rows fall back to the card art.
+	// Champions whose S3 icon 404s — those fall back to the card art.
 	const [iconless, setIconless] = useState([]);
-	const [openUp, setOpenUp] = useState(false);
+	const [pos, setPos] = useState(null);
 	const [search, setSearch] = useState("");
-	const wrapperRef = useRef(null);
+	const buttonRef = useRef(null);
+	const pickerRef = useRef(null);
 	const champ = champions.find(c => c.id === value);
 	const isLeft = side === "left";
 	const term = search.trim().toLowerCase();
@@ -652,55 +771,92 @@ function ChampionHalf({ champions, value, onSelect, label, side }) {
 	);
 	const close = () => { setOpen(false); setSearch(""); };
 	const pick = (id) => { onSelect(id); close(); };
-	// Fade the art toward the row's centre so the match info stays readable.
-	const fade = isLeft
-		? "linear-gradient(90deg, color-mix(in srgb, var(--bg-card) 0%, transparent) 25%, color-mix(in srgb, var(--bg-card) 96%, transparent) 100%)"
-		: "linear-gradient(270deg, color-mix(in srgb, var(--bg-card) 0%, transparent) 25%, color-mix(in srgb, var(--bg-card) 96%, transparent) 100%)";
+
+	function openPicker() {
+		// Measure on open: flip above the button if the picker would run past the
+		// bottom of the viewport and there's more room above.
+		const rect = buttonRef.current.getBoundingClientRect();
+		const { clientWidth, clientHeight } = document.documentElement;
+		const spaceBelow = clientHeight - rect.bottom - PICKER_GAP;
+		const spaceAbove = rect.top - PICKER_GAP;
+		const up = spaceBelow < PICKER_MAX_HEIGHT && spaceAbove > spaceBelow;
+		setPos({
+			...(up ? { bottom: clientHeight - rect.top + PICKER_GAP } : { top: rect.bottom + PICKER_GAP }),
+			...(isLeft ? { left: rect.left } : { right: clientWidth - rect.right }),
+			maxHeight: Math.min(PICKER_MAX_HEIGHT, (up ? spaceAbove : spaceBelow) - 8),
+		});
+		setOpen(true);
+	}
+
+	// The picker is fixed to the viewport, so close it rather than leave it
+	// floating away from its row when the page scrolls or resizes.
+	useEffect(() => {
+		if (!open) return;
+		const dismiss = () => { setOpen(false); setSearch(""); };
+		const onScroll = e => { if (!pickerRef.current?.contains(e.target)) dismiss(); };
+		window.addEventListener("scroll", onScroll, true);
+		window.addEventListener("resize", dismiss);
+		return () => {
+			window.removeEventListener("scroll", onScroll, true);
+			window.removeEventListener("resize", dismiss);
+		};
+	}, [open]);
+
+	const iconFor = (c, size) => c.icon && !iconless.includes(c.id)
+		? <Image src={c.icon} alt="" fill sizes={`${size}px`} style={{ objectFit: "cover" }}
+			onError={() => setIconless(prev => prev.includes(c.id) ? prev : [...prev, c.id])} />
+		: c.image && <Image src={c.image} alt="" fill sizes={`${size}px`} style={{ objectFit: "cover", objectPosition: "top" }} />;
+
+	const icon = (
+		<div style={{
+			position: "relative", width: PICK_ICON_SIZE, height: PICK_ICON_SIZE, flexShrink: 0, overflow: "hidden",
+			background: COLORS.bgRaised, border: `1px solid ${COLORS.border}`,
+			display: "flex", alignItems: "center", justifyContent: "center",
+			color: COLORS.textDim, fontSize: 14, fontFamily: FONT_MONO,
+		}}>
+			{champ ? iconFor(champ, PICK_ICON_SIZE) : "+"}
+		</div>
+	);
 
 	return (
-		<div ref={wrapperRef} style={{ position: "absolute", [isLeft ? "left" : "right"]: 0, top: 0, width: "50%", height: "100%", zIndex: open ? 60 : 1 }}>
-			<button onClick={() => {
-				if (!open) {
-					// Measure on open: flip above the row if the picker would run past
-					// the bottom of the viewport and there's more room above.
-					const rect = wrapperRef.current.getBoundingClientRect();
-					const spaceBelow = window.innerHeight - rect.bottom;
-					setOpenUp(spaceBelow < PICKER_MAX_HEIGHT + PICKER_GAP && rect.top > spaceBelow);
-					setOpen(true);
-				} else {
-					close();
-				}
-			}}
-				title={champ ? champ.tags_text : "Select champion"}
+		<div style={{ minWidth: 0, display: "flex", justifyContent: isLeft ? "flex-start" : "flex-end" }}>
+			<button ref={buttonRef}
+				onClick={() => open ? close() : openPicker()}
+				title={champ ? legendLabel(champ) : "Pick a legend"}
+				onMouseEnter={e => { e.currentTarget.style.background = COLORS.bgHover; }}
+				onMouseLeave={e => { if (!open) e.currentTarget.style.background = "transparent"; }}
 				style={{
-					width: "100%", height: "100%", position: "relative", overflow: "hidden",
-					border: "none", background: champ ? "transparent" : COLORS.bg, cursor: "pointer", padding: 0,
-					display: "flex", alignItems: "center", justifyContent: isLeft ? "flex-start" : "flex-end",
+					display: "flex", alignItems: "center", gap: 8, minWidth: 0, maxWidth: "100%",
+					background: open ? COLORS.bgHover : "transparent", border: "none", borderRadius: 0,
+					padding: "4px 6px", cursor: "pointer", transition: "background 0.15s",
 				}}>
-				{champ?.image && (
-					<Image src={champ.image} alt={champ.tags_text} fill sizes="360px" style={{ objectFit: "cover", objectPosition: "center 22%" }} />
-				)}
-				<div style={{ position: "absolute", inset: 0, background: fade, pointerEvents: "none" }} />
+				{isLeft && icon}
 				<span style={{
-					position: "relative", zIndex: 1, padding: "0 8px",
-					fontSize: 10, letterSpacing: "0.1em", whiteSpace: "nowrap",
-					color: champ ? COLORS.accent : COLORS.textDim,
-					fontFamily: FONT_MONO,
+					minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+					fontSize: 13, fontFamily: FONT_MONO, color: COLORS.text,
 				}}>
-					{champ ? `${label} · ${champ.tags_text}` : `＋ ${label}`}
+					{player}
+					<span style={{ color: COLORS.textDim }}> - </span>
+					<span style={{ color: champ ? COLORS.accent : COLORS.textDim }}>{champ ? champ.tags_text : "pick legend"}</span>
 				</span>
+				{champ?.domains.length > 0 && (
+					<span style={{ display: "inline-flex", alignItems: "center", gap: 8, flexShrink: 0, fontSize: 13, fontFamily: FONT_MONO, color: COLORS.textDim }}>
+						-<RuneIcons domains={champ.domains} />
+					</span>
+				)}
+				{!isLeft && icon}
 			</button>
 
-			{open && (
+			{open && createPortal(
 				<>
 					{/* click-away backdrop */}
-					<div onClick={close} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
-					<div style={{
-						position: "absolute", [openUp ? "bottom" : "top"]: `calc(100% + ${PICKER_GAP}px)`, [isLeft ? "left" : "right"]: 8, zIndex: 50,
-						width: 330, maxWidth: "calc(100vw - 32px)", maxHeight: PICKER_MAX_HEIGHT,
+					<div onClick={close} style={{ position: "fixed", inset: 0, zIndex: 999 }} />
+					<div ref={pickerRef} style={{
+						position: "fixed", ...pos, zIndex: 1000,
+						width: 330, maxWidth: "calc(100vw - 32px)",
 						display: "flex", flexDirection: "column",
 						background: COLORS.bgCard, border: `1px solid ${COLORS.border}`, borderRadius: 0,
-						boxShadow: "0 8px 24px var(--shadow)",
+						boxShadow: `0 8px 24px ${COLORS.shadow}`,
 					}}>
 						{/* Search stays pinned above the scrolling list; Enter picks the top match. */}
 						<div style={{ padding: 8, borderBottom: `1px solid ${COLORS.border}`, flexShrink: 0 }}>
@@ -725,6 +881,19 @@ function ChampionHalf({ champions, value, onSelect, label, side }) {
 							/>
 						</div>
 						<div style={{ overflowY: "auto", flex: 1 }}>
+							{/* Undo a wrong pick; saving then removes it from the stored match too. */}
+							{champ && !term && (
+								<div
+									onClick={() => pick(null)}
+									onMouseEnter={e => { e.currentTarget.style.background = COLORS.bgHover; }}
+									onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+									style={{ display: "flex", alignItems: "center", gap: 12, padding: "6px 12px", cursor: "pointer", transition: "background 0.15s", borderBottom: `1px solid ${COLORS.border}` }}>
+									<div style={{ width: 35, height: 35, flexShrink: 0, background: COLORS.bg, border: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center", justifyContent: "center", color: COLORS.textDim, fontFamily: FONT_MONO, fontSize: 14 }}>
+										✕
+									</div>
+									<span style={{ fontSize: 14, color: COLORS.textMuted, fontFamily: FONT_MONO }}>Clear pick</span>
+								</div>
+							)}
 							{filtered.length === 0 && (
 								<div style={{ padding: "12px 14px", fontSize: 11, color: COLORS.textDim, fontFamily: FONT_MONO, letterSpacing: "0.06em" }}>
 									{champions.length === 0 ? "No legends found." : <>No legends match &ldquo;{search}&rdquo;.</>}
@@ -737,10 +906,7 @@ function ChampionHalf({ champions, value, onSelect, label, side }) {
 									onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
 									style={{ display: "flex", alignItems: "center", gap: 12, padding: "6px 12px", cursor: "pointer", transition: "background 0.15s" }}>
 									<div style={{ position: "relative", width: 35, height: 35, overflow: "hidden", background: COLORS.bg, flexShrink: 0 }}>
-										{c.icon && !iconless.includes(c.id)
-											? <Image src={c.icon} alt="" fill sizes="35px" style={{ objectFit: "cover" }}
-												onError={() => setIconless(prev => prev.includes(c.id) ? prev : [...prev, c.id])} />
-											: c.image && <Image src={c.image} alt="" fill sizes="35px" style={{ objectFit: "cover", objectPosition: "top" }} />}
+										{iconFor(c, 35)}
 									</div>
 									<span style={{
 										fontSize: 14, color: c.id === value ? COLORS.accent : COLORS.text, fontFamily: FONT_MONO,
@@ -752,7 +918,8 @@ function ChampionHalf({ champions, value, onSelect, label, side }) {
 							))}
 						</div>
 					</div>
-				</>
+				</>,
+				document.body
 			)}
 		</div>
 	);

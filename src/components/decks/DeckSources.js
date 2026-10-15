@@ -7,22 +7,11 @@ import { FILTER_DEFAULTS } from "./DeckFilters";
 import DeckFilters from "./DeckFilters";
 import SourceWidget from "./SourceWidget";
 import DeckResultsPanel from "./DeckResultsPanel";
-
-function isBaseCard(id) {
-	const match = id?.match(/-(\d+)[^/]*\/(\d+)/);
-	if (!match) return true;
-	return parseInt(match[1], 10) < parseInt(match[2], 10);
-}
+import { legendOptions } from "../../lib/cards/data";
 
 export default function DeckSources() {
 	const cards = useCards();
-	const legends = useMemo(
-		() => cards
-			.filter(c => c.card_type_text?.includes("Legend") && isBaseCard(c.id))
-			.map(c => ({ id: c.id, name: c.name, image: c.image ?? null, tags_text: c.tags_text ?? "" }))
-			.sort((a, b) => a.tags_text.localeCompare(b.tags_text)),
-		[cards]
-	);
+	const legends = useMemo(() => legendOptions(cards), [cards]);
 
 	const [selectedIds, setSelectedIds] = useState(new Set());
 	const [filters, setFilters] = useState({ ...FILTER_DEFAULTS });

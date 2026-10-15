@@ -20,11 +20,17 @@
 //   playedAt          ISO date the match was played
 //   eventName         tournament / event name
 //   notes             free-text notes (max 2000 chars)
+//   eloChange         Elo gained / lost in the match (number)
+//   eloAfter          Elo after the match (number)
+//   season            EloShowdown season slug, e.g. "season-4-vendetta"
 //   updatedAt         ISO timestamp of the last write
 //
-// Writes are UpdateItem (SET only the fields sent), not PutItem, so re-saving
-// from the page never wipes attributes it didn't include — e.g. notes written
-// elsewhere survive a bulk re-sync.
+// Writes are UpdateItem, not PutItem, so re-saving from the page never wipes
+// attributes it didn't include — e.g. notes written elsewhere survive a bulk
+// re-sync. A field that's absent from the payload is left untouched. The legend
+// picks are the exception: myChampion / opponentChampion sent as null or "" are
+// REMOVEd, so a save always leaves the picks exactly as the page shows them and
+// a wrong pick can be cleared. (Nothing is ever stored as null.)
 //
 // Deployed by infra/backend.yml (runtime, env vars, IAM role, routes) on every
 // push to master — don't change the function's settings in the console.
@@ -41,6 +47,8 @@ const MAX_MATCHES = 500; // guard against oversized payloads
 const CONCURRENCY = 25; // parallel UpdateItem calls per wave
 const MAX_NOTES = 2000; // keep items well under the 400KB limit
 const MAX_TEXT = 200; // opponent / event name / legend id
+// Sent as null / "" → removed from the item rather than left as it was.
+const CLEARABLE = ["myChampion", "opponentChampion"];
 
 function json(statusCode, body) {
 	return { statusCode, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
@@ -103,8 +111,13 @@ export const handler = async (event) => {
 				playedAt: text(m.playedAt, MAX_TEXT),
 				eventName: text(m.eventName, MAX_TEXT),
 				notes: text(m.notes, MAX_NOTES),
+				eloChange: num(m.eloChange),
+				eloAfter: num(m.eloAfter),
+				season: text(m.season, MAX_TEXT),
 				updatedAt: new Date().toISOString(),
 			}),
+			// Present in the payload but empty → clear it (absent → leave it).
+			removes: CLEARABLE.filter(k => k in m && (m[k] === null || m[k] === "")),
 		});
 	}
 
@@ -130,8 +143,14 @@ function text(v, max) {
 	return typeof v === "string" ? v.trim().slice(0, max) : undefined;
 }
 
-// SET only the provided attributes; placeholders sidestep reserved words.
-function upsert(userId, { accountMatchId, fields }) {
+// Finite numbers only; anything else becomes undefined.
+function num(v) {
+	return typeof v === "number" && Number.isFinite(v) ? v : undefined;
+}
+
+// SET the provided attributes and REMOVE the cleared ones; placeholders
+// sidestep reserved words.
+function upsert(userId, { accountMatchId, fields, removes }) {
 	const names = {};
 	const values = {};
 	const sets = Object.entries(fields).map(([k, v], i) => {
@@ -139,10 +158,14 @@ function upsert(userId, { accountMatchId, fields }) {
 		values[`:v${i}`] = v;
 		return `#f${i} = :v${i}`;
 	});
+	const cleared = removes.map((k, i) => {
+		names[`#r${i}`] = k;
+		return `#r${i}`;
+	});
 	return ddb.send(new UpdateCommand({
 		TableName: HISTORY_TABLE,
 		Key: { userId, accountMatchId },
-		UpdateExpression: `SET ${sets.join(", ")}`,
+		UpdateExpression: `SET ${sets.join(", ")}${cleared.length ? ` REMOVE ${cleared.join(", ")}` : ""}`,
 		ExpressionAttributeNames: names,
 		ExpressionAttributeValues: values,
 	}));
