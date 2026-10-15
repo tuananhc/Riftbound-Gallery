@@ -1,7 +1,7 @@
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 //
 // Flat grey theme in dark (default) and light variants: flat surfaces, hairline
-// grey borders, square corners, monospace type, and a single sky blue accent.
+// grey borders, square corners, monospace type, and a single blue accent.
 // Emphasis comes from brightness, not hue — the only saturated colours left are
 // semantic (win/loss/draw) and the game's own rune/rarity colours in
 // lib/cards/data.js.
@@ -10,6 +10,11 @@ export const FONTS = ``;
 
 // One stack for the whole UI — never hardcode a font name in a component.
 export const FONT_MONO = "'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+
+// Long-form reading text on the /devlog pages only. The font file is loaded by
+// src/app/devlog/layout.js, so it never downloads on any other route.
+export const FONT_SANS = "'DM Sans', sans-serif";
+export const FONT_SANS_URL = "https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400..900&display=swap";
 
 // Raw palettes for each theme. Components never read these — they use COLORS,
 // whose values are CSS variables that BASE_STYLES points at the active palette.
@@ -26,13 +31,13 @@ export const THEMES = {
     textStrong: "#e8e8e8", // headings, titles
     textMuted: "#8a8a8d", // secondary text
     textDim: "#5f5f62", // disabled / hint text
-    accent: "#8ecbff", // sky blue — links, active states, figures
-    accentDim: "#5a88b0",
-    accentGlow: "#8ecbff33",
+    accent: "#6aa8ff", // the one blue — links, active states, figures (same as draw)
+    accentDim: "#4a76b3",
+    accentGlow: "#6aa8ff33",
     shadow: "rgba(0,0,0,0.6)", // drop shadows on popovers and lifted cards
     win: "#5fbf5f",
     loss: "#cc6060",
-    draw: "#bdb76b",
+    draw: "#6aa8ff",
   },
   light: {
     bg: "#f3f3f3",
@@ -46,13 +51,13 @@ export const THEMES = {
     textStrong: "#0a0a0a",
     textMuted: "#5e5e62",
     textDim: "#8e8e92",
-    accent: "#1f6fb8", // sky blue is unreadable on white, so a deeper blue
-    accentDim: "#8db6dd",
-    accentGlow: "#1f6fb833",
+    accent: "#2563c9", // deeper than dark mode so it reads on white (same as draw)
+    accentDim: "#93b1e6",
+    accentGlow: "#2563c933",
     shadow: "rgba(0,0,0,0.12)",
     win: "#2e8a3a",
     loss: "#c24848",
-    draw: "#8c8628",
+    draw: "#2563c9",
   },
 };
 

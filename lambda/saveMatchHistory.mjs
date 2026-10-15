@@ -8,18 +8,24 @@
 // accounts playing each other therefore get two items, and one account's
 // history is a Query with begins_with(accountMatchId, "<eloPlayerId>#").
 //
+// Every field of an EloShowdown elo-history point is kept (match_id, date,
+// result, opponent_name, opponent_id, elo_before, elo_change, elo_after, plus
+// the response's season_slug), alongside the user's own picks and notes.
+//
 // Item schema:
 //   userId            PK — Cognito sub
 //   accountMatchId    SK — "<eloPlayerId>#<matchId>"
 //   eloPlayerId       EloShowdown account the match was played on
 //   matchId           EloShowdown match id
 //   opponent          opponent's display name
+//   opponentId        opponent's EloShowdown player id
 //   myChampion        your legend (card id)
 //   opponentChampion  opponent's legend (card id)
 //   result            WIN | LOSS | DRAW
 //   playedAt          ISO date the match was played
 //   eventName         tournament / event name
 //   notes             free-text notes (max 2000 chars)
+//   eloBefore         Elo going into the match (number)
 //   eloChange         Elo gained / lost in the match (number)
 //   eloAfter          Elo after the match (number)
 //   season            EloShowdown season slug, e.g. "season-4-vendetta"
@@ -106,11 +112,13 @@ export const handler = async (event) => {
 				matchId,
 				result,
 				opponent: text(m.opponent, MAX_TEXT),
+				opponentId: typeof m.opponentId === "number" ? String(m.opponentId) : text(m.opponentId, MAX_TEXT),
 				myChampion: text(m.myChampion, MAX_TEXT),
 				opponentChampion: text(m.opponentChampion, MAX_TEXT),
 				playedAt: text(m.playedAt, MAX_TEXT),
 				eventName: text(m.eventName, MAX_TEXT),
 				notes: text(m.notes, MAX_NOTES),
+				eloBefore: num(m.eloBefore),
 				eloChange: num(m.eloChange),
 				eloAfter: num(m.eloAfter),
 				season: text(m.season, MAX_TEXT),

@@ -12,8 +12,8 @@ This file defines the architecture rules, coding conventions, and best practices
 - **Database:** DynamoDB (Cards, Users, Decks, DeckVersions, MatchHistory)
 - **News/Blog:** Markdown files in `content/news/`
 - **Styling:** Inline styles only — no CSS modules, no Tailwind, no styled-components
-- **Theme:** flat grey surfaces (dark by default, light via the navbar toggle), hairline grey borders, square corners, one sky blue accent
-- **Fonts:** Geist Mono (whole UI, via `FONT_MONO` in `src/lib/data.js`)
+- **Theme:** flat grey surfaces (dark by default, light via the navbar toggle), hairline grey borders, square corners, one blue accent
+- **Fonts:** Geist Mono (whole UI, via `FONT_MONO` in `src/lib/data.js`), except the `/devlog` pages, which use DM Sans (`FONT_SANS`)
 
 ---
 
@@ -173,13 +173,13 @@ COLORS.text // #d8d8d8 #1c1c1c — primary text
 COLORS.textStrong // #e8e8e8 #0a0a0a — headings, titles
 COLORS.textMuted // #8a8a8d #5e5e62 — secondary text
 COLORS.textDim // #5f5f62 #8e8e92 — disabled/hint text
-COLORS.accent // #8ecbff #1f6fb8 — sky blue accent (deeper in light mode for contrast)
-COLORS.accentDim // #5a88b0 #8db6dd
+COLORS.accent // #6aa8ff #2563c9 — the one blue (same as draw); deeper in light mode for contrast
+COLORS.accentDim // #4a76b3 #93b1e6
 COLORS.accentGlow // accent at 20%
 COLORS.shadow // popover / lifted-card drop shadow
 COLORS.win // #5fbf5f #2e8a3a
 COLORS.loss // #cc6060 #c24848
-COLORS.draw // #bdb76b #8c8628
+COLORS.draw // #6aa8ff #2563c9
 ```
 
 - Never write a theme colour as a hex literal in a component — it won't switch
@@ -192,6 +192,9 @@ COLORS.draw // #bdb76b #8c8628
 
 - UI font: `FONT_MONO` from `src/lib/data.js` (Geist Mono, falling back to the
   system monospace stack) — import it, never write a font name in a component
+- Dev log font: `FONT_SANS` (DM Sans) is for the `/devlog` routes only.
+  `src/app/devlog/layout.js` loads it and sets it as the inherited font there;
+  inline `code` in a log stays `FONT_MONO`. Don't use it on other pages
 - Corners are square — no `borderRadius` except `50%` for circular avatars
 - Emphasis comes from brightness, not hue. The only saturated colours in the UI
   are the semantic win/loss/draw tokens and the game's own rune/rarity colours

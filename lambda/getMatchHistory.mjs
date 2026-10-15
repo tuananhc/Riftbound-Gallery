@@ -27,8 +27,8 @@ const MAX_ID = 200;
 
 // Attributes returned to the client — the keys and owner stay server-side.
 const FIELDS = [
-	"matchId", "result", "opponent", "myChampion", "opponentChampion", "playedAt",
-	"eventName", "notes", "eloChange", "eloAfter", "season", "updatedAt",
+	"matchId", "result", "opponent", "opponentId", "myChampion", "opponentChampion", "playedAt",
+	"eventName", "notes", "eloBefore", "eloChange", "eloAfter", "season", "updatedAt",
 ];
 
 function json(statusCode, body) {

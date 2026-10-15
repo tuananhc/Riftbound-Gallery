@@ -9,6 +9,9 @@ export const COLOR_CONFIG = {
   Body: { glow: "#ff9500", bg: "#081a2a", accent: "#fcb437", icon: "https://riftbound.s3.us-east-1.amazonaws.com/resources/Rune_Body.svg" },
 };
 
+// 64×64 PNG of a domain's rune (resources/Rune_Mind.png), used by RuneIcons.
+export const runeIconPng = domain => `https://riftbound.s3.us-east-1.amazonaws.com/resources/Rune_${domain}.png`;
+
 export const RARITY_CONFIG = {
   Common:    { color: "#9e9e9e", symbol: "◆" },
   Uncommon:  { color: "#4fc3f7", symbol: "◆" },

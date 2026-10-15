@@ -90,7 +90,7 @@ export default function CardModal({ card, onClose, deckOpen, onAddToDeck, deckCo
 								}}>
 									BANNED
 								</div>
-								<p>(View announcement <a href={card.banned_announcement} style={{ color: "#4a90e2", textDecoration: "underline" }} target="_blank" rel="noopener noreferrer">here</a>)</p>
+								<p>(View announcement <a href={card.banned_announcement} style={{ color: COLORS.accent, textDecoration: "underline" }} target="_blank" rel="noopener noreferrer">here</a>)</p>
 							</div>
 						)}
 						{card.energy_html      && <Field label="Energy"      html={card.energy_html} />}

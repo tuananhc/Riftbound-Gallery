@@ -6,6 +6,9 @@ import { useRouter } from "next/navigation";
 import { COLORS, FONT_MONO, alpha } from "../../lib/data";
 import { legendLabel } from "../../lib/cards/data";
 import RuneIcons from "../cards/RuneIcons";
+import MatchStats from "./MatchStats";
+import { StatSummary, StatTiles } from "./ProfileStats";
+import { latestSeason, summarize } from "../../lib/matchStats";
 import { countryFlag } from "../../lib/countries";
 import { useAuth } from "../../hooks/useAuth";
 import { saveMatchHistory, getMatchHistory, getPlayerTournaments, getProfile, addEloAccount, selectEloAccount, removeEloAccount } from "../../lib/api";
@@ -15,7 +18,7 @@ import { saveMatchHistory, getMatchHistory, getPlayerTournaments, getProfile, ad
 const RANK_COLORS = {
 	"Bronze": { color: COLORS.textMuted, glow: "color-mix(in srgb, var(--text-muted) 20%, transparent)", icon: "🥉" },
 	"Silver": { color: "#bebebe", glow: "#bebebe33", icon: "🥈" },
-	"Gold": { color: COLORS.draw, glow: "color-mix(in srgb, var(--draw) 20%, transparent)", icon: "🥇" },
+	"Gold": { color: "#bdb76b", glow: "#bdb76b33", icon: "🥇" },
 	"Platinum": { color: "#8fa3bf", glow: "#8fa3bf33", icon: "💎" },
 	"Diamond": { color: "#a09bbf", glow: "#a09bbf33", icon: "🔷" },
 	"Master": { color: "#b08968", glow: "#b0896833", icon: "👑" },
@@ -47,6 +50,8 @@ function fromSaved(playerId, items) {
 		date: m.playedAt,
 		result: m.result.toLowerCase(),
 		opponent_name: m.opponent,
+		opponent_id: m.opponentId,
+		elo_before: m.eloBefore,
 		elo_change: m.eloChange,
 		elo_after: m.eloAfter,
 		season: m.season,
@@ -104,6 +109,8 @@ export default function UserProfile({ legends = [] }) {
 	// is blocked unless "ready" — an empty pick on the page clears the stored one,
 	// so saving without the stored picks loaded would wipe them.
 	const [savedStatus, setSavedStatus] = useState("loading");
+	// The active account's MatchHistory items as stored — the record boxes count these.
+	const [savedMatches, setSavedMatches] = useState([]);
 	// True while the Search button is pulling the latest matches from EloShowdown.
 	const [syncing, setSyncing] = useState(false);
 	const [syncError, setSyncError] = useState(null);
@@ -111,6 +118,13 @@ export default function UserProfile({ legends = [] }) {
 	// Per-match champion picks: { ["playerId:matchId"]: { mine, opponent } }.
 	const [matchChampions, setMatchChampions] = useState({});
 	const [saving, setSaving] = useState(false);
+	// "Apply to all matches in this event" in your legend picker — on by default,
+	// since a player almost always runs one legend for a whole event.
+	const [fillEvent, setFillEvent] = useState(true);
+	// User card: collapsed shows a one-line record, expanded the full stat tiles.
+	const [statsOpen, setStatsOpen] = useState(false);
+	// Match section tab: "data" (analysis) or "history" (the editable rows).
+	const [matchTab, setMatchTab] = useState("data");
 	const [saveMsg, setSaveMsg] = useState(null);
 	// UVS tournament per match date, keyed "playerId:date" → null | { id, name, url }.
 	// A key that's missing is still being looked up.
@@ -154,6 +168,7 @@ export default function UserProfile({ legends = [] }) {
 						if (cancelled || historyRequest.current !== active.id) return;
 						const { history, picks } = fromSaved(active.id, items);
 						setEloHistory(history);
+						setSavedMatches(items);
 						setMatchChampions(prev => ({ ...prev, ...picks }));
 						setSavedStatus("ready");
 					})
@@ -168,9 +183,26 @@ export default function UserProfile({ legends = [] }) {
 	// Session still resolving, or a guest being redirected — render nothing.
 	if (status !== "authed") return null;
 
-	function setChampion(matchId, side, championId) {
-		const key = `${linkedPlayer.id}:${matchId}`;
-		setMatchChampions(prev => ({ ...prev, [key]: { ...prev[key], [side]: championId } }));
+	// UVS tournament a match was played in, looked up by its date.
+	const tournamentFor = m => tournaments[`${linkedPlayer?.id}:${m.date}`];
+	// Matches in the same event share a key: the resolved tournament, or the day
+	// while it's still being looked up.
+	const eventKeyFor = m => tournamentFor(m)?.id ?? `${tournamentFor(m)}-${m.date?.slice(0, 10)}`;
+
+	// Set (or clear, with null) one side's legend. Your own pick goes to every
+	// match in the same event while "apply to all" is ticked.
+	function setChampion(match, side, championId) {
+		const targets = side === "mine" && fillEvent
+			? eloHistory.points.filter(p => eventKeyFor(p) === eventKeyFor(match))
+			: [match];
+		setMatchChampions(prev => {
+			const next = { ...prev };
+			for (const p of targets) {
+				const key = `${linkedPlayer.id}:${p.match_id}`;
+				next[key] = { ...prev[key], [side]: championId };
+			}
+			return next;
+		});
 	}
 
 	// Send every row on the page (with champion picks) to DynamoDB. The Lambda
@@ -188,9 +220,11 @@ export default function UserProfile({ legends = [] }) {
 				result: m.result,
 				playedAt: m.date,
 				opponent: m.opponent_name,
+				opponentId: m.opponent_id,
 				myChampion: picks.mine ?? null,
 				opponentChampion: picks.opponent ?? null,
 				eventName: tournaments[`${linkedPlayer.id}:${m.date}`]?.name,
+				eloBefore: m.elo_before,
 				eloChange: m.elo_change,
 				eloAfter: m.elo_after,
 				season: m.season ?? eloHistory.season_slug ?? undefined,
@@ -198,6 +232,14 @@ export default function UserProfile({ legends = [] }) {
 		});
 		try {
 			await saveMatchHistory(token, linkedPlayer.id, matches);
+			// The stored items now match what was sent — same shape the Lambda keeps,
+			// minus the empty fields it never stores.
+			setSavedMatches(matches.map(m => Object.fromEntries(Object.entries({
+				...m,
+				matchId: String(m.matchId),
+				result: String(m.result).toUpperCase(),
+				opponentId: m.opponentId == null ? undefined : String(m.opponentId),
+			}).filter(([, v]) => v != null && v !== ""))));
 			setSaveMsg({ ok: true, text: `Saved ${matches.length} matches to your history.` });
 		} catch (err) {
 			setSaveMsg({ ok: false, text: `Could not save (${err.message}) — make sure the backend is deployed and you're signed in.` });
@@ -217,7 +259,7 @@ export default function UserProfile({ legends = [] }) {
 		setSaveMsg(null);
 		setSyncError(null);
 		if (id) loadSavedHistory(id);
-		else { historyRequest.current = null; setEloHistory(null); setEloHistoryLoading(false); }
+		else { historyRequest.current = null; setEloHistory(null); setSavedMatches([]); setEloHistoryLoading(false); }
 	}
 
 	// Link a player from the search results, make it active, and save it to the profile.
@@ -291,12 +333,14 @@ export default function UserProfile({ legends = [] }) {
 		setEloHistoryLoading(true);
 		setEloVisible(ELO_PAGE_SIZE);
 		setSavedStatus("loading");
+		setSavedMatches([]);
 		try {
 			const items = await getMatchHistory(token, playerId);
 			// A newer account switch happened while this was in flight — drop it.
 			if (historyRequest.current !== playerId) return;
 			const { history, picks } = fromSaved(playerId, items);
 			setEloHistory(history);
+			setSavedMatches(items);
 			setMatchChampions(prev => ({ ...prev, ...picks }));
 			setSavedStatus("ready");
 		} catch {
@@ -329,8 +373,11 @@ export default function UserProfile({ legends = [] }) {
 
 	const showSearch = profileStatus === "ready" && (!linkedPlayer || addingAccount);
 
-	const totalGames = USER.stats.wins + USER.stats.losses + USER.stats.draws;
-	const winRate = Math.round((USER.stats.wins / totalGames) * 100);
+	// User card numbers: the active account's latest season, from its saved
+	// matches. Shown as "—" until they've loaded (or with no account linked).
+	const statsReady = Boolean(linkedPlayer) && savedStatus === "ready";
+	const cardSeason = latestSeason(savedMatches);
+	const cardStats = summarize(cardSeason.matches);
 	const rank = RANK_COLORS[USER.rank] || { color: COLORS.accent, glow: "color-mix(in srgb, var(--accent) 27%, transparent)", icon: "⭐" };
 
 	return (
@@ -341,7 +388,6 @@ export default function UserProfile({ legends = [] }) {
 				background: "linear-gradient(135deg, var(--bg-card) 0%, var(--bg-card) 50%, var(--bg-card) 100%)",
 				border: `1px solid ${COLORS.border}`,
 				borderRadius: 0, padding: "10px 14px", marginBottom: 10,
-				display: "flex", alignItems: "center", gap: 12,
 				position: "relative", zIndex: 70,
 			}}>
 				{/* bg decoration — clipped on its own layer so the profile dropdown can overflow the card */}
@@ -349,6 +395,7 @@ export default function UserProfile({ legends = [] }) {
 					<div style={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle, color-mix(in srgb, var(--bg-hover) 27%, transparent) 0%, transparent 70%)" }} />
 				</div>
 
+				<div style={{ display: "flex", alignItems: "center", gap: 12, position: "relative" }}>
 				{/* Avatar */}
 				<div style={{
 					width: 40, height: 40, borderRadius: 0, flexShrink: 0,
@@ -380,23 +427,14 @@ export default function UserProfile({ legends = [] }) {
 						{USER.title}
 					</div>
 					<div style={{ fontSize: 9, color: COLORS.textDim, fontFamily: FONT_MONO, letterSpacing: "0.08em" }}>
-						MEMBER SINCE {USER.joinDate.toUpperCase()} &nbsp;·&nbsp; WIN STREAK: <span style={{ color: COLORS.win }}>+{USER.stats.winStreak}</span>
+						MEMBER SINCE {USER.joinDate.toUpperCase()}
 					</div>
 				</div>
 
-				{/* Stats */}
-				<div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-					{[
-						{ label: "WINS", value: USER.stats.wins, color: COLORS.win },
-						{ label: "LOSSES", value: USER.stats.losses, color: COLORS.loss },
-						{ label: "WIN%", value: `${winRate}%`, color: COLORS.accent },
-					].map(s => (
-						<div key={s.label} style={{ background: COLORS.bgCard, border: "1px solid var(--border)", borderRadius: 0, padding: "3px 10px", textAlign: "center", minWidth: 52 }}>
-							<div style={{ fontSize: 14, fontWeight: 900, color: s.color, fontFamily: FONT_MONO }}>{s.value}</div>
-							<div style={{ fontSize: 8, color: COLORS.textDim, letterSpacing: "0.15em", marginTop: 1, fontFamily: FONT_MONO }}>{s.label}</div>
-						</div>
-					))}
+				{/* Stats: one line here; click to expand the card to the full tiles */}
+				<StatSummary stats={cardStats} ready={statsReady} open={statsOpen} onToggle={() => setStatsOpen(o => !o)} />
 				</div>
+				{statsOpen && <StatTiles stats={cardStats} season={cardSeason.season} ready={statsReady} />}
 			</div>
 
 			{/* ── EloShowdown Search ── */}
@@ -483,9 +521,28 @@ export default function UserProfile({ legends = [] }) {
 
 				</>)}
 
-				{/* ── ELO History ── */}
+				{/* ── Matches: Data (analysis) and History (the editable rows) ── */}
 				{ linkedPlayer && !addingAccount && (
 					<div style={{ marginBottom: 4 }}>
+						<div role="tablist" style={{ display: "flex", borderBottom: `1px solid ${COLORS.border}`, marginBottom: 10 }}>
+							{[["data", "DATA"], ["history", "HISTORY"]].map(([key, text]) => (
+								<button key={key} role="tab" aria-selected={matchTab === key} onClick={() => setMatchTab(key)}
+									onMouseEnter={e => { if (matchTab !== key) e.currentTarget.style.color = COLORS.text; }}
+									onMouseLeave={e => { if (matchTab !== key) e.currentTarget.style.color = COLORS.textMuted; }}
+									style={{
+										padding: "6px 16px", marginBottom: -1, cursor: "pointer",
+										background: "transparent", border: "none", borderRadius: 0,
+										borderBottom: `2px solid ${matchTab === key ? COLORS.accent : "transparent"}`,
+										color: matchTab === key ? COLORS.accent : COLORS.textMuted,
+										fontFamily: FONT_MONO, fontSize: 11, letterSpacing: "0.14em", transition: "color 0.15s",
+									}}>
+									{text}
+								</button>
+							))}
+						</div>
+						{matchTab === "data" ? (
+							<MatchStats matches={savedMatches} legends={legends} status={savedStatus} />
+						) : (<>
 						{/* Current Elo + season from the rows shown, and Search to pull the latest from EloShowdown. */}
 						<div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, fontFamily: FONT_MONO }}>
 							<div style={{ fontSize: 10, color: COLORS.textDim, letterSpacing: "0.15em" }}>
@@ -537,9 +594,9 @@ export default function UserProfile({ legends = [] }) {
 							const points = [...eloHistory.points].reverse();
 							const recent = points.slice(0, eloVisible);
 							const hasMore = points.length > eloVisible;
-							const tournamentFor = m => tournaments[`${linkedPlayer.id}:${m.date}`];
-							// Rows group by resolved tournament, or by day while unresolved.
-							const groupKeyFor = m => tournamentFor(m)?.id ?? `${tournamentFor(m)}-${m.date?.slice(0, 10)}`;
+							// Matches per event, across every row (not just the visible ones).
+							const eventSize = new Map();
+							for (const p of eloHistory.points) eventSize.set(eventKeyFor(p), (eventSize.get(eventKeyFor(p)) ?? 0) + 1);
 							// Saving is off mid-save, and until the stored picks have loaded.
 							const saveOff = saving || savedStatus !== "ready";
 							return (
@@ -552,8 +609,8 @@ export default function UserProfile({ legends = [] }) {
 											const dateStr = d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 											const picks = matchChampions[`${linkedPlayer.id}:${m.match_id}`] || {};
 											// Consecutive matches from the same tournament share one header row.
-											const showHeader = i === 0 || groupKeyFor(m) !== groupKeyFor(recent[i - 1]);
-											const endsGroup = i < recent.length - 1 && groupKeyFor(m) !== groupKeyFor(recent[i + 1]);
+											const showHeader = i === 0 || eventKeyFor(m) !== eventKeyFor(recent[i - 1]);
+											const endsGroup = i < recent.length - 1 && eventKeyFor(m) !== eventKeyFor(recent[i + 1]);
 											return (
 												<Fragment key={m.match_id}>
 												{showHeader && (
@@ -569,17 +626,21 @@ export default function UserProfile({ legends = [] }) {
 														marginBottom: endsGroup ? 12 : 0,
 													}}>
 													<LegendPick side="left" player="You" champions={legends} value={picks.mine}
-														onSelect={id => setChampion(m.match_id, "mine", id)} />
+														onSelect={id => setChampion(m, "mine", id)}
+														fillEvent={{ count: eventSize.get(eventKeyFor(m)), on: fillEvent, onToggle: () => setFillEvent(f => !f) }} />
 													<div style={{ display: "flex", alignItems: "baseline", gap: 10, fontFamily: FONT_MONO }}>
 														<span style={{ fontSize: 11, fontWeight: 700, color: resultColor, letterSpacing: "0.08em", textTransform: "uppercase" }}>
 															{m.result}
 														</span>
-														<span style={{ fontSize: 14, fontWeight: 700, color: m.elo_change > 0 ? COLORS.win : m.elo_change < 0 ? COLORS.loss : COLORS.textDim }}>
-															{m.elo_change == null ? "—" : `${changeSign}${m.elo_change}`}
-														</span>
+														{/* No Elo moved (a draw between equal ratings) — the result says it all. */}
+														{m.elo_change !== 0 && (
+															<span style={{ fontSize: 14, fontWeight: 700, color: m.elo_change > 0 ? COLORS.win : m.elo_change < 0 ? COLORS.loss : COLORS.textDim }}>
+																{m.elo_change == null ? "—" : `${changeSign}${m.elo_change}`}
+															</span>
+														)}
 													</div>
 													<LegendPick side="right" player={m.opponent_name} champions={legends} value={picks.opponent}
-														onSelect={id => setChampion(m.match_id, "opponent", id)} />
+														onSelect={id => setChampion(m, "opponent", id)} />
 												</div>
 												</Fragment>
 											);
@@ -623,6 +684,7 @@ export default function UserProfile({ legends = [] }) {
 								</div>
 							);
 						} ) () }
+						</>)}
 					</div>
 				) }
 
@@ -754,7 +816,9 @@ const PICKER_MAX_HEIGHT = 360;
 const PICKER_GAP = 4;
 const PICK_ICON_SIZE = 32;
 
-function LegendPick({ champions, value, onSelect, player, side }) {
+// `fillEvent` ({ count, on, onToggle }) adds the "apply to all matches in this
+// event" checkbox; only your own side passes it.
+function LegendPick({ champions, value, onSelect, player, side, fillEvent }) {
 	const [open, setOpen] = useState(false);
 	// Champions whose S3 icon 404s — those fall back to the card art.
 	const [iconless, setIconless] = useState([]);
@@ -880,6 +944,29 @@ function LegendPick({ champions, value, onSelect, player, side }) {
 								}}
 							/>
 						</div>
+						{fillEvent?.count > 1 && (
+							<div role="checkbox" aria-checked={fillEvent.on} tabIndex={0}
+								onClick={fillEvent.onToggle}
+								onKeyDown={e => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); fillEvent.onToggle(); } }}
+								onMouseEnter={e => { e.currentTarget.style.color = COLORS.text; }}
+								onMouseLeave={e => { e.currentTarget.style.color = COLORS.textMuted; }}
+								style={{
+									display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", flexShrink: 0,
+									borderBottom: `1px solid ${COLORS.border}`, cursor: "pointer", userSelect: "none",
+									fontSize: 11, color: COLORS.textMuted, fontFamily: FONT_MONO, transition: "color 0.15s",
+								}}>
+								<span style={{
+									width: 13, height: 13, flexShrink: 0,
+									display: "flex", alignItems: "center", justifyContent: "center",
+									border: `1px solid ${fillEvent.on ? COLORS.accent : COLORS.borderHover}`,
+									background: fillEvent.on ? COLORS.accent : "transparent",
+									color: COLORS.bg, fontSize: 10, fontWeight: 700, lineHeight: 1,
+								}}>
+									{fillEvent.on && "✓"}
+								</span>
+								Apply to all {fillEvent.count} matches in this event
+							</div>
+						)}
 						<div style={{ overflowY: "auto", flex: 1 }}>
 							{/* Undo a wrong pick; saving then removes it from the stored match too. */}
 							{champ && !term && (
