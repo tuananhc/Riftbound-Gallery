@@ -1,4 +1,4 @@
-import { COLORS } from "../../lib/data";
+import { COLORS, LAYOUT, SHOW } from "../../lib/data";
 
 const CARD_COUNT = 20;
 
@@ -23,7 +23,7 @@ function CardSkeleton() {
 
 function SidebarSkeleton() {
 	return (
-		<div style={{ width: 240, flexShrink: 0, borderRight: `1px solid ${COLORS.border}`, padding: "20px 16px", display: "flex", flexDirection: "column", gap: 24 }}>
+		<div style={{ width: 240, flexShrink: 0, borderRight: `1px solid ${COLORS.border}`, padding: "20px 16px", display: SHOW.desktopFlex, flexDirection: "column", gap: 24 }}>
 			{/* Search */}
 			<Bone height={42} borderRadius={8} />
 
@@ -74,12 +74,24 @@ export default function Loading() {
 				}
 			`}</style>
 
-			<div style={{ display: "flex", minHeight: "calc(100vh - 62px)" }}>
+			{/* Phone: the pinned search header's shape */}
+			<div style={{ display: SHOW.mobileFlex, flexDirection: "column", gap: 8, padding: "10px 12px 8px", borderBottom: `1px solid ${COLORS.border}` }}>
+				<div style={{ display: "flex", gap: 8 }}>
+					<Bone height={48} borderRadius={0} />
+					<Bone width={48} height={48} borderRadius={0} />
+				</div>
+				<div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0" }}>
+					<Bone width={120} height={10} />
+					<Bone width={70} height={10} />
+				</div>
+			</div>
+
+			<div style={{ display: "flex", minHeight: `calc(100vh - ${LAYOUT.navHeight})` }}>
 				<SidebarSkeleton />
 
-				<section style={{ flex: 1, padding: "24px 28px" }}>
+				<section style={{ flex: 1, minWidth: 0, padding: LAYOUT.cardsPad }}>
 					{/* Toolbar row */}
-					<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+					<div style={{ display: SHOW.desktopFlex, justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
 						<Bone width={120} height={10} />
 						<div style={{ display: "flex", gap: 8, alignItems: "center" }}>
 							<Bone width={110} height={30} borderRadius={6} />
@@ -89,7 +101,7 @@ export default function Loading() {
 					</div>
 
 					{/* Card grid */}
-					<div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 14 }}>
+					<div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(200px, calc(50% - 5px)), 1fr))", columnGap: LAYOUT.gridColGap, rowGap: LAYOUT.gridRowGap }}>
 						{[...Array(CARD_COUNT)].map((_, i) => (
 							<CardSkeleton key={i} />
 						))}

@@ -1,10 +1,11 @@
 "use client";
 import { useState, useMemo } from "react";
-import { COLORS, FONT_MONO } from "../../lib/data";
+import { COLORS, FONT_MONO, LAYOUT, STRIP } from "../../lib/data";
 import { useCards } from "../CardStoreProvider";
 import { SOURCES } from "./sources";
 import { FILTER_DEFAULTS } from "./DeckFilters";
 import DeckFilters from "./DeckFilters";
+import MobileDeckFilters from "./MobileDeckFilters";
 import SourceWidget from "./SourceWidget";
 import DeckResultsPanel from "./DeckResultsPanel";
 import { legendOptions } from "../../lib/cards/data";
@@ -83,7 +84,7 @@ export default function DeckSources() {
 	const hasSearched = searching || results !== null || crawlError !== null;
 
 	return (
-		<div style={{ maxWidth: 1100, margin: "0 auto", padding: "40px 24px" }}>
+		<div style={{ maxWidth: 1100, margin: "0 auto", padding: LAYOUT.contentPad }}>
 			<div style={{ marginBottom: 28 }}>
 				<h1 style={{ fontSize: 22, fontWeight: 900, color: COLORS.accent, letterSpacing: "0.1em", fontFamily: FONT_MONO, margin: "0 0 8px" }}>
 					COMMUNITY DECKS
@@ -98,14 +99,22 @@ export default function DeckSources() {
 				</p>
 			</div>
 
+			{/* Desktop and phone filter layouts; the SHOW tokens inside each pick which renders. */}
 			<DeckFilters
 				legends={legends}
 				filters={filters}
 				onChange={handleFilterChange}
 				onClear={() => setFilters({ ...FILTER_DEFAULTS })}
 			/>
+			<MobileDeckFilters
+				legends={legends}
+				filters={filters}
+				onChange={handleFilterChange}
+				onClear={() => setFilters({ ...FILTER_DEFAULTS })}
+			/>
 
-			<div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16, marginBottom: 20 }}>
+			{/* A grid on desktop; on phones the sources swipe sideways and toggle on tap. */}
+			<div style={{ ...STRIP, gap: 12, marginBottom: 20 }}>
 				{SOURCES.map(source => (
 					<SourceWidget
 						key={source.id}
@@ -122,7 +131,7 @@ export default function DeckSources() {
 						onClick={handleSearch}
 						disabled={searching}
 						style={{
-							display: "inline-flex", alignItems: "center", gap: 10,
+							display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 10, flex: "0 1 260px", minHeight: 48,
 							background: searching ? COLORS.border : COLORS.accent,
 							color: searching ? COLORS.textMuted : COLORS.bg,
 							border: `1px solid ${searching ? COLORS.borderHover : COLORS.accent}`,

@@ -1,6 +1,10 @@
 "use client";
-import { useState, useMemo, useEffect } from "react";
-import { COLORS, FONT_MONO } from "../../lib/data";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { COLORS, FONT_MONO, LAYOUT, SHOW } from "../../lib/data";
+import { useIsMobile } from "../../hooks/useIsMobile";
+import { FOCUS_CARD_SEARCH } from "../Navbar";
+import { MobileSearchHeader, DeckFab, FilterSheet, CardDetailSheet, DeckSheet, filterChips, SORT_OPTIONS } from "./MobileCards";
+import Dropdown from "../Dropdown";
 import { useSetCards } from "../CardStoreProvider";
 import CardItem from "./CardItem";
 import CardFilters from "./CardFilters";
@@ -22,6 +26,17 @@ export default function CardGrid({ initialCards }) {
 	const [deckOpen, setDeckOpen]           = useState(false);
 	const [legendId, setLegendId]           = useState(null);
 	const [championId, setChampionId]       = useState(null);
+	// Phones: which bottom sheet is open ("filter" | "deck"); card detail uses selectedCard.
+	const [sheet, setSheet] = useState(null);
+	const isMobile = useIsMobile();
+	const searchRef = useRef(null);
+
+	// Tapping Cards in the phone nav while already here focuses the search field.
+	useEffect(() => {
+		const focus = () => { window.scrollTo({ top: 0 }); searchRef.current?.focus(); };
+		window.addEventListener(FOCUS_CARD_SEARCH, focus);
+		return () => window.removeEventListener(FOCUS_CARD_SEARCH, focus);
+	}, []);
 
 	const maxCopies = (card) => card.card_type_text?.includes("Legend") ? 1 : 3;
 
@@ -115,8 +130,12 @@ export default function CardGrid({ initialCards }) {
 			});
 	}, [initialCards, search, selectedColors, selectedTags, selectedAttribute, costRange, releaseSet, sortBy]);
 
-	const hasFilters  = selectedColors.length > 0 || selectedTags.length > 0 || search || costRange[0] > 0 || costRange[1] < 12 || releaseSet;
-	const clearFilters = () => { setSelectedColors([]); setSelectedTags([]); setSearch(""); setCostRange([0, 12]); setReleaseSet(null); };
+	const hasFilters  = selectedColors.length > 0 || selectedTags.length > 0 || selectedAttribute.length > 0 || search || costRange[0] > 0 || costRange[1] < 12 || releaseSet;
+	const clearFilters = () => { setSelectedColors([]); setSelectedTags([]); setSelectedAttribute([]); setSearch(""); setCostRange([0, 12]); setReleaseSet(null); };
+	const filters = { selectedColors, toggleColor, selectedTags, toggleTag, selectedAttribute, toggleAttribute, costRange, setCostRange, releaseSet, setReleaseSet, clearFilters };
+	const chips = filterChips(filters);
+	// The deck entry for a card, matched by name like addToDeck (variants share it).
+	const entryFor = card => deck.find(e => e.card.name === card.name);
 
 	const handleDeckOpen = () => {
 		if (!deckOpen && !legendId) setSelectedTags(['Legend']);
@@ -158,7 +177,11 @@ export default function CardGrid({ initialCards }) {
 				.deck-badge { background: var(--border-hover); color: var(--text); border-radius: 0; padding: 1px 7px; font-size: 10px; font-weight: 700; }
 			`}</style>
 
-			<div style={{ display: "flex", minHeight: "calc(100vh - 62px)" }}>
+			<MobileSearchHeader search={search} setSearch={setSearch} chips={chips} onClearAll={clearFilters}
+				onOpenFilters={() => setSheet("filter")} shown={filtered.length} total={initialCards.length}
+				sortBy={sortBy} setSortBy={setSortBy} inputRef={searchRef} />
+
+			<div style={{ display: "flex", minHeight: `calc(100vh - ${LAYOUT.navHeight})` }}>
 				<CardFilters
 					search={search}           setSearch={setSearch}
 					selectedColors={selectedColors} toggleColor={toggleColor}
@@ -169,8 +192,8 @@ export default function CardGrid({ initialCards }) {
 					releaseSet={releaseSet}     setReleaseSet={setReleaseSet}
 				/>
 
-				<section style={{ flex: 1, padding: "24px 28px", transition: "padding-right 0.3s", paddingRight: deckOpen ? "328px" : "28px" }}>
-					<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+				<section style={{ flex: 1, minWidth: 0, overflowX: "clip", padding: LAYOUT.cardsPad, transition: "padding-right 0.3s", ...(deckOpen ? { paddingRight: 328 } : {}) }}>
+					<div style={{ display: SHOW.desktopFlex, justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
 						<div style={{ fontSize: 11, color: COLORS.textDim, letterSpacing: "0.1em", fontFamily: FONT_MONO }}>
 							{filtered.length === 0 ? "NO CARDS FOUND" : `${filtered.length} OF ${initialCards.length} CARDS`}
 						</div>
@@ -179,25 +202,27 @@ export default function CardGrid({ initialCards }) {
 								DECK BUILDER
 								{deckTotal > 0 && <span className="deck-badge">{deckTotal}</span>}
 							</button>
-							<span style={{ fontSize: 10, color: COLORS.textDim, letterSpacing: "0.1em", fontFamily: FONT_MONO }}>SORT</span>
-							<select className="sort-select" value={sortBy} onChange={e => setSortBy(e.target.value)}>
-								<option value="name">NAME</option>
-								<option value="cost">COST</option>
-								<option value="rarity">RARITY</option>
-							</select>
+							<Dropdown variant="compact" label="SORT" value={sortBy} onChange={setSortBy} options={SORT_OPTIONS} />
 						</div>
 					</div>
 
 					{filtered.length === 0 ? (
-						<div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 300, color: COLORS.textDim, gap: 12 }}>
-							<div style={{ fontSize: 40 }}>🌀</div>
-							<div style={{ fontSize: 14, letterSpacing: "0.15em", fontFamily: FONT_MONO }}>THE RIFT REVEALS NOTHING</div>
+						<div style={{ padding: "72px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: 14, textAlign: "center", fontFamily: FONT_MONO }}>
+							<span style={{ fontSize: 13, letterSpacing: "0.18em", fontWeight: 700, color: COLORS.textMuted }}>THE RIFT REVEALS NOTHING</span>
+							<span style={{ fontSize: 12, color: COLORS.textDim, lineHeight: 1.6 }}>
+								{search ? `No cards match “${search}” with these filters.` : "No cards match these filters."}
+							</span>
+							<button onClick={clearFilters} style={{
+								height: 44, padding: "0 18px", background: COLORS.bgRaised, border: `1px solid ${COLORS.borderHover}`, color: COLORS.text,
+								fontFamily: FONT_MONO, fontSize: 11, letterSpacing: "0.12em", fontWeight: 700, cursor: "pointer",
+							}}>CLEAR SEARCH &amp; FILTERS</button>
 						</div>
 					) : (
-						<div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 14 }}>
+						// Two columns on phones (cards shrink, never crop); as many 200px+ columns as fit on desktop.
+						<div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(200px, calc(50% - 5px)), 1fr))", columnGap: LAYOUT.gridColGap, rowGap: LAYOUT.gridRowGap }}>
 							{filtered.map(card => (
 								<div key={card.id} className="card-wrapper">
-									<CardItem card={card} onClick={() => setSelectedCard(card)} deckCount={deckOpen ? (deck.find(e => e.card.name === card.name)?.count ?? 0) : 0} />
+									<CardItem card={card} onClick={() => setSelectedCard(card)} deckCount={deckOpen || isMobile ? (entryFor(card)?.count ?? 0) : 0} />
 									{deckOpen && <button className="add-deck-btn" onClick={e => addToDeck(card, e)} title="Add to deck">+</button>}
 								</div>
 							))}
@@ -219,7 +244,23 @@ export default function CardGrid({ initialCards }) {
 				onClear={() => { setDeck([]); setLegendId(null); setChampionId(null); setSelectedTags(['Legend']); setSearch(''); }}
 			/>
 
-			<CardModal
+			<DeckFab total={deckTotal} onClick={() => setSheet("deck")} />
+			{isMobile && sheet === "filter" && <FilterSheet f={filters} shown={filtered.length} onClose={() => setSheet(null)} />}
+			{isMobile && sheet === "deck" && (
+				<DeckSheet deck={deck} deckTotal={deckTotal} legendId={legendId} championId={championId}
+					onAdd={card => addToDeck(card, { stopPropagation: () => {} })} onRemove={removeFromDeck} onCopyList={copyDeckList}
+					onClear={() => { setDeck([]); setLegendId(null); setChampionId(null); }}
+					onBrowseLegends={() => { setSheet(null); clearFilters(); setSelectedTags(["Legend"]); }}
+					onClose={() => setSheet(null)} />
+			)}
+			{isMobile && selectedCard && (
+				<CardDetailSheet card={selectedCard} count={entryFor(selectedCard)?.count ?? 0} max={maxCopies(selectedCard)}
+					onAdd={() => addToDeck(selectedCard, { stopPropagation: () => {} })}
+					onRemove={() => { const e = entryFor(selectedCard); if (e) removeFromDeck(e.card.id); }}
+					onClose={() => setSelectedCard(null)} />
+			)}
+
+			{!isMobile && <CardModal
 				card={selectedCard}
 				onClose={() => setSelectedCard(null)}
 				deckOpen={deckOpen}
@@ -230,7 +271,7 @@ export default function CardGrid({ initialCards }) {
 				}}
 				deckCount={selectedCard ? (deck.find(e => e.card.id === selectedCard.id)?.count ?? 0) : 0}
 				deckMax={selectedCard ? maxCopies(selectedCard) : 3}
-			/>
+			/>}
 		</>
 	);
 }

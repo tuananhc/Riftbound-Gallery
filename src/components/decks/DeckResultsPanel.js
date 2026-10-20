@@ -7,7 +7,7 @@ const FONT = "'Segoe UI', system-ui, sans-serif";
 function SourceChips({ sources }) {
 	return (
 		<div style={{
-			padding: "16px 24px",
+			padding: "16px clamp(12px, 4vw, 24px)",
 			borderBottom: "1px solid var(--border)",
 			display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12,
 		}}>
@@ -37,7 +37,7 @@ function SourceChips({ sources }) {
 
 function SkeletonRows() {
 	return (
-		<div style={{ padding: "20px 24px" }}>
+		<div style={{ padding: "20px clamp(12px, 4vw, 24px)" }}>
 			{[...Array(6)].map((_, i) => (
 				<div key={i} style={{
 					display: "flex", alignItems: "center", gap: 16,
@@ -67,7 +67,7 @@ function DeckRow({ deck }) {
 			rel="noopener noreferrer"
 			style={{
 				display: "flex", alignItems: "center", gap: 16,
-				padding: "12px 24px", textDecoration: "none",
+				padding: "12px clamp(12px, 4vw, 24px)", textDecoration: "none",
 				borderBottom: "1px solid var(--border)",
 				transition: "background 0.15s",
 			}}
@@ -120,7 +120,7 @@ export default function DeckResultsPanel({ sources, searching, decks, error }) {
 
 			{searching && (
 				<>
-					<div style={{ padding: "16px 24px 0", fontSize: 11, color: COLORS.textMuted, fontFamily: FONT, letterSpacing: "0.08em" }}>
+					<div style={{ padding: "16px clamp(12px, 4vw, 24px) 0", fontSize: 11, color: COLORS.textMuted, fontFamily: FONT, letterSpacing: "0.08em" }}>
 						Crawling selected sources...
 					</div>
 					<SkeletonRows />
@@ -128,7 +128,7 @@ export default function DeckResultsPanel({ sources, searching, decks, error }) {
 			)}
 
 			{!searching && error && (
-				<div style={{ padding: "32px 24px", textAlign: "center" }}>
+				<div style={{ padding: "32px clamp(12px, 4vw, 24px)", textAlign: "center" }}>
 					<div style={{ fontSize: 13, color: COLORS.loss, fontFamily: FONT, marginBottom: 6 }}>
 						Crawl failed
 					</div>
@@ -139,7 +139,7 @@ export default function DeckResultsPanel({ sources, searching, decks, error }) {
 			)}
 
 			{!searching && !error && decks !== null && decks.length === 0 && (
-				<div style={{ padding: "32px 24px", textAlign: "center" }}>
+				<div style={{ padding: "32px clamp(12px, 4vw, 24px)", textAlign: "center" }}>
 					<div style={{ fontSize: 13, color: COLORS.textMuted, fontFamily: FONT }}>
 						No decks found for the selected filters.
 					</div>
@@ -148,7 +148,7 @@ export default function DeckResultsPanel({ sources, searching, decks, error }) {
 
 			{!searching && !error && decks !== null && decks.length > 0 && (
 				<>
-					<div style={{ padding: "12px 24px", borderBottom: "1px solid var(--border)", fontSize: 11, color: COLORS.textDim, fontFamily: FONT, letterSpacing: "0.08em" }}>
+					<div style={{ padding: "12px clamp(12px, 4vw, 24px)", borderBottom: "1px solid var(--border)", fontSize: 11, color: COLORS.textDim, fontFamily: FONT, letterSpacing: "0.08em" }}>
 						{decks.length} deck{decks.length !== 1 ? "s" : ""} found
 					</div>
 					<div>

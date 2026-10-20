@@ -3,7 +3,8 @@ import Image from "next/image";
 import { COLORS, FONT_MONO, alpha } from "../../lib/data";
 import { ALL_COLORS, COLOR_CONFIG } from "../../lib/cards/data";
 
-const SECTIONS = [
+// Deck sections in display order; the phone deck sheet uses them too.
+export const SECTIONS = [
 	{ label: "Battlefields", match: t => t?.includes("Battlefield") },
 	{ label: "Runes",        match: t => t?.includes("Rune") },
 	{ label: "Units",        match: t => t?.includes("Unit") || t?.includes("Champion") },

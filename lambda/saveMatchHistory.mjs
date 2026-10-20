@@ -22,6 +22,7 @@
 //   myChampion        your legend (card id)
 //   opponentChampion  opponent's legend (card id)
 //   result            WIN | LOSS | DRAW
+//   score             final game score, yours first — one of SCORES[result]
 //   playedAt          ISO date the match was played
 //   eventName         tournament / event name
 //   notes             free-text notes (max 2000 chars)
@@ -33,10 +34,10 @@
 //
 // Writes are UpdateItem, not PutItem, so re-saving from the page never wipes
 // attributes it didn't include — e.g. notes written elsewhere survive a bulk
-// re-sync. A field that's absent from the payload is left untouched. The legend
-// picks are the exception: myChampion / opponentChampion sent as null or "" are
-// REMOVEd, so a save always leaves the picks exactly as the page shows them and
-// a wrong pick can be cleared. (Nothing is ever stored as null.)
+// re-sync. A field that's absent from the payload is left untouched. The picks
+// are the exception: myChampion / opponentChampion / score sent as null or ""
+// are REMOVEd, so a save always leaves the picks exactly as the page shows them
+// and a wrong pick can be cleared. (Nothing is ever stored as null.)
 //
 // Deployed by infra/backend.yml (runtime, env vars, IAM role, routes) on every
 // push to master — don't change the function's settings in the console.
@@ -49,12 +50,19 @@ const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const HISTORY_TABLE = process.env.DYNAMODB_TABLE_HISTORY;
 
 const RESULTS = new Set(["WIN", "LOSS", "DRAW"]);
+// Final game scores (yours first) each result can end on: best of 3, then best
+// of 1. Matches SCORES in src/lib/matchStats.js.
+const SCORES = {
+	WIN: ["2-0", "2-1", "1-0"],
+	LOSS: ["0-2", "1-2", "0-1"],
+	DRAW: ["1-1", "0-0"],
+};
 const MAX_MATCHES = 500; // guard against oversized payloads
 const CONCURRENCY = 25; // parallel UpdateItem calls per wave
 const MAX_NOTES = 2000; // keep items well under the 400KB limit
 const MAX_TEXT = 200; // opponent / event name / legend id
 // Sent as null / "" → removed from the item rather than left as it was.
-const CLEARABLE = ["myChampion", "opponentChampion"];
+const CLEARABLE = ["myChampion", "opponentChampion", "score"];
 
 function json(statusCode, body) {
 	return { statusCode, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
@@ -105,12 +113,17 @@ export const handler = async (event) => {
 		if (!RESULTS.has(result)) {
 			return json(400, { error: `Invalid result "${m.result}" (expected WIN, LOSS, or DRAW).` });
 		}
+		const score = text(m.score, MAX_TEXT);
+		if (score && !SCORES[result].includes(score)) {
+			return json(400, { error: `Invalid score "${score}" for a ${result} (expected ${SCORES[result].join(", ")}).` });
+		}
 		items.push({
 			accountMatchId: `${eloPlayerId}#${matchId}`,
 			fields: clean({
 				eloPlayerId,
 				matchId,
 				result,
+				score,
 				opponent: text(m.opponent, MAX_TEXT),
 				opponentId: typeof m.opponentId === "number" ? String(m.opponentId) : text(m.opponentId, MAX_TEXT),
 				myChampion: text(m.myChampion, MAX_TEXT),

@@ -1,15 +1,15 @@
 import Link from "next/link";
 import { getAllDevLogs } from "../../lib/posts";
-import { COLORS } from "../../lib/data";
+import { COLORS, LAYOUT } from "../../lib/data";
 
 export default async function DevLogPage() {
 	const logs = await getAllDevLogs();
 
 	return (
-		<div style={{ maxWidth: 860, margin: "0 auto", padding: "40px 24px" }}>
+		<div style={{ maxWidth: 860, margin: "0 auto", padding: LAYOUT.contentPad }}>
 			<style suppressHydrationWarning>{`.devlog-card { transition: border-color 0.2s; } .devlog-card:hover { border-color: ${COLORS.borderHover} !important; }`}</style>
 			<div style={{ marginBottom: 36 }}>
-				<h1 style={{ fontSize: 28, fontWeight: 900, color: COLORS.accent, letterSpacing: "0.12em", marginBottom: 6 }}>
+				<h1 style={{ fontSize: "clamp(20px, 5.5vw, 28px)", fontWeight: 900, color: COLORS.accent, letterSpacing: "0.12em", marginBottom: 6 }}>
 					DEV LOG
 				</h1>
 				<p style={{ fontSize: 14, color: COLORS.textMuted }}>
@@ -20,7 +20,7 @@ export default async function DevLogPage() {
 			<div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
 				{logs.map(log => (
 					<Link key={log.slug} href={`/devlog/${log.slug}`} style={{ textDecoration: "none" }}>
-						<div className="devlog-card" style={{ background: COLORS.bgAlt, border: `1px solid ${COLORS.border}`, borderRadius: 0, padding: "18px 24px" }}>
+						<div className="devlog-card" style={{ background: COLORS.bgAlt, border: `1px solid ${COLORS.border}`, borderRadius: 0, padding: "clamp(14px, 3.5vw, 18px) clamp(16px, 4vw, 24px)" }}>
 							<div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, marginBottom: 4 }}>
 								{log.title || log.slug}
 							</div>

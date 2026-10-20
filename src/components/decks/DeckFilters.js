@@ -1,6 +1,7 @@
 "use client";
-import { COLORS, FONT_MONO, alpha } from "../../lib/data";
+import { COLORS, FONT_MONO, SHOW, alpha } from "../../lib/data";
 import LegendSelect from "./LegendSelect";
+import Dropdown from "../Dropdown";
 
 export const DECK_TYPES = [
 	{ id: "all",        label: "ALL" },
@@ -37,6 +38,7 @@ export default function DeckFilters({ legends, filters, onChange, onClear }) {
 
 	return (
 		<div style={{
+			display: SHOW.desktopBlock,
 			background: COLORS.bg,
 			border: "1px solid var(--border)",
 			borderRadius: 0,
@@ -116,25 +118,8 @@ export default function DeckFilters({ legends, filters, onChange, onClear }) {
 						<div style={{ fontSize: 10, color: COLORS.textDim, fontFamily: FONT_MONO, letterSpacing: "0.14em", marginBottom: 10 }}>
 							RANKING
 						</div>
-						<select
-							value={filters.ranking}
-							onChange={e => onChange("ranking", e.target.value)}
-							style={{
-								background: COLORS.bgRaised, border: "1px solid var(--border-hover)",
-								borderRadius: 0, padding: "5px 32px 5px 12px",
-								fontSize: 11, color: COLORS.text,
-								fontFamily: FONT_MONO,
-								cursor: "pointer", outline: "none",
-								appearance: "none",
-								backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236a6a8a'/%3E%3C/svg%3E")`,
-								backgroundRepeat: "no-repeat",
-								backgroundPosition: "right 10px center",
-							}}
-						>
-							{RANKINGS.map(r => (
-								<option key={r.id} value={r.id}>{r.label}</option>
-							))}
-						</select>
+						<Dropdown variant="compact" ariaLabel="Ranking" value={filters.ranking}
+							onChange={v => onChange("ranking", v)} options={RANKINGS.map(r => [r.id, r.label])} />
 					</div>
 
 					<div>

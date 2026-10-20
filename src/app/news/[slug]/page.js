@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getAllPosts, getPostBySlug } from "../../../lib/posts";
 import { ALL_COLORS } from "../../../lib/cards/data";
-import { COLORS, FONT_MONO, alpha } from "../../../lib/data";
+import { COLORS, FONT_MONO, LAYOUT, alpha } from "../../../lib/data";
 
 const CATEGORY_CONFIG = {
 	"Set Release":  { color: "#b08968", bg: COLORS.bgCard, icon: "🃏" },
@@ -30,7 +30,7 @@ export default async function PostPage(props) {
 	return (
 		<>
 			<style>{`
-				.prose { font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 17px; line-height: 1.8; color: var(--text); }
+				.prose { font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: clamp(14px, 3.6vw, 17px); line-height: 1.8; color: var(--text); }
 				.prose h2 { font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 20px; font-weight: 700; color: var(--accent); letter-spacing: 0.08em; margin: 36px 0 14px; }
 				.prose h3 { font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 16px; font-weight: 600; color: var(--accent); letter-spacing: 0.06em; margin: 28px 0 10px; }
 				.prose p  { margin-bottom: 18px; }
@@ -46,7 +46,7 @@ export default async function PostPage(props) {
 				.back-link:hover { color: var(--text-muted); }
 			`}</style>
 
-			<div style={{ maxWidth: 720, margin: "0 auto", padding: "40px 24px" }}>
+			<div style={{ maxWidth: 720, margin: "0 auto", padding: LAYOUT.contentPad }}>
 
 				{/* Back */}
 				<Link href="/news" className="back-link" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontFamily: FONT_MONO, letterSpacing: "0.1em", marginBottom: 32, textDecoration: "none" }}>
@@ -61,12 +61,12 @@ export default async function PostPage(props) {
 				</div>
 
 				{/* Title */}
-				<h1 style={{ fontSize: 30, fontWeight: 900, color: ALL_COLORS.text, fontFamily: FONT_MONO, letterSpacing: "0.06em", lineHeight: 1.3, marginBottom: 16 }}>
+				<h1 style={{ fontSize: "clamp(22px, 6vw, 30px)", fontWeight: 900, color: ALL_COLORS.text, fontFamily: FONT_MONO, letterSpacing: "0.06em", lineHeight: 1.3, marginBottom: 16 }}>
 					{post.title}
 				</h1>
 
 				{/* Meta */}
-				<div style={{ display: "flex", gap: 16, alignItems: "center", marginBottom: 36, paddingBottom: 24, borderBottom: `1px solid ${ALL_COLORS.border}` }}>
+				<div style={{ display: "flex", flexWrap: "wrap", gap: "6px 16px", alignItems: "center", marginBottom: 36, paddingBottom: 24, borderBottom: `1px solid ${ALL_COLORS.border}` }}>
 					<span style={{ fontSize: 12, color: ALL_COLORS.textDim, fontFamily: FONT_MONO, letterSpacing: "0.08em" }}>
 						{new Date(post.date).toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).toUpperCase()}
 					</span>

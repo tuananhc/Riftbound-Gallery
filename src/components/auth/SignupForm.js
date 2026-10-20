@@ -3,7 +3,7 @@ import { useState } from "react";
 import { CognitoUser, CognitoUserAttribute } from "amazon-cognito-identity-js";
 import { getUserPool } from "../../lib/cognito";
 import { COLORS } from "../../lib/data";
-import { FONT, Field, Input, SubmitButton } from "./formPrimitives";
+import { AuthShell, ErrorBox, FONT, Field, Input, NoticeBox, PasswordInput, SubmitButton } from "./formPrimitives";
 
 // Cognito's default password policy — surfaced to the user as a hint.
 const PASSWORD_HINT = "At least 8 characters, with upper & lower case, a number, and a symbol.";
@@ -112,95 +112,56 @@ export default function SignupForm() {
 		});
 	}
 
+	const title = phase === "done" ? "YOU'RE IN" : phase === "confirm" ? "VERIFY EMAIL" : "CREATE ACCOUNT";
+	const sub = phase === "signup" ? "Track your matches, Elo and matchups across seasons."
+		: phase === "confirm" ? "Enter the code we sent to your email."
+		: "Your account is verified and ready.";
 	return (
-		<div style={{ maxWidth: 440, margin: "0 auto", padding: "60px 24px" }}>
-			<div style={{
-				background: "linear-gradient(135deg, var(--bg-card) 0%, var(--bg-card) 50%, var(--bg-card) 100%)",
-				border: `1px solid ${COLORS.border}`, borderRadius: 0,
-				padding: "36px 34px", position: "relative", overflow: "hidden",
-			}}>
-				{/* bg decoration */}
-				<div style={{ position: "absolute", top: -50, right: -50, width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle, color-mix(in srgb, var(--bg-hover) 27%, transparent) 0%, transparent 70%)", pointerEvents: "none" }} />
+		<AuthShell title={title} sub={sub}
+			footer={phase === "signup" && <><span style={{ color: COLORS.textMuted }}>Have an account?</span><a href="/login" style={{ color: COLORS.accent, fontWeight: 700 }}>Sign in →</a></>}>
+			{error && <ErrorBox>{error}</ErrorBox>}
+			{notice && !error && <NoticeBox>{notice}</NoticeBox>}
 
-				{/* ── Header ── */}
-				<div style={{ marginBottom: 28, position: "relative" }}>
-					<h1 style={{ fontSize: 24, fontWeight: 900, color: COLORS.accent, letterSpacing: "0.08em", fontFamily: FONT }}>
-						{phase === "done" ? "You're in" : "Create Account"}
-					</h1>
-					<div style={{ fontSize: 13, color: COLORS.textMuted, fontStyle: "italic", marginTop: 6, fontFamily: FONT }}>
-						{phase === "signup" && "Join the Rift and start building decks."}
-						{phase === "confirm" && "Enter the code we sent to your email."}
-						{phase === "done"    && "Your account is verified and ready."}
-					</div>
-				</div>
-
-				{/* ── Messages ── */}
-				{error && (
-					<div style={{ marginBottom: 18, padding: "10px 14px", background: COLORS.bgRaised, border: "1px solid color-mix(in srgb, var(--loss) 27%, transparent)", borderRadius: 0, fontSize: 12, color: COLORS.loss, fontFamily: FONT }}>
-						{error}
-					</div>
-				)}
-				{notice && !error && (
-					<div style={{ marginBottom: 18, padding: "10px 14px", background: COLORS.bgCard, border: "1px solid color-mix(in srgb, var(--accent) 27%, transparent)", borderRadius: 0, fontSize: 12, color: COLORS.accent, fontFamily: FONT }}>
-						{notice}
-					</div>
-				)}
-
-				{/* ── Signup form ── */}
-				{phase === "signup" && (
-					<form onSubmit={handleSignup} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+			{phase === "signup" && (
+				<form onSubmit={handleSignup} style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+					<div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
 						<Field label="EMAIL">
 							<Input type="email" value={email} onChange={setEmail} placeholder="you@example.com" autoComplete="email" required />
 						</Field>
 						<Field label="PASSWORD" hint={PASSWORD_HINT}>
-							<Input type="password" value={password} onChange={setPassword} placeholder="••••••••" autoComplete="new-password" required />
+							<PasswordInput value={password} onChange={setPassword} placeholder="••••••••" autoComplete="new-password" required />
 						</Field>
 						<Field label="CONFIRM PASSWORD">
-							<Input type="password" value={confirm} onChange={setConfirm} placeholder="••••••••" autoComplete="new-password" required />
+							<PasswordInput value={confirm} onChange={setConfirm} placeholder="••••••••" autoComplete="new-password" required />
 						</Field>
-						<SubmitButton loading={loading} disabled={!email || !password || !confirm}>
-							{loading ? "CREATING…" : "CREATE ACCOUNT"}
-						</SubmitButton>
-					</form>
-				)}
-
-				{/* ── Confirm form ── */}
-				{phase === "confirm" && (
-					<form onSubmit={handleConfirm} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-						<Field label="VERIFICATION CODE">
-							<Input type="text" value={code} onChange={setCode} placeholder="123456" inputMode="numeric" autoComplete="one-time-code" required />
-						</Field>
-						<SubmitButton loading={loading} disabled={!code.trim()}>
-							{loading ? "VERIFYING…" : "VERIFY EMAIL"}
-						</SubmitButton>
-						<button type="button" onClick={handleResend}
-							style={{ background: "transparent", border: "none", color: COLORS.textMuted, fontSize: 11, letterSpacing: "0.08em", fontFamily: FONT, cursor: "pointer", padding: 4, alignSelf: "center" }}>
-							Didn&apos;t get it? Resend code
-						</button>
-					</form>
-				)}
-
-				{/* ── Done ── */}
-				{phase === "done" && (
-					<a href="/login" style={{ display: "block" }}>
-						<div style={{
-							background: COLORS.bgHover, border: "1px solid var(--accent-dim)", borderRadius: 0,
-							padding: "12px 20px", color: COLORS.accent, textAlign: "center",
-							fontFamily: FONT, fontSize: 11, letterSpacing: "0.12em", cursor: "pointer",
-						}}>
-							CONTINUE TO SIGN IN
-						</div>
-					</a>
-				)}
-
-				{/* ── Footer ── */}
-				{phase === "signup" && (
-					<div style={{ marginTop: 22, textAlign: "center", fontSize: 12, color: COLORS.textDim, fontFamily: FONT }}>
-						Already have an account?{" "}
-						<a href="/login" style={{ color: COLORS.accent }}>Sign in</a>
 					</div>
-				)}
-			</div>
-		</div>
+					<SubmitButton loading={loading} disabled={!email || !password || !confirm}>
+						{loading ? "CREATING…" : "CREATE ACCOUNT"}
+					</SubmitButton>
+				</form>
+			)}
+
+			{phase === "confirm" && (
+				<form onSubmit={handleConfirm} style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+					<Field label="VERIFICATION CODE">
+						<Input type="text" value={code} onChange={setCode} placeholder="123456" inputMode="numeric" autoComplete="one-time-code" required />
+					</Field>
+					<SubmitButton loading={loading} disabled={!code.trim()}>
+						{loading ? "VERIFYING…" : "VERIFY EMAIL"}
+					</SubmitButton>
+					<button type="button" onClick={handleResend} style={{
+						height: 44, background: "transparent", border: "none", color: COLORS.textMuted, cursor: "pointer",
+						fontFamily: FONT, fontSize: 11, letterSpacing: "0.08em",
+					}}>Didn&apos;t get it? Resend code</button>
+				</form>
+			)}
+
+			{phase === "done" && (
+				<a href="/login" style={{
+					height: 52, display: "flex", alignItems: "center", justifyContent: "center",
+					background: COLORS.accent, color: COLORS.bg, fontFamily: FONT, fontSize: 12, fontWeight: 700, letterSpacing: "0.14em",
+				}}>CONTINUE TO SIGN IN</a>
+			)}
+		</AuthShell>
 	);
 }

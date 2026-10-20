@@ -70,6 +70,24 @@ export function removeEloAccount(token, id) {
 	return updateAccounts(token, { action: "remove", id });
 }
 
+// A player's EloShowdown elo-history ({ season_slug, points }), through the
+// /api/elo rewrite in next.config.js. Public — no token. Without `season` it's
+// the current season; pass a slug from getSeasons() for an earlier one.
+export async function getEloHistory(playerId, season) {
+	const query = season ? `?${new URLSearchParams({ season })}` : "";
+	const res = await fetch(`/api/elo/players/${playerId}/elo-history${query}`);
+	if (!res.ok) throw new Error(`HTTP ${res.status}`);
+	return res.json();
+}
+
+// EloShowdown's seasons, newest first:
+// [{ slug, name, start, end, is_current }] — end is null for the current one.
+export async function getSeasons() {
+	const res = await fetch("/api/elo/seasons");
+	if (!res.ok) throw new Error(`HTTP ${res.status}`);
+	return res.json();
+}
+
 // Resolve elo-history match dates to the UVS tournament the player was in.
 // Served by our own Next.js route (src/app/api/tournaments), not API Gateway.
 // `playerId` is the EloShowdown player id — the route finds their UVS id and city.

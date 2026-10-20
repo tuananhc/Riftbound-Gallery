@@ -201,6 +201,34 @@ COLORS.draw // #6aa8ff #2563c9
   in `src/lib/cards/data.js`
 - Never use system fonts (Arial, Inter, Roboto) anywhere in the UI
 
+### Phone layouts
+
+Phones (≤ `MOBILE_MAX_WIDTH`, 640px) get their own layouts; navigation stays at
+the top (logo bar + a row of page links), not a bottom tab bar. Two mechanisms,
+picked by whether the markup is server-rendered:
+
+- **Server-rendered markup** (navbar, card grid, deck filters, news, dev log,
+  sign-in) switches with CSS variables from `src/lib/data.js`, set by one media
+  query in `BASE_STYLES` — the same mechanism as the theme, so the first paint is
+  already right and nothing flashes. `SHOW.mobileFlex` / `SHOW.desktopBlock` etc.
+  show an element on one layout only; `LAYOUT` holds values that differ
+  (`navHeight` for sticky offsets, `contentPad`, card-grid gaps); spread `STRIP`
+  into a container to get a grid on desktop that swipes sideways on phones.
+  Prefer intrinsic CSS (`clamp()`, `min()`, `flexWrap`) when it does the job
+- **Client-only UI** (anything that renders after sign-in or a tap — the profile,
+  sheets vs popovers) uses `useIsMobile()` from `src/hooks/useIsMobile.js`
+- Pickers, filters, detail views and the deck builder are bottom sheets on
+  phones: use `src/components/BottomSheet.js` (handle, title + 44px close,
+  scrolling body, pinned footer; scrim / Esc / drag-down dismiss)
+- Never use a native `<select>` — its option list is drawn by the OS and
+  ignores the design. Use `src/components/Dropdown.js` (`variant` "field" /
+  "compact" / "text"): a square popover on desktop, a bottom sheet on phones,
+  keyboard-operable
+- Phone touch targets are ≥ 44px (primary rows and buttons 48px); text inputs
+  use 16px type so iOS doesn't zoom on focus
+- The phone profile is `src/components/user/MobileProfile.js`; it takes the
+  same state and handlers as the desktop profile from `UserProfile.js`
+
 ---
 
 ## Component Conventions

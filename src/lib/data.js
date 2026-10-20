@@ -74,9 +74,65 @@ export const alpha = (color, percent) => `color-mix(in srgb, ${color} ${percent}
 // localStorage key for the theme toggle; read before paint by the script in layout.js.
 export const THEME_STORAGE_KEY = "riftbound-theme";
 
+// ── Phone layouts ──────────────────────────────────────────────────────────
+// At or below this width the site switches to its phone layouts.
+export const MOBILE_MAX_WIDTH = 640;
+
+// Values that differ between desktop and phone, as CSS variables switched by
+// one media query in BASE_STYLES — the same mechanism as the theme tokens.
+// Server-rendered markup is therefore right at phone width from the first
+// paint, with no flash of the desktop layout before hydration.
+const LAYOUT_VARS = {
+  desktop: {
+    "desktop-flex": "flex", "desktop-block": "block", "desktop-grid": "grid",
+    "mobile-flex": "none", "mobile-block": "none", "mobile-grid": "none",
+    "nav-height": "62px", "page-pad": "32px",
+    "grid-col-gap": "14px", "grid-row-gap": "14px", "cards-pad": "24px 28px",
+    "content-pad": "40px 24px",
+    "strip-cols": "repeat(auto-fill, minmax(280px, 1fr))", "strip-flow": "row", "strip-overflow": "visible",
+    "auth-justify": "flex-start", "auth-pad": "60px 24px",
+    "auth-card-bg": "var(--bg-card)", "auth-card-border": "1px solid var(--border)", "auth-card-pad": "36px 34px",
+  },
+  mobile: {
+    "desktop-flex": "none", "desktop-block": "none", "desktop-grid": "none",
+    "mobile-flex": "flex", "mobile-block": "block", "mobile-grid": "grid",
+    "nav-height": "97px", "page-pad": "12px",
+    "grid-col-gap": "10px", "grid-row-gap": "24px", "cards-pad": "14px 12px 96px",
+    "content-pad": "16px 12px 24px",
+    "strip-cols": "none", "strip-flow": "column", "strip-overflow": "auto",
+    "auth-justify": "flex-end", "auth-pad": "24px 16px 20px",
+    "auth-card-bg": "transparent", "auth-card-border": "none", "auth-card-pad": "0",
+  },
+};
+const layoutVars = vars => Object.entries(vars).map(([k, v]) => `--${k}: ${v};`).join(" ");
+
+// Show an element on one layout only: display: SHOW.mobileFlex is "flex" on
+// phones and "none" on desktop. Pick the variant matching the element's display.
+export const SHOW = {
+  desktopFlex: "var(--desktop-flex)", desktopBlock: "var(--desktop-block)", desktopGrid: "var(--desktop-grid)",
+  mobileFlex: "var(--mobile-flex)", mobileBlock: "var(--mobile-block)", mobileGrid: "var(--mobile-grid)",
+};
+// Height of the sticky navbar (one row on desktop, two on phones), the page's
+// side padding, and the card grid's gaps and padding.
+export const LAYOUT = {
+  navHeight: "var(--nav-height)", pagePad: "var(--page-pad)",
+  gridColGap: "var(--grid-col-gap)", gridRowGap: "var(--grid-row-gap)", cardsPad: "var(--cards-pad)",
+  // Padding for reading / list pages (decks, news, dev log).
+  contentPad: "var(--content-pad)",
+};
+
+// A card grid on desktop that becomes one sideways-scrolling row on phones:
+// spread into the container's style. Phone items are `stripItem` wide.
+export const STRIP = {
+  display: "grid", gridTemplateColumns: "var(--strip-cols)", gridAutoFlow: "var(--strip-flow)",
+  gridAutoColumns: "236px", overflowX: "var(--strip-overflow)", scrollbarWidth: "none",
+};
+
 export const BASE_STYLES = `
   :root { ${themeVars(THEMES.dark)} color-scheme: dark; }
   :root[data-theme="light"] { ${themeVars(THEMES.light)} color-scheme: light; }
+  :root { ${layoutVars(LAYOUT_VARS.desktop)} }
+  @media (max-width: ${MOBILE_MAX_WIDTH}px) { :root { ${layoutVars(LAYOUT_VARS.mobile)} } }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html { scroll-behavior: smooth; }
   body { background: ${COLORS.bg}; color: ${COLORS.text}; font-family: ${FONT_MONO}; }

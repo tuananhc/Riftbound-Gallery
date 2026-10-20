@@ -1,7 +1,26 @@
 // Stats over saved MatchHistory items — { matchId, result: "WIN"|"LOSS"|"DRAW",
-// playedAt, opponent, opponentId, myChampion, opponentChampion, eloBefore,
-// eloChange, eloAfter, season, ... } (see lambda/saveMatchHistory.mjs).
+// score, playedAt, opponent, opponentId, myChampion, opponentChampion,
+// eloBefore, eloChange, eloAfter, season, ... } (see lambda/saveMatchHistory.mjs).
 // Pure functions; the profile's Data tab and record boxes render these.
+
+// Final game scores (yours first) each result can end on: best of 3, then best
+// of 1. The save Lambda checks against the same list.
+export const SCORES = {
+	WIN: ["2-0", "2-1", "1-0"],
+	LOSS: ["0-2", "1-2", "0-1"],
+	DRAW: ["1-1", "0-0"],
+};
+
+// Scores to offer for a result, either case ("win" or "WIN").
+export function scoreOptions(result) {
+	return SCORES[String(result).toUpperCase()] ?? [];
+}
+
+// 3 once either side won 2 games or both won one; otherwise 1 (a best of 3
+// that went to time can also end 1-0 or 0-0).
+export function bestOf(score) {
+	return /2|1-1/.test(score) ? 3 : 1;
+}
 
 // Oldest first; matches from one event share a timestamp, so matchId breaks ties.
 export function sortChronological(matches) {
@@ -25,10 +44,21 @@ export function seasonLabel(slug) {
 	return slug.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 }
 
-// season / legend of null mean "all".
-export function filterMatches(matches, { season, legend }) {
+// The season a match belongs to: its stored slug, or — for rows saved before
+// seasons were stored — the season (from EloShowdown's list) whose start/end
+// contain the match's date. Works for stored items and elo-history points.
+export function seasonOfMatch(m, seasons = []) {
+	if (m.season) return m.season;
+	const at = m.playedAt ?? m.date;
+	if (!at) return null;
+	return seasons.find(s => (!s.start || at >= s.start) && (!s.end || at <= s.end))?.slug ?? null;
+}
+
+// season / legend of null mean "all". `seasons` (EloShowdown's list) places
+// rows that have no stored season by their date.
+export function filterMatches(matches, { season, legend, seasons }) {
 	return matches.filter(m =>
-		(!season || m.season === season) && (!legend || m.myChampion === legend)
+		(!season || seasonOfMatch(m, seasons) === season) && (!legend || m.myChampion === legend)
 	);
 }
 

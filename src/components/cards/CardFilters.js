@@ -1,5 +1,5 @@
 import { ALL_COLORS, ALL_TAGS, COLOR_CONFIG, KEYWORD_STYLES, TAGS_IMG } from "../../lib/cards/data";
-import { COLORS, FONT_MONO } from "../../lib/data";
+import { COLORS, FONT_MONO, LAYOUT, SHOW } from "../../lib/data";
 import Image from "next/image";
 
 export default function CardFilters({
@@ -23,10 +23,10 @@ export default function CardFilters({
 			width: 240, flexShrink: 0,
 			borderRight: `1px solid ${COLORS.border}`,
 			padding: "24px 18px",
-			display: "flex", flexDirection: "column", gap: 26,
+			display: SHOW.desktopFlex, flexDirection: "column", gap: 26,
 			background: COLORS.bgAlt,
-			position: "sticky", top: 62,
-			height: "calc(100vh - 62px)", overflowY: "auto",
+			position: "sticky", top: LAYOUT.navHeight,
+			height: `calc(100vh - ${LAYOUT.navHeight})`, overflowY: "auto",
 		}}>
 			{/* Search */}
 			<div>

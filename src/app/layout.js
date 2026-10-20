@@ -1,6 +1,6 @@
 import Navbar from "../components/Navbar";
 import { CardStoreProvider } from "../components/CardStoreProvider";
-import { BASE_STYLES, FONTS, COLORS, THEME_STORAGE_KEY } from "../lib/data";
+import { BASE_STYLES, FONTS, COLORS, LAYOUT, THEME_STORAGE_KEY } from "../lib/data";
 
 // Runs before first paint so a saved light theme never flashes dark first.
 const THEME_INIT = `try{if(localStorage.getItem("${THEME_STORAGE_KEY}")==="light")document.documentElement.dataset.theme="light"}catch(e){}`;
@@ -20,7 +20,7 @@ export default function RootLayout({ children }) {
 				<style dangerouslySetInnerHTML={{ __html: FONTS + BASE_STYLES }} />
 				<Navbar />
 				<CardStoreProvider>
-					<main style={{ minHeight: "calc(100vh - 62px)", background: COLORS.bg }}>
+					<main style={{ minHeight: `calc(100vh - ${LAYOUT.navHeight})`, background: COLORS.bg }}>
 						{children}
 					</main>
 				</CardStoreProvider>

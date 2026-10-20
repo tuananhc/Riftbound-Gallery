@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getAllPosts } from "../../lib/posts";
-import { COLORS, FONT_MONO, alpha } from "../../lib/data";
+import { COLORS, FONT_MONO, LAYOUT, alpha } from "../../lib/data";
 
 const CATEGORY_CONFIG = {
 	"Set Release":    { color: "#b08968", bg: COLORS.bgCard, icon: "🃏" },
@@ -25,11 +25,11 @@ export default function NewsPage() {
 				.featured-card:hover { border-color: var(--border-hover) !important; transform: translateY(-2px); }
 			`}</style>
 
-			<div style={{ maxWidth: 1000, margin: "0 auto", padding: "40px 24px" }}>
+			<div style={{ maxWidth: 1000, margin: "0 auto", padding: LAYOUT.contentPad }}>
 
 				{/* Page title */}
 				<div style={{ marginBottom: 36 }}>
-					<h1 style={{ fontSize: 28, fontWeight: 900, color: COLORS.accent, letterSpacing: "0.12em", fontFamily: FONT_MONO, marginBottom: 6 }}>
+					<h1 style={{ fontSize: "clamp(20px, 5.5vw, 28px)", fontWeight: 900, color: COLORS.accent, letterSpacing: "0.12em", fontFamily: FONT_MONO, marginBottom: 6 }}>
 						RIFT DISPATCH
 					</h1>
 					<p style={{ fontSize: 15, color: COLORS.textMuted, fontFamily: FONT_MONO, fontStyle: "italic" }}>
@@ -54,7 +54,7 @@ export default function NewsPage() {
 								fontSize: 10, color: COLORS.accent, fontFamily: FONT_MONO, letterSpacing: "0.15em",
 							}}>★ FEATURED</div>
 
-							<div style={{ padding: "52px 36px 36px" }}>
+							<div style={{ padding: "52px clamp(16px, 4.5vw, 36px) clamp(16px, 4.5vw, 36px)" }}>
 								{featured.category && (() => {
 									const cat = CATEGORY_CONFIG[featured.category] || { color: COLORS.textMuted, bg: COLORS.border, icon: "📄" };
 									return (
@@ -63,13 +63,13 @@ export default function NewsPage() {
 										</span>
 									);
 								})()}
-								<h2 style={{ fontSize: 26, fontWeight: 900, color: COLORS.text, fontFamily: FONT_MONO, letterSpacing: "0.06em", lineHeight: 1.3, marginBottom: 12, marginTop: 12 }}>
+								<h2 style={{ fontSize: "clamp(19px, 5vw, 26px)", fontWeight: 900, color: COLORS.text, fontFamily: FONT_MONO, letterSpacing: "0.06em", lineHeight: 1.3, marginBottom: 12, marginTop: 12 }}>
 									{featured.title}
 								</h2>
-								<p style={{ fontSize: 15, color: COLORS.textMuted, fontFamily: FONT_MONO, lineHeight: 1.7, marginBottom: 20 }}>
+								<p style={{ fontSize: "clamp(12px, 3.4vw, 15px)", color: COLORS.textMuted, fontFamily: FONT_MONO, lineHeight: 1.7, marginBottom: 20 }}>
 									{featured.excerpt}
 								</p>
-								<div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+								<div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "6px 12px" }}>
 									<span style={{ fontSize: 11, color: COLORS.textDim, fontFamily: FONT_MONO, letterSpacing: "0.08em" }}>
 										{new Date(featured.date).toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" }).toUpperCase()}
 									</span>
@@ -94,12 +94,12 @@ export default function NewsPage() {
 						<div style={{ fontSize: 10, color: COLORS.textDim, letterSpacing: "0.2em", fontFamily: FONT_MONO, marginBottom: 16 }}>
 							LATEST DISPATCHES
 						</div>
-						<div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+						<div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(280px, 100%), 1fr))", gap: "clamp(10px, 3vw, 16px)" }}>
 							{rest.map(post => {
 								const cat = CATEGORY_CONFIG[post.category] || { color: COLORS.textMuted, bg: COLORS.border, icon: "📄" };
 								return (
 									<Link key={post.slug} href={`/news/${post.slug}`} className="post-card">
-										<div style={{ padding: "22px 20px" }}>
+										<div style={{ padding: "clamp(14px, 3.5vw, 22px) clamp(14px, 3.5vw, 20px)" }}>
 											<span className="category-badge" style={{ background: cat.bg, border: `1px solid ${alpha(cat.color, 27)}`, color: cat.color, marginBottom: 14 }}>
 												{cat.icon} {(post.category || "NEWS").toUpperCase()}
 											</span>

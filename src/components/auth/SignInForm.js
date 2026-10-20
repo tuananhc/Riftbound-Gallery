@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { CognitoUser, AuthenticationDetails } from "amazon-cognito-identity-js";
 import { getUserPool } from "../../lib/cognito";
 import { COLORS } from "../../lib/data";
-import { FONT, Field, Input, SubmitButton } from "./formPrimitives";
+import { AuthShell, ErrorBox, Field, Input, PasswordInput, SubmitButton } from "./formPrimitives";
 
 export default function SignInForm() {
 	const router = useRouter();
@@ -56,51 +56,22 @@ export default function SignInForm() {
 	}
 
 	return (
-		<div style={{ maxWidth: 440, margin: "0 auto", padding: "60px 24px" }}>
-			<div style={{
-				background: "linear-gradient(135deg, var(--bg-card) 0%, var(--bg-card) 50%, var(--bg-card) 100%)",
-				border: `1px solid ${COLORS.border}`, borderRadius: 0,
-				padding: "36px 34px", position: "relative", overflow: "hidden",
-			}}>
-				{/* bg decoration */}
-				<div style={{ position: "absolute", top: -50, right: -50, width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle, color-mix(in srgb, var(--bg-hover) 27%, transparent) 0%, transparent 70%)", pointerEvents: "none" }} />
-
-				{/* ── Header ── */}
-				<div style={{ marginBottom: 28, position: "relative" }}>
-					<h1 style={{ fontSize: 24, fontWeight: 900, color: COLORS.accent, letterSpacing: "0.08em", fontFamily: FONT }}>
-						Sign In
-					</h1>
-					<div style={{ fontSize: 13, color: COLORS.textMuted, fontStyle: "italic", marginTop: 6, fontFamily: FONT }}>
-						Welcome back to the Rift.
-					</div>
-				</div>
-
-				{/* ── Error ── */}
-				{error && (
-					<div style={{ marginBottom: 18, padding: "10px 14px", background: COLORS.bgRaised, border: "1px solid color-mix(in srgb, var(--loss) 27%, transparent)", borderRadius: 0, fontSize: 12, color: COLORS.loss, fontFamily: FONT }}>
-						{error}
-					</div>
-				)}
-
-				{/* ── Form ── */}
-				<form onSubmit={handleSignIn} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+		<AuthShell title="SIGN IN" sub="Welcome back. Your match history is waiting."
+			footer={<><span style={{ color: COLORS.textMuted }}>No account?</span><a href="/signup" style={{ color: COLORS.accent, fontWeight: 700 }}>Create one →</a></>}>
+			{error && <ErrorBox>{error}</ErrorBox>}
+			<form onSubmit={handleSignIn} style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+				<div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
 					<Field label="EMAIL">
 						<Input type="email" value={email} onChange={setEmail} placeholder="you@example.com" autoComplete="email" required />
 					</Field>
 					<Field label="PASSWORD">
-						<Input type="password" value={password} onChange={setPassword} placeholder="••••••••" autoComplete="current-password" required />
+						<PasswordInput value={password} onChange={setPassword} invalid={Boolean(error)} placeholder="••••••••" autoComplete="current-password" required />
 					</Field>
-					<SubmitButton loading={loading} disabled={!email || !password}>
-						{loading ? "SIGNING IN…" : "SIGN IN"}
-					</SubmitButton>
-				</form>
-
-				{/* ── Footer ── */}
-				<div style={{ marginTop: 22, textAlign: "center", fontSize: 12, color: COLORS.textDim, fontFamily: FONT }}>
-					New to Riftbound?{" "}
-					<a href="/signup" style={{ color: COLORS.accent }}>Create an account</a>
 				</div>
-			</div>
-		</div>
+				<SubmitButton loading={loading} disabled={!email || !password}>
+					{loading ? "SIGNING IN…" : "SIGN IN"}
+				</SubmitButton>
+			</form>
+		</AuthShell>
 	);
 }

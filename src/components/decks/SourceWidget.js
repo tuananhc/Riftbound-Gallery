@@ -15,7 +15,7 @@ export default function SourceWidget({ source, selected, onSelect }) {
 				background: selected ? "linear-gradient(135deg, var(--bg-card), var(--bg-raised))" : COLORS.bgCard,
 				border: `1px solid ${highlighted ? alpha(source.accentColor, 40) : COLORS.border}`,
 				borderRadius: 0,
-				padding: "22px 24px",
+				padding: "clamp(12px, 3.5vw, 22px) clamp(12px, 3.5vw, 24px)",
 				cursor: "pointer",
 				transition: "all 0.25s ease",
 				position: "relative",
