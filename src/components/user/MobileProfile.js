@@ -9,13 +9,15 @@ import LegendIcon from "../cards/LegendIcon";
 import RuneIcons from "../cards/RuneIcons";
 import MatchStats, { Chevron, FieldSelect } from "./MatchStats";
 import GuestNotice from "./GuestNotice";
+import GetStarted from "./GetStarted";
 
 // ── Profile on phones ────────────────────────────────────────────────────────
 // Same state and handlers as the desktop profile (UserProfile owns them), laid
 // out for a 360–390px screen: one-line user card that expands to stat tiles,
 // DATA / HISTORY tabs pinned under the navbar, two-line match rows whose legend
 // slots open a bottom-sheet picker, and a save bar that docks at the bottom
-// while picks are unsaved. A guest gets the not-saved notice under the card,
+// while picks are unsaved. Until an account is linked, the get-started steps sit
+// above the search; after that a guest gets the not-saved notice under the card,
 // and the save bar sends them to log in.
 
 const LABEL = { fontSize: 10, letterSpacing: "0.14em", color: COLORS.textDim };
@@ -43,7 +45,8 @@ export default function MobileProfile(p) {
 	return (
 		<div style={{ fontFamily: FONT_MONO, paddingBottom: showSaveBar ? 84 : 16 }}>
 			<UserCard {...p} onOpenAccounts={() => setAccountsOpen(true)} />
-			{p.isGuest && <GuestNotice mobile />}
+			{p.firstRun && <GetStarted mobile guest={p.isGuest} />}
+			{p.isGuest && !p.firstRun && <GuestNotice mobile />}
 			{p.carriedOver && <GuestNotice mobile carried onSave={p.onSave} saving={p.saving} />}
 
 			{p.profileStatus === "loading" && <Note>LOADING PROFILE…</Note>}

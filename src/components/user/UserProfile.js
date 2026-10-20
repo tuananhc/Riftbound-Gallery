@@ -17,6 +17,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { saveMatchHistory, getMatchHistory, getEloHistory, getSeasons, getPlayerTournaments, getProfile, addEloAccount, selectEloAccount, removeEloAccount } from "../../lib/api";
 import { readGuestDraft, writeGuestDraft, clearGuestDraft } from "../../lib/guestDraft";
 import GuestNotice, { GUEST_SAVE_HINT } from "./GuestNotice";
+import GetStarted from "./GetStarted";
 
 // ── Dummy data ─────────────────────────────────────────────────────────────────
 
@@ -530,6 +531,8 @@ export default function UserProfile({ legends = [] }) {
 	}
 
 	const showSearch = profileStatus === "ready" && (!linkedPlayer || addingAccount);
+	// No account linked yet: lead with the get-started steps above the search.
+	const firstRun = profileStatus === "ready" && !linkedPlayer;
 
 	// What the record boxes and Data tab count: the active account's saved
 	// matches — or, for a guest, who has none, the rows on the page.
@@ -568,7 +571,7 @@ export default function UserProfile({ legends = [] }) {
 			<MobileProfile
 				legends={legends} user={user} rank={rank} isGuest={isGuest} carriedOver={carriedOver}
 				linkedPlayer={linkedPlayer} accounts={accounts} activeId={activeId}
-				profileStatus={profileStatus} linkError={linkError} showSearch={showSearch} addingAccount={addingAccount}
+				profileStatus={profileStatus} linkError={linkError} showSearch={showSearch} firstRun={firstRun} addingAccount={addingAccount}
 				eloQuery={eloQuery} setEloQuery={setEloQuery} eloResults={eloResults} eloLoading={eloLoading} eloError={eloError}
 				onSearch={handleEloSearch} onPickPlayer={selectPlayer}
 				onCancelAdd={() => { setAddingAccount(false); setEloResults([]); setEloQuery(""); setEloError(null); }}
@@ -646,7 +649,8 @@ export default function UserProfile({ legends = [] }) {
 				{statsOpen && <StatTiles stats={cardStats} season={cardSeason.season} ready={statsReady} />}
 			</div>
 
-			{isGuest && <GuestNotice />}
+			{firstRun && <GetStarted guest={isGuest} />}
+			{isGuest && !firstRun && <GuestNotice />}
 			{carriedOver && <GuestNotice carried onSave={handleSaveHistory} saving={saving} />}
 
 			{/* ── EloShowdown Search ── */}
