@@ -182,13 +182,13 @@ function Record({ record }) {
 	);
 }
 
-// "ES" mark for an EloShowdown account.
+// "ID" mark for a linked Riot account ID.
 function EsBadge() {
 	return (
 		<span style={{
 			width: 22, height: 22, flexShrink: 0, border: `1px solid ${COLORS.borderHover}`, display: "flex", alignItems: "center", justifyContent: "center",
 			fontSize: 8, fontWeight: 700, color: COLORS.textMuted, letterSpacing: "0.05em",
-		}}>ES</span>
+		}}>ID</span>
 	);
 }
 
@@ -198,13 +198,13 @@ function LinkAccount({ addingAccount, eloQuery, setEloQuery, eloResults, eloLoad
 	return (
 		<div style={{ margin: "12px 12px 0", background: COLORS.bgCard, border: `1px solid ${COLORS.border}`, padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
 			<div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-				<span style={{ ...LABEL, flex: 1, lineHeight: 1.6 }}>{addingAccount ? "LINK ANOTHER ELOSHOWDOWN ACCOUNT" : "FIND YOUR MATCH HISTORY WITH YOUR RIOT ID"}</span>
+				<span style={{ ...LABEL, flex: 1, lineHeight: 1.6 }}>{addingAccount ? "LINK ANOTHER RIOT ACCOUNT ID" : "FIND YOUR MATCH HISTORY WITH YOUR RIOT ACCOUNT ID"}</span>
 				{addingAccount && (
 					<button onClick={onCancelAdd} style={{ height: 44, padding: "0 8px", background: "transparent", border: "none", color: COLORS.textMuted, fontFamily: FONT_MONO, fontSize: 11, letterSpacing: "0.12em", cursor: "pointer" }}>CANCEL</button>
 				)}
 			</div>
 			<form onSubmit={onSearch} style={{ display: "flex", gap: 8 }}>
-				<input value={eloQuery} onChange={e => setEloQuery(e.target.value)} placeholder="EloShowdown username"
+				<input value={eloQuery} onChange={e => setEloQuery(e.target.value)} placeholder="Your Riot account ID"
 					onFocus={e => { e.target.style.borderColor = COLORS.accent; }}
 					onBlur={e => { e.target.style.borderColor = COLORS.border; }}
 					style={{ flex: 1, minWidth: 0, height: 48, padding: "0 12px", background: COLORS.bgRaised, border: `1px solid ${COLORS.border}`, color: COLORS.textStrong, fontFamily: FONT_MONO, fontSize: 16, outline: "none" }} />
@@ -236,7 +236,7 @@ function AccountSheet({ isGuest, accounts, activeId, savedMatches, onSwitchAccou
 	const active = accounts.find(a => a.id === activeId);
 	const row = { display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "0 16px", background: "transparent", border: "none", borderTop: `1px solid ${COLORS.border}`, cursor: "pointer", textAlign: "left", fontFamily: FONT_MONO };
 	return (
-		<BottomSheet title="ELOSHOWDOWN ACCOUNTS" onClose={onClose}>
+		<BottomSheet title="YOUR RIOT ACCOUNT IDS" onClose={onClose}>
 			<div style={{ paddingBottom: "calc(16px + env(safe-area-inset-bottom))" }}>
 				{accounts.map(a => {
 					const isActive = a.id === activeId;
@@ -294,8 +294,8 @@ function History(p) {
 			{!eloHistoryLoading && savedStatus === "ready" && points.length === 0 && (
 				<div style={{ margin: 12, background: COLORS.bgCard, border: `1px solid ${COLORS.border}`, padding: "36px 20px", display: "flex", flexDirection: "column", alignItems: "center", gap: 14, textAlign: "center" }}>
 					<div style={LABEL}>{p.isGuest ? "NO MATCHES FOUND" : "NO SAVED MATCHES YET"}</div>
-					<div style={{ fontSize: 13, lineHeight: 1.6 }}>{p.isGuest ? `This account has no matches on EloShowdown in ${p.seasonName}.` : `Nothing saved in ${p.seasonName}. Tap Search to pull it from EloShowdown.`}</div>
-					<button onClick={p.onSync} disabled={p.syncing} style={{ ...primaryButton, padding: "0 20px" }}>{p.syncing ? "SEARCHING…" : "SEARCH ELOSHOWDOWN"}</button>
+					<div style={{ fontSize: 13, lineHeight: 1.6 }}>{p.isGuest ? `This Riot account ID has no matches in ${p.seasonName}.` : `Nothing saved in ${p.seasonName}. Tap Search to load it for your Riot account ID.`}</div>
+					<button onClick={p.onSync} disabled={p.syncing} style={{ ...primaryButton, padding: "0 20px" }}>{p.syncing ? "SEARCHING…" : "SEARCH"}</button>
 				</div>
 			)}
 			{points.length > 0 && <Events {...p} />}
@@ -322,7 +322,7 @@ const secondaryButton = {
 
 function SearchButton({ onSync, syncing, eloHistoryLoading }) {
 	return (
-		<button onClick={onSync} disabled={syncing || eloHistoryLoading} title="Load the latest matches from EloShowdown"
+		<button onClick={onSync} disabled={syncing || eloHistoryLoading} title="Load the latest matches for your Riot account ID"
 			style={{ ...secondaryButton, height: 44, padding: "0 14px", display: "flex", alignItems: "center", gap: 8, flexShrink: 0, opacity: eloHistoryLoading ? 0.5 : 1 }}>
 			<SearchIcon />{syncing ? "SEARCHING…" : "SEARCH"}
 		</button>

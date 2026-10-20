@@ -37,7 +37,7 @@ export async function GET(request) {
 	try {
 		player = await getPlayer(playerId);
 	} catch {
-		return NextResponse.json({ error: "Player not found on EloShowdown." }, { status: 404 });
+		return NextResponse.json({ error: "No player found for that Riot account ID." }, { status: 404 });
 	}
 	if (!player.riftbound_id) return NextResponse.json(notFound);
 
