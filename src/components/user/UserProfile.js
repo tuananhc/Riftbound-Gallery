@@ -520,7 +520,7 @@ export default function UserProfile({ legends = [] }) {
 			setEloResults(data);
 			if (data.length === 0) setEloError("No players found.");
 		} catch {
-			setEloError("Could not reach EloShowdown. Please try again.");
+			setEloError("Could not look up that Riot account ID. Please try again.");
 		} finally {
 			setEloLoading(false);
 		}
@@ -564,7 +564,7 @@ export default function UserProfile({ legends = [] }) {
 			const fresh = await getEloHistory(playerId);
 			if (historyRequest.current === playerId) setEloHistory(mergeHistory(null, fresh));
 		} catch {
-			if (historyRequest.current === playerId) setSyncError("Could not reach EloShowdown. Please try again.");
+			if (historyRequest.current === playerId) setSyncError("Could not load matches for your Riot account ID. Please try again.");
 		} finally {
 			if (historyRequest.current === playerId) { setEloHistoryLoading(false); setSavedStatus("ready"); }
 		}
@@ -588,7 +588,7 @@ export default function UserProfile({ legends = [] }) {
 			if (historyRequest.current !== playerId) return;
 			setEloHistory(prev => mergeHistory(prev, fresh));
 		} catch {
-			if (historyRequest.current === playerId) setSyncError("Could not reach EloShowdown. Please try again.");
+			if (historyRequest.current === playerId) setSyncError("Could not load matches for your Riot account ID. Please try again.");
 		} finally {
 			setSyncing(false);
 		}
@@ -747,7 +747,7 @@ export default function UserProfile({ legends = [] }) {
 				{showSearch && (<>
 				<div style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
 					<div style={{ fontSize: 10, color: COLORS.textDim, letterSpacing: "0.18em", fontFamily: FONT_MONO }}>
-						{addingAccount ? "Link another EloShowdown account" : "Find your latest match history with Riot ID"}
+						{addingAccount ? "Link another Riot account ID" : "Find your latest match history with your Riot account ID"}
 					</div>
 					{addingAccount && (
 						<button onClick={() => { setAddingAccount(false); setEloResults([]); setEloQuery(""); setEloError(null); }}
@@ -760,7 +760,7 @@ export default function UserProfile({ legends = [] }) {
 				<form onSubmit={handleEloSearch} style={{ display: "flex", gap: 6 }}>
 					<input
 						type="text"
-						placeholder="Enter your EloShowdown username…"
+						placeholder="Enter your Riot account ID…"
 						value={eloQuery}
 						onChange={e => setEloQuery(e.target.value)}
 						onFocus={e => { e.target.style.borderColor = COLORS.accentDim; }}
@@ -853,7 +853,7 @@ export default function UserProfile({ legends = [] }) {
 								{seasonName.toUpperCase()}
 							</div>
 							<button onClick={handleSync} disabled={syncing || eloHistoryLoading}
-								title="Load the latest matches from EloShowdown"
+								title="Load the latest matches for your Riot account ID"
 								onMouseEnter={e => { if (!syncing) { e.currentTarget.style.borderColor = COLORS.accentDim; e.currentTarget.style.color = COLORS.accent; } }}
 								onMouseLeave={e => { e.currentTarget.style.borderColor = COLORS.border; e.currentTarget.style.color = COLORS.textMuted; }}
 								style={{
@@ -882,8 +882,8 @@ export default function UserProfile({ legends = [] }) {
 						{!eloHistoryLoading && savedStatus === "ready" && !shownHistory?.points?.length && (
 							<div style={{ fontSize: 11, color: COLORS.textMuted, fontFamily: FONT_MONO, padding: "4px 0" }}>
 								{isGuest
-									? `No matches found on EloShowdown for this account in ${seasonName}.`
-									: `No saved matches in ${seasonName}. Click Search to load them from EloShowdown.`}
+									? `No matches found for this Riot account ID in ${seasonName}.`
+									: `No saved matches in ${seasonName}. Click Search to load them for your Riot account ID.`}
 							</div>
 						)}
 						{ shownHistory?.points?.length > 0 && (() => {

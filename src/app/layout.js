@@ -45,3 +45,23 @@ export default function RootLayout({ children }) {
 		</html>
 	);
 }
+
+// Credits for the data and assets the site is built on. Riot account IDs are
+// looked up through EloShowdown's public API; card art and game assets are Riot's.
+function Acknowledgements() {
+	const link = { color: COLORS.textMuted, textDecoration: "underline" };
+	return (
+		<section aria-label="Acknowledgements" style={{ display: "flex", flexDirection: "column", gap: 6, maxWidth: 720, fontFamily: FONT_MONO, fontSize: 11, lineHeight: 1.6, color: COLORS.textDim }}>
+			<div style={{ fontSize: 10, letterSpacing: "0.18em", color: COLORS.textMuted }}>ACKNOWLEDGEMENTS</div>
+			<p style={{ margin: 0 }}>
+				Riftbound, its card art and game assets are the property of <a href="https://www.riotgames.com" target="_blank" rel="noopener noreferrer" style={link}>Riot Games</a>, and the game is published by <a href="https://www.uvsgames.com" target="_blank" rel="noopener noreferrer" style={link}>UVS Games</a>. Card data comes from the official <a href="https://riftbound.leagueoflegends.com/en-us/card-gallery/" target="_blank" rel="noopener noreferrer" style={link}>Riftbound Card Gallery</a>.
+			</p>
+			<p style={{ margin: 0 }}>
+				Match history, Elo and tournament data for your Riot account ID are provided by <a href="https://eloshowdown.com/riftbound/" target="_blank" rel="noopener noreferrer" style={link}>EloShowdown</a> through their public API.
+			</p>
+			<p style={{ margin: 0 }}>
+				Riftbound Gallery is a fan project. It is not endorsed by or affiliated with Riot Games, UVS Games or EloShowdown.
+			</p>
+		</section>
+	);
+}
