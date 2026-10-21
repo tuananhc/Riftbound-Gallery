@@ -1,6 +1,6 @@
-# Riftbound — Next.js App
+# Bilgewater Tracker
 
-A full-stack card database and community app for the Riftbound TCG, built with Next.js 16 (App Router).
+A fan-made companion for the Riftbound TCG — match history, Elo, card database and decks — built with Next.js 16 (App Router).
 
 **Live:** [riftbound-gallery.vercel.app](https://riftbound-gallery.vercel.app/)
 
@@ -233,6 +233,7 @@ Setup, adding a Lambda, and debugging a failed deploy: see
 | `/decks` | Community deck lists from Piltover Archive and other sources |
 | `/news`, `/news/[slug]` | News index and posts |
 | `/devlog`, `/devlog/[slug]` | Development log |
+| `/about` | Why the site is called Bilgewater Tracker, plus Riot Games and EloShowdown credits |
 | `/login`, `/signup` | Cognito sign in and sign up |
 | `/user` | Redirects to `/` (old profile URL) |
 

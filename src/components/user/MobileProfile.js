@@ -7,6 +7,7 @@ import { countryFlag } from "../../lib/countries";
 import BottomSheet from "../BottomSheet";
 import LegendIcon from "../cards/LegendIcon";
 import RuneIcons from "../cards/RuneIcons";
+import NexusNight from "./NexusNight";
 import MatchStats, { Chevron, FieldSelect } from "./MatchStats";
 import GuestNotice from "./GuestNotice";
 
@@ -54,9 +55,9 @@ export default function MobileProfile(p) {
 				<>
 					<div role="tablist" style={{
 						position: "sticky", top: LAYOUT.navHeight, zIndex: 10, marginTop: 12,
-						display: "grid", gridTemplateColumns: "1fr 1fr", background: COLORS.bg, borderBottom: `1px solid ${COLORS.border}`,
+						display: "grid", gridTemplateColumns: "1fr 1fr 1.4fr", background: COLORS.bg, borderBottom: `1px solid ${COLORS.border}`,
 					}}>
-						{[["data", "DATA"], ["history", "HISTORY"]].map(([key, text]) => (
+						{[["data", "DATA"], ["history", "HISTORY"], ["nexus", "NEXUS NIGHT"]].map(([key, text]) => (
 							<button key={key} role="tab" aria-selected={p.matchTab === key} onClick={() => p.setMatchTab(key)} style={{
 								position: "relative", height: 48, background: "transparent", border: "none", cursor: "pointer",
 								fontFamily: FONT_MONO, fontSize: 11, letterSpacing: "0.14em", fontWeight: 700,
@@ -67,11 +68,15 @@ export default function MobileProfile(p) {
 							</button>
 						))}
 					</div>
-					{/* Season for both tabs */}
-					<div style={{ padding: "12px 12px 0" }}>
-						<FieldSelect label="SEASON" value={p.season ?? "all"} options={p.seasonOptions} onChange={p.onSeasonChange} />
-					</div>
-					{isHistory
+					{/* Season for Data and History; Nexus Night drafts aren't seasonal */}
+					{p.matchTab !== "nexus" && (
+						<div style={{ padding: "12px 12px 0" }}>
+							<FieldSelect label="SEASON" value={p.season ?? "all"} options={p.seasonOptions} onChange={p.onSeasonChange} />
+						</div>
+					)}
+					{p.matchTab === "nexus"
+						? <div style={{ padding: 12 }}><NexusNight {...p.nexusProps} mobile /></div>
+						: isHistory
 						? <History {...p} onOpenPicker={setPicker} />
 						: (
 							<div style={{ padding: 12 }}>
@@ -95,7 +100,7 @@ export default function MobileProfile(p) {
 
 // ── User card ────────────────────────────────────────────────────────────────
 
-function UserCard({ user, rank, isGuest, linkedPlayer, cardStats, cardSeason, statsReady, statsOpen, setStatsOpen, onOpenAccounts }) {
+function UserCard({ user, rank, isGuest, linkedPlayer, cardStats, cardSeason, statsReady, onOpenAccounts }) {
 	const { record, streaks, last, peak } = cardStats;
 	const winPct = record.winRate == null ? "—" : `${Math.round(record.winRate * 100)}%`;
 	const initials = user.username.replace(/[^a-z0-9]/gi, "").slice(0, 2).toUpperCase();
@@ -126,39 +131,25 @@ function UserCard({ user, rank, isGuest, linkedPlayer, cardStats, cardSeason, st
 						)}
 					</div>
 				</div>
-				<button onClick={() => setStatsOpen(o => !o)} aria-expanded={statsOpen} style={{
-					width: "100%", height: 48, display: "flex", alignItems: "center", gap: 12, padding: "0 12px",
-					background: "transparent", border: "none", borderTop: `1px solid ${COLORS.border}`,
-					color: COLORS.text, fontFamily: FONT_MONO, fontSize: 13, cursor: "pointer", textAlign: "left",
-				}}>
-					<span><span style={LABEL}>ELO </span><span style={{ color: COLORS.accent, fontWeight: 700 }}>{statsReady ? last?.eloAfter ?? "—" : "—"}</span></span>
-					<span style={{ color: COLORS.textDim }}>·</span>
-					<span>{statsReady ? <Record record={record} /> : "—"}</span>
-					<span style={{ color: COLORS.textDim }}>·</span>
-					<span>{statsReady ? winPct : "—"}</span>
-					<span style={{ marginLeft: "auto", fontSize: 10, color: COLORS.textDim, transform: statsOpen ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>▼</span>
-				</button>
-				{statsOpen && (
-					<div style={{ padding: "0 12px 12px" }}>
-						<div style={{ ...LABEL, marginBottom: 8 }}>{cardSeason.season ? seasonLabel(cardSeason.season).toUpperCase() : "ALL SAVED MATCHES"}</div>
-						{!statsReady ? (
-							<div style={{ fontSize: 11, color: COLORS.textDim }}>Stats appear once your saved matches load.</div>
-						) : (
-							// ELO and PEAK get the wide row — the numbers people check first.
-							<div style={{ display: "grid", gridTemplateColumns: "repeat(6, minmax(0, 1fr))", gap: 6 }}>
-								<Tile span={3} hero label="ELO" value={last?.eloAfter ?? "—"} valueColor={COLORS.accent}
-									sub={last?.eloChange ? `${last.eloChange > 0 ? "+" : ""}${last.eloChange} last` : ""}
-									subColor={last?.eloChange > 0 ? COLORS.win : COLORS.loss} />
-								<Tile span={3} hero label="PEAK" value={peak?.eloAfter ?? "—"} sub={shortDate(peak?.playedAt)} />
-								<Tile span={2} label="RECORD" value={<Record record={record} />} sub={`${record.games} games`} />
-								<Tile span={2} label="WIN%" value={winPct} sub={record.draws ? "draws = games" : ""} />
-								<Tile span={2} label="STREAK" value={streaks.current ? `${streaks.current.result[0]}${streaks.current.length}` : "—"}
-									valueColor={streaks.current ? RESULT_COLOR[streaks.current.result.toLowerCase()] : undefined}
-									sub={streaks.bestWin ? `best W${streaks.bestWin}` : ""} />
-							</div>
-						)}
-					</div>
-				)}
+				<div style={{ padding: 12, borderTop: `1px solid ${COLORS.border}` }}>
+					<div style={{ ...LABEL, marginBottom: 8 }}>{cardSeason.season ? seasonLabel(cardSeason.season).toUpperCase() : "ALL SAVED MATCHES"}</div>
+					{!statsReady ? (
+						<div style={{ fontSize: 11, color: COLORS.textDim }}>Stats appear once your saved matches load.</div>
+					) : (
+						// ELO and PEAK get the wide row — the numbers people check first.
+						<div style={{ display: "grid", gridTemplateColumns: "repeat(6, minmax(0, 1fr))", gap: 6 }}>
+							<Tile span={3} hero label="ELO" value={last?.eloAfter ?? "—"} valueColor={COLORS.accent}
+								sub={last?.eloChange ? `${last.eloChange > 0 ? "+" : ""}${last.eloChange} last` : ""}
+								subColor={last?.eloChange > 0 ? COLORS.win : COLORS.loss} />
+							<Tile span={3} hero label="PEAK" value={peak?.eloAfter ?? "—"} sub={shortDate(peak?.playedAt)} />
+							<Tile span={2} label="RECORD" value={<Record record={record} />} sub={`${record.games} games`} />
+							<Tile span={2} label="WIN%" value={winPct} sub={record.draws ? "draws = games" : ""} />
+							<Tile span={2} label="STREAK" value={streaks.current ? `${streaks.current.result[0]}${streaks.current.length}` : "—"}
+								valueColor={streaks.current ? RESULT_COLOR[streaks.current.result.toLowerCase()] : undefined}
+								sub={streaks.bestWin ? `best W${streaks.bestWin}` : ""} />
+						</div>
+					)}
+				</div>
 			</div>
 		</div>
 	);

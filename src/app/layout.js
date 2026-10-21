@@ -1,6 +1,12 @@
+import Link from "next/link";
 import Navbar from "../components/Navbar";
 import { CardStoreProvider } from "../components/CardStoreProvider";
-import { BASE_STYLES, FONTS, COLORS, LAYOUT, THEME_STORAGE_KEY } from "../lib/data";
+import { BASE_STYLES, FONTS, COLORS, LAYOUT, SITE_NAME, THEME_STORAGE_KEY } from "../lib/data";
+
+export const metadata = {
+	title: { default: SITE_NAME, template: `%s — ${SITE_NAME}` },
+	description: "A fan-made Riftbound companion for tracking match history, Elo and decks.",
+};
 
 // Runs before first paint so a saved light theme never flashes dark first.
 const THEME_INIT = `try{if(localStorage.getItem("${THEME_STORAGE_KEY}")==="light")document.documentElement.dataset.theme="light"}catch(e){}`;
@@ -26,10 +32,15 @@ export default function RootLayout({ children }) {
 				</CardStoreProvider>
 				<footer style={{
 					borderTop: `1px solid ${COLORS.border}`,
-					padding: "24px 32px",
-					display: "flex", justifyContent: "space-between", alignItems: "center",
-					background: COLORS.bgAlt,
-				}} />
+					padding: `24px ${LAYOUT.pagePad}`,
+					display: "flex", flexWrap: "wrap", gap: "12px 24px", justifyContent: "space-between", alignItems: "center",
+					background: COLORS.bgAlt, fontSize: 11, letterSpacing: "0.08em", color: COLORS.textDim,
+				}}>
+					<span>{SITE_NAME.toUpperCase()} · A FAN SITE, NOT ENDORSED BY RIOT GAMES</span>
+					<Link href="/about" style={{ color: COLORS.textMuted, textDecoration: "underline", textUnderlineOffset: 3 }}>
+						ABOUT & CREDITS
+					</Link>
+				</footer>
 			</body>
 		</html>
 	);

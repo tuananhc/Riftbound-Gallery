@@ -8,14 +8,16 @@ import { legendLabel } from "../../lib/cards/data";
 import RuneIcons from "../cards/RuneIcons";
 import MatchStats from "./MatchStats";
 import MobileProfile from "./MobileProfile";
+import NexusNight from "./NexusNight";
 import Dropdown from "../Dropdown";
 import { useIsMobile } from "../../hooks/useIsMobile";
-import { StatSummary, StatTiles } from "./ProfileStats";
+import { StatTiles } from "./ProfileStats";
 import { latestSeason, summarize, seasonOfMatch, seasonsOf, seasonLabel, scoreOptions, bestOf } from "../../lib/matchStats";
 import { countryFlag } from "../../lib/countries";
 import { useAuth } from "../../hooks/useAuth";
-import { saveMatchHistory, getMatchHistory, getEloHistory, getSeasons, getPlayerTournaments, getProfile, addEloAccount, selectEloAccount, removeEloAccount } from "../../lib/api";
+import { saveMatchHistory, getMatchHistory, getDrafts, saveDraft, deleteDraft, getEloHistory, getSeasons, getPlayerTournaments, getProfile, addEloAccount, selectEloAccount, removeEloAccount } from "../../lib/api";
 import { readGuestDraft, writeGuestDraft, clearGuestDraft } from "../../lib/guestDraft";
+import { newDraft, matchDraftGames, draftPicks, readLocalDrafts, writeLocalDrafts } from "../../lib/nexusDrafts";
 import GuestNotice, { GUEST_SAVE_HINT } from "./GuestNotice";
 
 // ── Dummy data ─────────────────────────────────────────────────────────────────
@@ -44,6 +46,8 @@ const GUEST_RANK = { color: COLORS.textMuted, glow: COLORS.bgRaised, icon: "" };
 
 // How many match-history rows to reveal per "Load More" click.
 const ELO_PAGE_SIZE = 10;
+// Nexus Night drafts save this long after the last edit.
+const DRAFT_SAVE_DELAY_MS = 800;
 
 // ── Match history data ────────────────────────────────────────────────────────
 // The rows render EloShowdown's elo-history shape — { season_slug, points } with
@@ -181,9 +185,8 @@ export default function UserProfile({ legends = [] }) {
 	// "Apply to all matches in this event" in your legend picker — on by default,
 	// since a player almost always runs one legend for a whole event.
 	const [fillEvent, setFillEvent] = useState(true);
-	// User card: collapsed shows a one-line record, expanded the full stat tiles.
-	const [statsOpen, setStatsOpen] = useState(false);
-	// Match section tab: "data" (analysis) or "history" (the editable rows).
+	// Match section tab: "data" (analysis), "history" (the editable rows) or
+	// "nexus" (Nexus Night drafts).
 	const [matchTab, setMatchTab] = useState("data");
 	const [saveMsg, setSaveMsg] = useState(null);
 	const dismissSave = useCallback(() => setSaveMsg(null), []);
@@ -193,6 +196,12 @@ export default function UserProfile({ legends = [] }) {
 	const isMobile = useIsMobile();
 	// Season shown on both tabs, picked beside them; null until picked (current season).
 	const [seasonChoice, setSeasonChoice] = useState(null);
+	// Nexus Night drafts (every linked account's), their load status, and each
+	// draft's save state: { [draftId]: "saving" | "saved" | "error" }.
+	const [drafts, setDrafts] = useState([]);
+	const [draftsStatus, setDraftsStatus] = useState("loading");
+	const [draftSave, setDraftSave] = useState({});
+	const draftTimers = useRef({});
 	// EloShowdown's seasons: the selector's options, and the dates that place
 	// rows saved without a season. If they can't load, the saved rows' own
 	// seasons fill the selector instead.
@@ -271,6 +280,16 @@ export default function UserProfile({ legends = [] }) {
 		return () => { cancelled = true; };
 	}, [token]);
 
+	// Signed in: load the Nexus Night drafts.
+	useEffect(() => {
+		if (!token) return;
+		let cancelled = false;
+		getDrafts(token)
+			.then(found => { if (!cancelled) { setDrafts(found); setDraftsStatus("ready"); } })
+			.catch(() => { if (!cancelled) setDraftsStatus("error"); });
+		return () => { cancelled = true; };
+	}, [token]);
+
 	// Guests: pick up this tab's draft, so their work survives moving between
 	// pages. Nothing is stored for them, so the save checks start out "ready".
 	// A one-time read of sessionStorage, which doesn't exist during SSR — the
@@ -280,6 +299,8 @@ export default function UserProfile({ legends = [] }) {
 		// eslint-disable-next-line react-hooks/set-state-in-effect
 		setSavedStatus("ready");
 		setProfileStatus("ready");
+		setDrafts(readLocalDrafts());
+		setDraftsStatus("ready");
 		const draft = readGuestDraft();
 		if (!draft) return;
 		setAccounts(draft.accounts);
@@ -295,6 +316,11 @@ export default function UserProfile({ legends = [] }) {
 		writeGuestDraft({ accounts, activeId, history: eloHistory, picks: matchChampions });
 	}, [status, profileStatus, accounts, activeId, eloHistory, matchChampions]);
 
+	// A guest's Nexus Night drafts live in this browser.
+	useEffect(() => {
+		if (status === "guest" && draftsStatus === "ready") writeLocalDrafts(drafts);
+	}, [status, draftsStatus, drafts]);
+
 	// A guest with legend picks gets the browser's "leave site?" prompt on
 	// closing or reloading the tab — closing it is when their work is lost.
 	const guestHasPicks = isGuest && Object.values(matchChampions).some(p => p.mine || p.opponent || p.score);
@@ -307,6 +333,15 @@ export default function UserProfile({ legends = [] }) {
 
 	// Session still resolving — render nothing.
 	if (status === "loading") return null;
+
+	// The active account's Nexus Night drafts, newest event first, each drafted
+	// game paired with its EloShowdown row once that exists. Matched games fill
+	// the rows' empty picks, so History shows (and Save sends) them.
+	const accountDrafts = drafts
+		.filter(d => d.eloPlayerId === linkedPlayer?.id)
+		.sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
+	const draftMatches = linkedPlayer && eloHistory ? matchDraftGames(accountDrafts, eloHistory.points) : new Map();
+	const rowPicks = linkedPlayer ? draftPicks(matchChampions, accountDrafts, draftMatches, linkedPlayer.id) : matchChampions;
 
 	// UVS tournament a match was played in, looked up by its date.
 	const tournamentFor = m => tournaments[`${linkedPlayer?.id}:${m.date}`];
@@ -340,9 +375,47 @@ export default function UserProfile({ legends = [] }) {
 	function pageMatches() {
 		if (!linkedPlayer || !eloHistory) return [];
 		return eloHistory.points.map(m => toPayload(m,
-			matchChampions[`${linkedPlayer.id}:${m.match_id}`],
+			rowPicks[`${linkedPlayer.id}:${m.match_id}`],
 			tournaments[`${linkedPlayer.id}:${m.date}`]?.name,
 			eloHistory.season_slug));
+	}
+
+	// Store a draft a moment after the last edit (signed in), so typing doesn't
+	// send a request per key. A guest's drafts are written to this browser.
+	function persistDraft(draft) {
+		if (isGuest) return;
+		const id = draft.draftId;
+		clearTimeout(draftTimers.current[id]);
+		setDraftSave(prev => ({ ...prev, [id]: "saving" }));
+		draftTimers.current[id] = setTimeout(() => {
+			saveDraft(token, draft)
+				.then(() => setDraftSave(prev => (prev[id] ? { ...prev, [id]: "saved" } : prev)))
+				.catch(() => setDraftSave(prev => (prev[id] ? { ...prev, [id]: "error" } : prev)));
+		}, DRAFT_SAVE_DELAY_MS);
+	}
+
+	function createDraft() {
+		const draft = newDraft(linkedPlayer.id);
+		setDrafts(prev => [draft, ...prev]);
+		persistDraft(draft);
+	}
+
+	function changeDraft(draft) {
+		setDrafts(prev => prev.map(d => (d.draftId === draft.draftId ? draft : d)));
+		persistDraft(draft);
+	}
+
+	// Remove a draft; if the delete fails it comes back, marked unsaved.
+	function removeDraft(id) {
+		const removed = drafts.find(d => d.draftId === id);
+		clearTimeout(draftTimers.current[id]);
+		setDrafts(prev => prev.filter(d => d.draftId !== id));
+		setDraftSave(prev => { const next = { ...prev }; delete next[id]; return next; });
+		if (isGuest || !removed) return;
+		deleteDraft(token, id).catch(() => {
+			setDrafts(prev => [removed, ...prev]);
+			setDraftSave(prev => ({ ...prev, [id]: "error" }));
+		});
 	}
 
 	// Send every row on the page to DynamoDB. The Lambda derives the userId from
@@ -544,6 +617,12 @@ export default function UserProfile({ legends = [] }) {
 	const seasonName = seasonList.find(s => s.slug === season)?.name ?? (season ? seasonLabel(season) : "All seasons");
 	const seasonOptions = [...seasonList.map(s => [s.slug, s.name]), ["all", "All seasons"]];
 	const shownHistory = historyForSeason(eloHistory, season, seasons);
+	// The Nexus Night tab's props, shared by both layouts.
+	const nexusProps = {
+		drafts: accountDrafts, legends, matches: draftMatches, saveState: draftSave, status: draftsStatus, isGuest,
+		savedById: new Map(savedMatches.map(m => [String(m.matchId), m])),
+		onCreate: createDraft, onChange: changeDraft, onDelete: removeDraft, onGoToHistory: () => setMatchTab("history"),
+	};
 	const cardStats = summarize(cardSeason.matches);
 	const user = isGuest ? GUEST : USER;
 	const rank = isGuest ? GUEST_RANK : RANK_COLORS[USER.rank] || { color: COLORS.accent, glow: "color-mix(in srgb, var(--accent) 27%, transparent)", icon: "⭐" };
@@ -555,7 +634,7 @@ export default function UserProfile({ legends = [] }) {
 	if (linkedPlayer && eloHistory) {
 		const stored = new Map(savedMatches.map(m => [String(m.matchId), m]));
 		for (const m of eloHistory.points) {
-			const picks = matchChampions[`${linkedPlayer.id}:${m.match_id}`] || {};
+			const picks = rowPicks[`${linkedPlayer.id}:${m.match_id}`] || {};
 			const saved = stored.get(String(m.match_id));
 			if ((picks.mine ?? null) !== (saved?.myChampion ?? null)) unsaved.add(`${m.match_id}:mine`);
 			if ((picks.opponent ?? null) !== (saved?.opponentChampion ?? null)) unsaved.add(`${m.match_id}:opponent`);
@@ -574,13 +653,13 @@ export default function UserProfile({ legends = [] }) {
 				onCancelAdd={() => { setAddingAccount(false); setEloResults([]); setEloQuery(""); setEloError(null); }}
 				onAddAccount={() => { setAddingAccount(true); setEloResults([]); setEloError(null); }}
 				onSwitchAccount={switchAccount} onRemoveAccount={removeAccount}
-				cardStats={cardStats} cardSeason={cardSeason} statsReady={statsReady} statsOpen={statsOpen} setStatsOpen={setStatsOpen}
-				matchTab={matchTab} setMatchTab={setMatchTab}
+				cardStats={cardStats} cardSeason={cardSeason} statsReady={statsReady}
+				matchTab={matchTab} setMatchTab={setMatchTab} nexusProps={nexusProps}
 				savedMatches={statMatches} savedStatus={savedStatus} eloHistory={shownHistory} eloHistoryLoading={eloHistoryLoading}
 				season={season} seasonName={seasonName} seasons={seasons} seasonOptions={seasonOptions} onSeasonChange={changeSeason}
 				syncing={syncing} syncError={syncError} onSync={handleSync} onRetry={() => loadSavedHistory(linkedPlayer.id)}
 				eloVisible={eloVisible} onShowMore={() => setEloVisible(v => v + ELO_PAGE_SIZE)}
-				matchChampions={matchChampions} onPick={setChampion} onScore={setScore} eventKeyFor={eventKeyFor} tournamentFor={tournamentFor}
+				matchChampions={rowPicks} onPick={setChampion} onScore={setScore} eventKeyFor={eventKeyFor} tournamentFor={tournamentFor}
 				fillEvent={fillEvent} setFillEvent={setFillEvent}
 				unsaved={unsaved} saving={saving} onSave={handleSaveHistory} saveMsg={saveMsg} onDismissSave={dismissSave}
 			/>
@@ -639,11 +718,8 @@ export default function UserProfile({ legends = [] }) {
 						</div>
 					)}
 				</div>
-
-				{/* Stats: one line here; click to expand the card to the full tiles */}
-				<StatSummary stats={cardStats} ready={statsReady} open={statsOpen} onToggle={() => setStatsOpen(o => !o)} />
 				</div>
-				{statsOpen && <StatTiles stats={cardStats} season={cardSeason.season} ready={statsReady} />}
+				<StatTiles stats={cardStats} season={cardSeason.season} ready={statsReady} />
 			</div>
 
 			{isGuest && <GuestNotice />}
@@ -737,7 +813,7 @@ export default function UserProfile({ legends = [] }) {
 				{ linkedPlayer && !addingAccount && (
 					<div style={{ marginBottom: 4 }}>
 						<div role="tablist" style={{ display: "flex", borderBottom: `1px solid ${COLORS.border}`, marginBottom: 10 }}>
-							{[["data", "DATA"], ["history", "HISTORY"]].map(([key, text]) => (
+							{[["data", "DATA"], ["history", "HISTORY"], ["nexus", "NEXUS NIGHT"]].map(([key, text]) => (
 								<button key={key} role="tab" aria-selected={matchTab === key} onClick={() => setMatchTab(key)}
 									onMouseEnter={e => { if (matchTab !== key) e.currentTarget.style.color = COLORS.text; }}
 									onMouseLeave={e => { if (matchTab !== key) e.currentTarget.style.color = COLORS.textMuted; }}
@@ -751,9 +827,11 @@ export default function UserProfile({ legends = [] }) {
 									{text}
 								</button>
 							))}
-							<SeasonSelect value={season ?? "all"} options={seasonOptions} onChange={changeSeason} />
+							{matchTab !== "nexus" && <SeasonSelect value={season ?? "all"} options={seasonOptions} onChange={changeSeason} />}
 						</div>
-						{matchTab === "data" ? (
+						{matchTab === "nexus" ? (
+							<NexusNight {...nexusProps} />
+						) : matchTab === "data" ? (
 							<MatchStats matches={statMatches} legends={legends} status={savedStatus}
 								season={season} seasonName={seasonName} seasons={seasons} />
 						) : (<>
@@ -821,7 +899,7 @@ export default function UserProfile({ legends = [] }) {
 											const changeSign = m.elo_change > 0 ? "+" : "";
 											const d = new Date(m.date);
 											const dateStr = d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-											const picks = matchChampions[`${linkedPlayer.id}:${m.match_id}`] || {};
+											const picks = rowPicks[`${linkedPlayer.id}:${m.match_id}`] || {};
 											// Consecutive matches from the same tournament share one header row.
 											const showHeader = i === 0 || eventKeyFor(m) !== eventKeyFor(recent[i - 1]);
 											const endsGroup = i < recent.length - 1 && eventKeyFor(m) !== eventKeyFor(recent[i + 1]);

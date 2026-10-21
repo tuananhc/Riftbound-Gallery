@@ -6,6 +6,9 @@
 // semantic (win/loss/draw) and the game's own rune/rarity colours in
 // lib/cards/data.js.
 
+// The site's name — used in the navbar wordmark, page titles and credits.
+export const SITE_NAME = "Bilgewater Tracker";
+
 export const FONTS = ``;
 
 // One stack for the whole UI — never hardcode a font name in a component.

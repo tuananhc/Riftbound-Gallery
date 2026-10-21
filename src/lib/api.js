@@ -47,6 +47,35 @@ export async function getMatchHistory(token, eloPlayerId) {
 	return matches;
 }
 
+// Stop following cursors after this many pages (100 drafts each).
+const MAX_DRAFT_PAGES = 10;
+
+// Every Nexus Night draft the caller has, across all linked accounts:
+// [{ draftId, eloPlayerId, eventName, date, games: [...], createdAt, updatedAt }].
+export async function getDrafts(token) {
+	const drafts = [];
+	let cursor = null;
+	for (let page = 0; page < MAX_DRAFT_PAGES; page++) {
+		const res = await authFetch(`/drafts${cursor ? `?${new URLSearchParams({ cursor })}` : ""}`, token);
+		drafts.push(...res.drafts);
+		cursor = res.nextCursor;
+		if (!cursor) break;
+	}
+	return drafts;
+}
+
+// Create or replace one draft; resolves to the stored draft.
+export function saveDraft(token, draft) {
+	return authFetch(`/drafts/${encodeURIComponent(draft.draftId)}`, token, {
+		method: "PUT",
+		body: JSON.stringify(draft),
+	});
+}
+
+export function deleteDraft(token, draftId) {
+	return authFetch(`/drafts/${encodeURIComponent(draftId)}`, token, { method: "DELETE" });
+}
+
 // The caller's Users row, including `eloPlayers` (linked EloShowdown accounts)
 // and `activeEloPlayerId`.
 export function getProfile(token) {

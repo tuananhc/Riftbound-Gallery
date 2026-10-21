@@ -90,7 +90,7 @@ export const handler = async (event) => {
 	}
 
 	const eloPlayerId = typeof body.eloPlayerId === "number" ? String(body.eloPlayerId) : text(body.eloPlayerId, MAX_TEXT);
-	if (!eloPlayerId || eloPlayerId.includes("#")) {
+	if (!eloPlayerId || eloPlayerId.includes("#") || eloPlayerId.startsWith("~")) {
 		return json(400, { error: "Body must include the `eloPlayerId` these matches belong to." });
 	}
 

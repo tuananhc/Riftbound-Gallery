@@ -1,7 +1,7 @@
 import DeckSources from "../../components/decks/DeckSources";
 
 export const metadata = {
-	title: "Community Decks — Riftbound",
+	title: "Community Decks",
 	description: "Browse popular decklists from the Riftbound community.",
 };
 

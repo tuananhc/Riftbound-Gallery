@@ -4,8 +4,7 @@ import { seasonLabel } from "../../lib/matchStats";
 
 // ── Profile stats ────────────────────────────────────────────────────────────
 // Headline numbers on the user card, from `summarize()` in lib/matchStats.js.
-// StatSummary is the one-line version beside the name, with the toggle that
-// expands the card; StatTiles is the full row shown when it's expanded.
+// StatTiles is the full row, always shown under the name.
 
 const pct = rate => (rate == null ? "—" : `${Math.round(rate * 100)}%`);
 const resultColor = { WIN: COLORS.win, LOSS: COLORS.loss, DRAW: COLORS.draw };
@@ -17,26 +16,6 @@ function Record({ record }) {
 			<span style={{ color: COLORS.loss }}>{record.losses}</span>-
 			<span style={{ color: COLORS.draw }}>{record.draws}</span>
 		</>
-	);
-}
-
-export function StatSummary({ stats, ready, open, onToggle }) {
-	return (
-		<button onClick={onToggle} aria-expanded={open} title={open ? "Hide stats" : "Show stats"}
-			onMouseEnter={e => { e.currentTarget.style.borderColor = COLORS.borderHover; }}
-			onMouseLeave={e => { e.currentTarget.style.borderColor = COLORS.border; }}
-			style={{
-				display: "flex", alignItems: "center", gap: 12, flexShrink: 0,
-				background: COLORS.bgRaised, border: `1px solid ${COLORS.border}`, borderRadius: 0,
-				padding: "6px 10px", cursor: "pointer", fontFamily: FONT_MONO, fontSize: 12, color: COLORS.text,
-				transition: "border-color 0.15s",
-			}}>
-			<span><span style={{ fontSize: 10, color: COLORS.textDim, letterSpacing: "0.14em" }}>ELO </span>
-				<span style={{ color: COLORS.accent, fontWeight: 700 }}>{ready ? stats.last?.eloAfter ?? "—" : "—"}</span></span>
-			<span>{ready ? <Record record={stats.record} /> : "—"}</span>
-			<span>{ready ? pct(stats.record.winRate) : "—"}</span>
-			<span aria-hidden="true" style={{ color: COLORS.textDim, fontSize: 10, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>▼</span>
-		</button>
 	);
 }
 

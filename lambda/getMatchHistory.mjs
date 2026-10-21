@@ -42,7 +42,7 @@ export const handler = async (event) => {
 
 	const params = event.queryStringParameters ?? {};
 	const eloPlayerId = typeof params.eloPlayerId === "string" ? params.eloPlayerId.trim().slice(0, MAX_ID) : "";
-	if (!eloPlayerId || eloPlayerId.includes("#")) {
+	if (!eloPlayerId || eloPlayerId.includes("#") || eloPlayerId.startsWith("~")) {
 		return json(400, { error: "Query must include the `eloPlayerId` to load." });
 	}
 	const prefix = `${eloPlayerId}#`;
