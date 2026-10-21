@@ -1,11 +1,9 @@
-import { FONT_SANS, FONT_SANS_URL } from "../../lib/data";
+import { FONT_SANS } from "../../lib/data";
 
-// Scopes DM Sans to the /devlog routes: React hoists the stylesheet into <head>
-// only when one of these pages renders, and the wrapper sets it as the inherited font.
+// Sets DM Sans as the inherited font on the /devlog routes (the root layout loads it).
 export default function DevLogLayout({ children }) {
 	return (
 		<div style={{ fontFamily: FONT_SANS }}>
-			<link rel="stylesheet" href={FONT_SANS_URL} precedence="default" />
 			{children}
 		</div>
 	);

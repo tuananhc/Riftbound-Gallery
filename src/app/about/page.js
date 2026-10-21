@@ -1,13 +1,18 @@
-import { COLORS, LAYOUT, SITE_NAME } from "../../lib/data";
+import Image from "next/image";
+import { COLORS, FONT_SANS, LAYOUT, SITE_NAME } from "../../lib/data";
 
 export const metadata = {
 	title: "About & Credits",
 	description: `Why this site is called ${SITE_NAME}, and the Riot Games and EloShowdown work it is built on.`,
 };
 
+// The namesake card, saved locally (public/cards/) because its set isn't in
+// the Cards table yet.
+const NAMESAKE_IMAGE = { src: "/cards/bilgewater-tracker.png", width: 469, height: 654 };
+
 export default function AboutPage() {
 	return (
-		<div style={{ maxWidth: 860, margin: "0 auto", padding: LAYOUT.contentPad }}>
+		<div style={{ maxWidth: 860, margin: "0 auto", padding: LAYOUT.contentPad, fontFamily: FONT_SANS }}>
 			<div style={{ marginBottom: 36 }}>
 				<h1 style={{ fontSize: "clamp(20px, 5.5vw, 28px)", fontWeight: 900, color: COLORS.accent, letterSpacing: "0.12em", marginBottom: 6 }}>
 					ABOUT & CREDITS
@@ -18,22 +23,28 @@ export default function AboutPage() {
 			</div>
 
 			<Section label="WHY “BILGEWATER TRACKER”?">
-				<P>
-					This site started as a way for our group to track our progress — every match,
-					every legend pick, and where each of us sits on the Elo ladder from season to season.
-				</P>
-				<P>
-					Bilgewater Tracker is a Riftbound unit from Bilgewater, the port city of pirates and
-					bounty hunters. She&apos;s the one reading the bounty board, keeping tabs on who&apos;s
-					worth chasing — which is exactly what this site does for us.
-				</P>
-				<blockquote style={{ borderLeft: `2px solid ${COLORS.accent}`, padding: "4px 0 4px 14px", color: COLORS.textStrong, fontSize: 14, fontStyle: "italic", lineHeight: 1.6 }}>
-					“Who&apos;s on top of the bounty board today?”
-					<span style={{ display: "block", marginTop: 4, fontSize: 11, fontStyle: "normal", color: COLORS.textDim, letterSpacing: "0.06em" }}>
-						— Bilgewater Tracker flavour text, art by Six More Vodka
-					</span>
-				</blockquote>
-				<P>That&apos;s the question we open the site to answer.</P>
+				<div style={{ display: "flex", flexWrap: "wrap", gap: 24, alignItems: "flex-start" }}>
+					<Image {...NAMESAKE_IMAGE} alt="Bilgewater Tracker card" priority
+						style={{ width: "min(220px, 100%)", height: "auto", objectFit: "contain", flexShrink: 0 }} />
+					<div style={{ flex: "1 1 280px", display: "flex", flexDirection: "column", gap: 14 }}>
+						<P>
+							This site started as a way for our group to track our progress — every match,
+							every legend pick, and where each of us sits on the Elo ladder from season to season.
+						</P>
+						<P>
+							Bilgewater Tracker is a Riftbound unit from Bilgewater, the port city of pirates and
+							bounty hunters. She&apos;s the one reading the bounty board, keeping tabs on who&apos;s
+							worth chasing — which is exactly what this site does for us.
+						</P>
+						<blockquote style={{ borderLeft: `2px solid ${COLORS.accent}`, padding: "4px 0 4px 14px", color: COLORS.textStrong, fontSize: 14, fontStyle: "italic", lineHeight: 1.6 }}>
+							“Who&apos;s on top of the bounty board today?”
+							<span style={{ display: "block", marginTop: 4, fontSize: 11, fontStyle: "normal", color: COLORS.textDim, letterSpacing: "0.06em" }}>
+								— Bilgewater Tracker flavour text, art by Six More Vodka
+							</span>
+						</blockquote>
+						<P>That&apos;s the question we open the site to answer.</P>
+					</div>
+				</div>
 			</Section>
 
 			<Section label="RIOT GAMES">

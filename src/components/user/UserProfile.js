@@ -746,7 +746,7 @@ export default function UserProfile({ legends = [] }) {
 
 				{showSearch && (<>
 				<div style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
-					<div style={{ fontSize: 10, color: COLORS.textDim, letterSpacing: "0.18em", fontFamily: FONT_MONO }}>
+					<div style={{ fontSize: 11, color: COLORS.text, letterSpacing: "0.1em", fontFamily: FONT_MONO }}>
 						{addingAccount ? "Link another Riot account ID" : "Find your latest match history with your Riot account ID"}
 					</div>
 					{addingAccount && (
@@ -758,19 +758,28 @@ export default function UserProfile({ legends = [] }) {
 				</div>
 
 				<form onSubmit={handleEloSearch} style={{ display: "flex", gap: 6 }}>
-					<input
-						type="text"
-						placeholder="Enter your Riot account ID…"
-						value={eloQuery}
-						onChange={e => setEloQuery(e.target.value)}
-						onFocus={e => { e.target.style.borderColor = COLORS.accentDim; }}
-						onBlur={e => { e.target.style.borderColor = COLORS.border; }}
-						style={{
-							background: COLORS.bgCard, border: "1px solid var(--border)", borderRadius: 0,
-							padding: "5px 8px", color: COLORS.text, fontFamily: FONT_MONO,
-							fontSize: 12, width: "100%", outline: "none", transition: "border-color 0.2s", boxSizing: "border-box",
-						}}
-					/>
+					{/* The browser draws a placeholder faded and inline styles can't reach
+					    ::placeholder, so the hint is an overlay in a readable colour. */}
+					<span style={{ position: "relative", flex: 1, minWidth: 0, display: "flex" }}>
+						<input
+							type="text"
+							aria-label="Riot account ID"
+							value={eloQuery}
+							onChange={e => setEloQuery(e.target.value)}
+							onFocus={e => { e.target.style.borderColor = COLORS.accentDim; }}
+							onBlur={e => { e.target.style.borderColor = COLORS.borderHover; }}
+							style={{
+								background: COLORS.bgRaised, border: `1px solid ${COLORS.borderHover}`, borderRadius: 0,
+								padding: "5px 8px", color: COLORS.textStrong, fontFamily: FONT_MONO, caretColor: COLORS.accent,
+								fontSize: 12, width: "100%", outline: "none", transition: "border-color 0.2s", boxSizing: "border-box",
+							}}
+						/>
+						{!eloQuery && (
+							<span aria-hidden="true" style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: COLORS.textMuted, fontFamily: FONT_MONO, fontSize: 12, whiteSpace: "nowrap", overflow: "hidden", maxWidth: "calc(100% - 18px)", textOverflow: "ellipsis" }}>
+								Enter your Riot account ID…
+							</span>
+						)}
+					</span>
 					<button type="submit" disabled={eloLoading || !eloQuery.trim()}
 						style={{
 							background: eloLoading || !eloQuery.trim() ? COLORS.border : COLORS.bgHover,

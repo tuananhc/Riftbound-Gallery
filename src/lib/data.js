@@ -14,8 +14,8 @@ export const FONTS = ``;
 // One stack for the whole UI — never hardcode a font name in a component.
 export const FONT_MONO = "'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
 
-// Long-form reading text on the /devlog pages only. The font file is loaded by
-// src/app/devlog/layout.js, so it never downloads on any other route.
+// Long-form reading text on the /devlog and /about pages, and the navbar
+// wordmark. Loaded on every page by src/app/layout.js (the wordmark is everywhere).
 export const FONT_SANS = "'DM Sans', sans-serif";
 export const FONT_SANS_URL = "https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400..900&display=swap";
 
@@ -38,6 +38,7 @@ export const THEMES = {
     accentDim: "#4a76b3",
     accentGlow: "#6aa8ff33",
     shadow: "rgba(0,0,0,0.6)", // drop shadows on popovers and lifted cards
+    glyphFilter: "none", // CSS filter for Riot's white stat glyphs (might, power, card type)
     win: "#5fbf5f",
     loss: "#cc6060",
     draw: "#6aa8ff",
@@ -58,6 +59,7 @@ export const THEMES = {
     accentDim: "#93b1e6",
     accentGlow: "#2563c933",
     shadow: "rgba(0,0,0,0.12)",
+    glyphFilter: "invert(0.85)", // white glyphs → near-black so they read on light surfaces
     win: "#2e8a3a",
     loss: "#c24848",
     draw: "#2563c9",

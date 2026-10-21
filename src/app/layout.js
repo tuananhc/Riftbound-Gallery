@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Navbar from "../components/Navbar";
 import { CardStoreProvider } from "../components/CardStoreProvider";
-import { BASE_STYLES, FONTS, COLORS, LAYOUT, SITE_NAME, THEME_STORAGE_KEY } from "../lib/data";
+import { BASE_STYLES, FONTS, FONT_SANS_URL, COLORS, LAYOUT, SITE_NAME, THEME_STORAGE_KEY } from "../lib/data";
 
 export const metadata = {
 	title: { default: SITE_NAME, template: `%s — ${SITE_NAME}` },
@@ -21,6 +21,7 @@ export default function RootLayout({ children }) {
 				<link rel="preconnect" href="https://fonts.googleapis.com" />
 				<link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
 				<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;700;900&display=swap" />
+				<link rel="stylesheet" href={FONT_SANS_URL} />
 			</head>
 			<body>
 				<style dangerouslySetInnerHTML={{ __html: FONTS + BASE_STYLES }} />
@@ -36,7 +37,7 @@ export default function RootLayout({ children }) {
 					display: "flex", flexWrap: "wrap", gap: "12px 24px", justifyContent: "space-between", alignItems: "center",
 					background: COLORS.bgAlt, fontSize: 11, letterSpacing: "0.08em", color: COLORS.textDim,
 				}}>
-					<span>{SITE_NAME.toUpperCase()} · A FAN SITE, NOT ENDORSED BY RIOT GAMES</span>
+					<span>{SITE_NAME} · A FAN SITE, NOT ENDORSED BY RIOT GAMES</span>
 					<Link href="/about" style={{ color: COLORS.textMuted, textDecoration: "underline", textUnderlineOffset: 3 }}>
 						ABOUT & CREDITS
 					</Link>

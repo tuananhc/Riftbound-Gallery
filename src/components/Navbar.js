@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
-import { COLORS, FONT_MONO, SHOW, SITE_NAME } from "../lib/data";
+import { COLORS, FONT_MONO, FONT_SANS, SHOW, SITE_NAME } from "../lib/data";
 import { useAuth } from "../hooks/useAuth";
 import { useTheme } from "../hooks/useTheme";
 
@@ -77,11 +77,11 @@ export default function Navbar() {
           fontSize: 18, boxShadow: "0 0 14px var(--shadow)",
         }}>⚓</div>
         <div>
-          <div style={{ fontSize: 15, fontWeight: 900, letterSpacing: "0.12em", color: COLORS.accent, fontFamily: FONT_MONO, whiteSpace: "nowrap" }}>
-            {SITE_NAME.toUpperCase()}
+          <div style={{ fontSize: 17, fontWeight: 900, letterSpacing: "0.06em", color: COLORS.accent, fontFamily: FONT_SANS, whiteSpace: "nowrap" }}>
+            {SITE_NAME}
           </div>
-          <div style={{ fontSize: 9, color: COLORS.textDim, letterSpacing: "0.25em", marginTop: 1, fontFamily: FONT_MONO }}>
-            RIFTBOUND COMPANION
+          <div style={{ fontSize: 10, color: COLORS.textDim, letterSpacing: "0.04em", marginTop: 1, fontFamily: FONT_MONO }}>
+            Record your historical matches
           </div>
         </div>
       </Link>
@@ -235,8 +235,8 @@ function MobileNav({ pathname, status, name, email, menuRef, menuOpen, setMenuOp
     <div style={{ display: SHOW.mobileBlock, fontFamily: FONT_MONO }}>
       <div style={{ height: 52, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 8px 0 16px" }}>
         <Link href="/" style={{ display: "flex", flexDirection: "column", gap: 1, textDecoration: "none" }}>
-          <span style={{ fontSize: 13, fontWeight: 900, letterSpacing: "0.1em", color: COLORS.accent, whiteSpace: "nowrap" }}>{SITE_NAME.toUpperCase()}</span>
-          <span style={{ fontSize: 8, letterSpacing: "0.25em", color: COLORS.textDim }}>RIFTBOUND COMPANION</span>
+          <span style={{ fontSize: 15, fontWeight: 900, letterSpacing: "0.06em", color: COLORS.accent, fontFamily: FONT_SANS, whiteSpace: "nowrap" }}>{SITE_NAME}</span>
+          <span style={{ fontSize: 8, letterSpacing: "0.25em", color: COLORS.textDim }}>Track your games</span>
         </Link>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <ThemeToggle size={44} />

@@ -13,7 +13,7 @@ This file defines the architecture rules, coding conventions, and best practices
 - **News/Blog:** Markdown files in `content/news/`
 - **Styling:** Inline styles only — no CSS modules, no Tailwind, no styled-components
 - **Theme:** flat grey surfaces (dark by default, light via the navbar toggle), hairline grey borders, square corners, one blue accent
-- **Fonts:** Geist Mono (whole UI, via `FONT_MONO` in `src/lib/data.js`), except the `/devlog` pages, which use DM Sans (`FONT_SANS`)
+- **Fonts:** Geist Mono (whole UI, via `FONT_MONO` in `src/lib/data.js`), except the `/devlog`, `/news` and `/about` pages and the navbar wordmark, which use DM Sans (`FONT_SANS`)
 
 ---
 
@@ -177,6 +177,7 @@ COLORS.accent // #6aa8ff #2563c9 — the one blue (same as draw); deeper in ligh
 COLORS.accentDim // #4a76b3 #93b1e6
 COLORS.accentGlow // accent at 20%
 COLORS.shadow // popover / lifted-card drop shadow
+COLORS.glyphFilter // none, invert(0.85) — filter for Riot's white stat/type glyphs
 COLORS.win // #5fbf5f #2e8a3a
 COLORS.loss // #cc6060 #c24848
 COLORS.draw // #6aa8ff #2563c9
@@ -192,9 +193,12 @@ COLORS.draw // #6aa8ff #2563c9
 
 - UI font: `FONT_MONO` from `src/lib/data.js` (Geist Mono, falling back to the
   system monospace stack) — import it, never write a font name in a component
-- Dev log font: `FONT_SANS` (DM Sans) is for the `/devlog` routes only.
-  `src/app/devlog/layout.js` loads it and sets it as the inherited font there;
-  inline `code` in a log stays `FONT_MONO`. Don't use it on other pages
+- Reading font: `FONT_SANS` (DM Sans) is for the `/devlog`, `/news` and `/about`
+  pages and the navbar wordmark only. `src/app/layout.js` loads it on every page (the
+  wordmark is everywhere); `src/app/devlog/layout.js`, `src/app/news/layout.js` and
+  the `/about` page set it as the inherited font; inline `code` in a log or post
+  stays `FONT_MONO`. Don't use
+  it elsewhere
 - Corners are square — no `borderRadius` except `50%` for circular avatars
 - Emphasis comes from brightness, not hue. The only saturated colours in the UI
   are the semantic win/loss/draw tokens and the game's own rune/rarity colours

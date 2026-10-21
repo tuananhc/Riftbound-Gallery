@@ -3,7 +3,13 @@ import Image from "next/image";
 import parse, { Text, Element } from "html-react-parser";
 import { ALL_COLORS, COLOR_CONFIG, cardGradient, cardGlow } from "../../lib/cards/data";
 import CardText from "./CardText";
-import { COLORS, FONT_MONO } from "../../lib/data";
+import { COLORS, FONT_MONO, alpha } from "../../lib/data";
+
+// Riot draws these glyphs and the card-type icons in plain white, so they need
+// COLORS.glyphFilter to show up in light mode. Energy and rune glyphs carry
+// their own colours and are left alone.
+const WHITE_GLYPH = /riot-glyphs\/.+\/(might|card_type_rune|artist|exhaust)\.svg$/;
+const isWhiteIcon = (src, label) => label === "Type" || WHITE_GLYPH.test(src);
 
 function Field({ label, html }) {
 	const parsed = parse(html, {
@@ -12,7 +18,8 @@ function Field({ label, html }) {
 				return <CardText text={node.data} />;
 			}
 			if (node instanceof Element && node.name === "img") {
-				return <Image {...node.attribs} alt="" width={20} height={20} style={{ objectFit: "contain", verticalAlign: "middle", margin: "0 3px" }} />;
+				const filter = isWhiteIcon(node.attribs.src, label) ? COLORS.glyphFilter : "none";
+				return <Image {...node.attribs} alt="" width={20} height={20} style={{ objectFit: "contain", verticalAlign: "middle", margin: "0 3px", filter }} />;
 			}
 		},
 	});
@@ -36,14 +43,14 @@ export default function CardModal({ card, onClose, deckOpen, onAddToDeck, deckCo
 			<div className="modal-card" onClick={e => e.stopPropagation()} style={{
 				width: "60vw", height: "70vh",
 				background: colors.length > 0 ? cardGradient(colors) : COLORS.bgCard,
-				border: `1px solid ${primaryGlow}55`,
+				border: `1px solid ${alpha(primaryGlow, 33)}`,
 				borderRadius: 0, overflow: "hidden", position: "relative",
 				boxShadow: (colors.length > 0 ? cardGlow(colors) : "none") + ", 0 30px 80px var(--shadow)",
 				display: "flex", flexDirection: "column",
 			}}>
 				{/* Row 1: Title */}
 				<div style={{ padding: "18px 24px 12px", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
-					<button onClick={onClose} style={{ position: "absolute", top: 14, right: 14, background: "transparent", border: "none", color: COLORS.borderHover, fontSize: 18, cursor: "pointer" }}>✕</button>
+					<button onClick={onClose} style={{ position: "absolute", top: 14, right: 14, background: "transparent", border: "none", color: COLORS.textMuted, fontSize: 18, cursor: "pointer" }}>✕</button>
 					<div style={{ fontSize: 20, fontWeight: 700, color: COLORS.textStrong, letterSpacing: "0.05em", lineHeight: 1.2, fontFamily: FONT_MONO }}>{card.name}</div>
 				</div>
 

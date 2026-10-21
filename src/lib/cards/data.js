@@ -33,14 +33,19 @@ export const TAGS_IMG = {
   "Battlefield": "https://riftbound.s3.us-east-1.amazonaws.com/resources/Type_Battlefield.png"
 }
 
+// A domain's tint behind a card: its deep `bg` in dark mode, a little of its
+// glow mixed into the white card surface in light mode. light-dark() follows
+// the color-scheme that BASE_STYLES sets for each theme.
+const domainTint = c => `light-dark(color-mix(in srgb, ${c.glow} 14%, var(--bg-card)), ${c.bg})`;
+
 export const cardGradient = (colors) => {
   if (colors.length === 1) {
     const c = COLOR_CONFIG[colors[0]];
-    return `radial-gradient(ellipse at top left, ${c.bg} 0%, #0d0d14 70%)`;
+    return `radial-gradient(ellipse at top left, ${domainTint(c)} 0%, light-dark(var(--bg-card), #0d0d14) 70%)`;
   }
   const stops = colors.map((col, i) => {
     const pct = (i / (colors.length - 1)) * 100;
-    return `${COLOR_CONFIG[col].bg} ${pct}%`;
+    return `${domainTint(COLOR_CONFIG[col])} ${pct}%`;
   });
   return `linear-gradient(135deg, ${stops.join(", ")})`;
 };
