@@ -1,5 +1,5 @@
-// A guest's profile work — linked EloShowdown accounts, the active account's
-// match history and the legend picks — kept in sessionStorage. It lasts for the
+// A guest's profile work — linked player accounts, the active account's match
+// history and the legend picks — kept in sessionStorage. It lasts for the
 // tab: it survives moving between pages and signing in (the profile then links
 // it to the account and loads it over the saved history), and is gone once the
 // tab closes. Browser-only; every call is a no-op where storage is unavailable.

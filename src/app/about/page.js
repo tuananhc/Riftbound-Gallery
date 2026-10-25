@@ -3,7 +3,7 @@ import { COLORS, FONT_SANS, LAYOUT, SITE_NAME } from "../../lib/data";
 
 export const metadata = {
 	title: "About & Credits",
-	description: `Why this site is called ${SITE_NAME}, and the Riot Games and EloShowdown work it is built on.`,
+	description: `Why this site is called ${SITE_NAME}, and the Riot Games, BoundRift and EloShowdown work it is built on.`,
 };
 
 // The namesake card, saved locally (public/cards/) because its set isn't in
@@ -53,8 +53,9 @@ export default function AboutPage() {
 					published by <A href="https://www.uvsgames.com">UVS Games</A>. Every card name, card text,
 					card image and illustration, rune and card-type icon, and champion icon on this site belongs to
 					Riot Games and its artists. Card data and images come from the
-					official <A href="https://riftbound.leagueoflegends.com/en-us/card-gallery/">Riftbound Card Gallery</A>,
-					and tournament events from the public UVS event locator.
+					official <A href="https://riftbound.leagueoflegends.com/en-us/card-gallery/">Riftbound Card Gallery</A>.
+					Tournament events come from Riot&apos;s <A href="https://events.playriftbound.com">PlayRiftbound</A> event
+					site and, before October 2026, the UVS event locator.
 				</P>
 				<P>
 					{SITE_NAME}{" "}was created under Riot Games&apos; &ldquo;Legal Jibber Jabber&rdquo; policy using
@@ -67,16 +68,24 @@ export default function AboutPage() {
 				</p>
 			</Section>
 
-			<Section label="ELOSHOWDOWN">
+			<Section label="BOUNDRIFT">
 				<P>
-					Match history, Elo history, seasons and player search are provided
-					by <A href="https://eloshowdown.com/riftbound/">EloShowdown</A> through their public API.
-					When you link an EloShowdown account on your profile, this site reads your matches from
-					EloShowdown and saves a copy so you can add your legend picks to them.
+					Match history, Elo, events and player search are provided
+					by <A href="https://boundrift.com">BoundRift</A>, which rates every constructed match from
+					PlayRiftbound and UVS events. When you link your Riot account ID on your profile, this site
+					reads your matches from BoundRift and saves a copy so you can add your legend picks to them.
 				</P>
 				<P>
-					{SITE_NAME}{" "}isn&apos;t affiliated with EloShowdown — all the rating work is theirs. Thank you
-					for making the data open. If a match or rating looks wrong, EloShowdown is the source of truth.
+					{SITE_NAME}{" "}isn&apos;t affiliated with BoundRift — all the rating work is theirs. Thank you
+					for keeping the data open. If a match or rating looks wrong, BoundRift is the source of truth.
+				</P>
+			</Section>
+
+			<Section label="ELOSHOWDOWN">
+				<P>
+					Until Riftbound&apos;s events moved to PlayRiftbound in October 2026, match history and Elo came
+					from <A href="https://eloshowdown.com/riftbound/">EloShowdown</A>. Matches saved before then
+					keep EloShowdown&apos;s data until BoundRift has the same match. Thank you for making the data open.
 				</P>
 			</Section>
 		</div>

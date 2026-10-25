@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { COLORS, FONT_MONO, alpha } from "../../lib/data";
 import { legendLabel } from "../../lib/cards/data";
+import LegendIcon from "../cards/LegendIcon";
 import RuneIcons from "../cards/RuneIcons";
 import MatchStats from "./MatchStats";
 import MobileProfile from "./MobileProfile";
@@ -12,38 +13,21 @@ import NexusNight from "./NexusNight";
 import Dropdown from "../Dropdown";
 import { useIsMobile } from "../../hooks/useIsMobile";
 import { StatTiles } from "./ProfileStats";
-import { latestSeason, summarize, seasonOfMatch, seasonsOf, seasonLabel, scoreOptions, bestOf } from "../../lib/matchStats";
+import { latestSeason, summarize, sortChronological, seasonOfMatch, seasonsOf, seasonLabel, scoreOptions, bestOf, startedSeasons, playedLabel, recordsBy } from "../../lib/matchStats";
 import { countryFlag } from "../../lib/countries";
 import { useAuth } from "../../hooks/useAuth";
-import { saveMatchHistory, getMatchHistory, getDrafts, saveDraft, deleteDraft, getEloHistory, getSeasons, getPlayerTournaments, getProfile, addEloAccount, selectEloAccount, removeEloAccount } from "../../lib/api";
+import { saveMatchHistory, getMatchHistory, getDrafts, saveDraft, deleteDraft, searchPlayers, getPlayerHistory, findBoundriftId, resolveEvents, lookupEvent, getProfile, addEloAccount, selectEloAccount, removeEloAccount } from "../../lib/api";
+import { fromSaved, mergeHistory, withLegacyPicks, applyEvents, retryMissing, needsLookup, lookupHints, eventKey, groupKey, withSourceScores, playerSummary, isUnpairedLegacy, pairCandidates, pairByHand, liveItems } from "../../lib/history";
 import { readGuestDraft, writeGuestDraft, clearGuestDraft } from "../../lib/guestDraft";
 import { newDraft, matchDraftGames, draftPicks, readLocalDrafts, writeLocalDrafts } from "../../lib/nexusDrafts";
 import GuestNotice, { GUEST_SAVE_HINT } from "./GuestNotice";
 import GetStarted from "./GetStarted";
 
-// ── Dummy data ─────────────────────────────────────────────────────────────────
-
-const RANK_COLORS = {
-	"Bronze": { color: COLORS.textMuted, glow: "color-mix(in srgb, var(--text-muted) 20%, transparent)", icon: "🥉" },
-	"Silver": { color: "#bebebe", glow: "#bebebe33", icon: "🥈" },
-	"Gold": { color: "#bdb76b", glow: "#bdb76b33", icon: "🥇" },
-	"Platinum": { color: "#8fa3bf", glow: "#8fa3bf33", icon: "💎" },
-	"Diamond": { color: "#a09bbf", glow: "#a09bbf33", icon: "🔷" },
-	"Master": { color: "#b08968", glow: "#b0896833", icon: "👑" },
-};
-
-const USER = {
-	username: "ShadowRift",
-	avatar: "🧙",
-	title: "Keeper of the Seventh Seal",
-	rank: "Platinum",
-	joinDate: "March 2024",
-	stats: { wins: 142, losses: 58, draws: 7, winStreak: 6 },
-};
-
 // Shown in the profile header while signed out.
-const GUEST = { username: "Guest", avatar: "👤", title: "Not signed in — nothing on this page is saved", rank: "Guest" };
-const GUEST_RANK = { color: COLORS.textMuted, glow: COLORS.bgRaised, icon: "" };
+const GUEST = { username: "Guest", subtitle: "Not signed in — nothing on this page is saved" };
+
+// "shadowrift" → "SH" — the avatar when no legend has been played yet.
+const initials = name => name.replace(/[^a-z0-9]/gi, "").slice(0, 2).toUpperCase() || "?";
 
 // How many match-history rows to reveal per "Load More" click.
 const ELO_PAGE_SIZE = 10;
@@ -51,55 +35,20 @@ const ELO_PAGE_SIZE = 10;
 const DRAFT_SAVE_DELAY_MS = 800;
 
 // ── Match history data ────────────────────────────────────────────────────────
-// The rows render EloShowdown's elo-history shape — { season_slug, points } with
-// points oldest first — whether it came from our MatchHistory table or from a
-// fresh EloShowdown search.
-
-const byPlayed = (a, b) => (a.date ?? "").localeCompare(b.date ?? "") || Number(a.match_id) - Number(b.match_id);
-
-// Saved MatchHistory items → { history, picks }, picks keyed "playerId:matchId".
-function fromSaved(playerId, items) {
-	const points = items.map(m => ({
-		match_id: m.matchId,
-		date: m.playedAt,
-		result: m.result.toLowerCase(),
-		opponent_name: m.opponent,
-		opponent_id: m.opponentId,
-		elo_before: m.eloBefore,
-		elo_change: m.eloChange,
-		elo_after: m.eloAfter,
-		season: m.season,
-	})).sort(byPlayed);
-	const picks = Object.fromEntries(items
-		.filter(m => m.myChampion || m.opponentChampion || m.score)
-		.map(m => [`${playerId}:${m.matchId}`, { mine: m.myChampion, opponent: m.opponentChampion, score: m.score }]));
-	return { history: { season_slug: points.at(-1)?.season ?? null, points }, picks };
-}
-
-// Overlay a fresh EloShowdown elo-history on the saved one: EloShowdown's data
-// wins for matches in both, and saved matches it no longer returns (e.g. from an
-// earlier season) are kept.
-function mergeHistory(saved, fresh) {
-	const byId = new Map((saved?.points ?? []).map(p => [String(p.match_id), p]));
-	for (const p of fresh.points ?? []) {
-		const id = String(p.match_id);
-		byId.set(id, { ...byId.get(id), ...p, season: fresh.season_slug });
-	}
-	const points = [...byId.values()].sort(byPlayed);
-	return { season_slug: points.at(-1)?.season ?? fresh.season_slug, points };
-}
+// The rows are { points } — see lib/history.js for their shape — whether they
+// came from our MatchHistory table, from a BoundRift Search, or both.
 
 // The season both tabs show: the one picked beside the tabs ("all" = every
-// season), else EloShowdown's current season, else the newest saved one.
+// season), else the newest season with matches, else the current one.
 function pickSeason(choice, seasons, matches) {
 	if (choice === "all") return null;
-	return choice ?? seasons.find(s => s.is_current)?.slug ?? seasonsOf(matches)[0] ?? null;
+	return choice ?? seasonsOf(matches)[0] ?? seasons.find(s => s.is_current)?.slug ?? null;
 }
 
-// An elo-history narrowed to one season's points (unchanged when slug is null).
+// A history narrowed to one season's rows (unchanged when slug is null).
 function historyForSeason(history, slug, seasons) {
 	if (!history || !slug) return history;
-	return { ...history, season_slug: slug, points: history.points.filter(p => seasonOfMatch(p, seasons) === slug) };
+	return { ...history, points: history.points.filter(p => seasonOfMatch(p, seasons) === slug) };
 }
 
 // Saved rows with a guest draft for the same account laid over them: the
@@ -107,26 +56,32 @@ function historyForSeason(history, slug, seasons) {
 function withDraft(playerId, items, draft) {
 	const { history, picks } = fromSaved(playerId, items);
 	if (draft?.activeId !== playerId || !draft.history) return { history, picks };
-	return { history: mergeHistory(history, draft.history), picks: { ...picks, ...draft.picks } };
+	return { history: mergeHistory(history, draft.history.points), picks: { ...picks, ...draft.picks } };
 }
+
+// The BoundRift id an account reads its matches from: set on accounts linked
+// through BoundRift, and found for ones linked through EloShowdown.
+const boundriftIdOf = account => account?.boundrift_id ?? (account?.id?.startsWith("br-") ? account.id.slice(3) : null);
 
 // One page row as Save sends it. Picks go as null when the row has none, which
 // clears any stored pick — as does a score that no longer fits the result.
-function toPayload(m, picks = {}, eventName, season) {
+function toPayload(m, picks = {}) {
 	return {
 		matchId: m.match_id,
 		result: m.result,
 		score: scoreOptions(m.result).includes(picks.score) ? picks.score : null,
 		playedAt: m.date,
+		month: m.month,
 		opponent: m.opponent_name,
 		opponentId: m.opponent_id,
 		myChampion: picks.mine ?? null,
 		opponentChampion: picks.opponent ?? null,
-		eventName,
+		eventName: m.event?.name,
+		eventId: m.event?.id,
 		eloBefore: m.elo_before,
 		eloChange: m.elo_change,
 		eloAfter: m.elo_after,
-		season: m.season ?? season ?? undefined,
+		season: m.season,
 	};
 }
 
@@ -147,7 +102,7 @@ function asStored(m) {
 // without the Cards page having been visited.
 export default function UserProfile({ legends = [] }) {
 	const router = useRouter();
-	const { status, token } = useAuth();
+	const { status, token, user: authUser } = useAuth();
 	// Signed out: the page still works, but nothing reaches the backend — the
 	// work lives in this tab's guest draft (lib/guestDraft.js) until they log in.
 	const isGuest = status === "guest";
@@ -156,10 +111,13 @@ export default function UserProfile({ legends = [] }) {
 	const [eloResults, setEloResults] = useState([]);
 	const [eloLoading, setEloLoading] = useState(false);
 	const [eloError, setEloError] = useState(null);
-	// EloShowdown accounts linked to this user, and the one whose history is shown.
+	// Player accounts linked to this user, and the one whose history is shown.
+	// Accounts linked before BoundRift have an EloShowdown id; their BoundRift id
+	// is looked up once (see the effect below).
 	const [accounts, setAccounts] = useState([]);
 	const [activeId, setActiveId] = useState(null);
 	const linkedPlayer = accounts.find(a => a.id === activeId) ?? null;
+	const boundriftId = boundriftIdOf(linkedPlayer);
 	// "loading" until the linked accounts are read from the Users table, then "ready".
 	const [profileStatus, setProfileStatus] = useState("loading");
 	// True while a linked user is searching for another account to add.
@@ -175,7 +133,10 @@ export default function UserProfile({ legends = [] }) {
 	const [savedStatus, setSavedStatus] = useState("loading");
 	// The active account's MatchHistory items as stored — the record boxes count these.
 	const [savedMatches, setSavedMatches] = useState([]);
-	// True while the Search button is pulling the latest matches from EloShowdown.
+	// The other linked accounts' items (signed in), for the Data tab's report
+	// across every account: { [accountId]: items }.
+	const [otherSaved, setOtherSaved] = useState({});
+	// True while the Search button is pulling the latest matches from BoundRift.
 	const [syncing, setSyncing] = useState(false);
 	const [syncError, setSyncError] = useState(null);
 	const [eloVisible, setEloVisible] = useState(ELO_PAGE_SIZE);
@@ -197,43 +158,75 @@ export default function UserProfile({ legends = [] }) {
 	const isMobile = useIsMobile();
 	// Season shown on both tabs, picked beside them; null until picked (current season).
 	const [seasonChoice, setSeasonChoice] = useState(null);
+	// The signed-in user's Users row: { displayName, createdAt } (set at sign-up).
+	const [member, setMember] = useState(null);
 	// Nexus Night drafts (every linked account's), their load status, and each
 	// draft's save state: { [draftId]: "saving" | "saved" | "error" }.
 	const [drafts, setDrafts] = useState([]);
 	const [draftsStatus, setDraftsStatus] = useState("loading");
 	const [draftSave, setDraftSave] = useState({});
 	const draftTimers = useRef({});
-	// EloShowdown's seasons: the selector's options, and the dates that place
-	// rows saved without a season. If they can't load, the saved rows' own
-	// seasons fill the selector instead.
-	const [seasons, setSeasons] = useState([]);
-	useEffect(() => {
-		getSeasons().then(setSeasons).catch(() => {});
-	}, []);
-	// UVS tournament per match date, keyed "playerId:date" → null | { id, name, url }.
-	// A key that's missing is still being looked up.
-	const [tournaments, setTournaments] = useState({});
-	const requestedTournaments = useRef(new Set());
+	// The seasons (Riftbound sets) that have started: the selector's options, and
+	// the dates that place rows saved without a season.
+	const [seasons] = useState(() => startedSeasons());
+	// "accountId:YYYY-MM" months whose events have been asked for, so each is
+	// looked up once (Search and a pasted event link clear an account's).
+	const requestedMonths = useRef(new Set());
+	// The "Event not found" header whose paste-a-link form is open (its
+	// groupKeyFor key), and that form's { busy, error }.
+	const [linking, setLinking] = useState(null);
+	const [eventLink, setEventLink] = useState({ busy: false, error: null });
 
-	// Look up the tournament for each visible row's date, once per player + date.
+	// Find the events behind the visible rows that only know their month, a few
+	// months at a time. BoundRift looks through the stores the player is known to
+	// play at — learned from the events other rows link to, and from event names
+	// on drafts and on rows saved before BoundRift.
 	useEffect(() => {
-		const playerId = linkedPlayer?.id;
-		const shown = historyForSeason(eloHistory, pickSeason(seasonChoice, seasons, savedMatches), seasons);
-		if (!playerId || !shown?.points?.length) return;
-		const visibleDates = [...shown.points].reverse().slice(0, eloVisible).map(m => m.date);
-		const missing = [...new Set(visibleDates)].filter(d => !requestedTournaments.current.has(`${playerId}:${d}`));
-		if (missing.length === 0) return;
-		missing.forEach(d => requestedTournaments.current.add(`${playerId}:${d}`));
-		const keyed = value => Object.fromEntries(missing.map(d => [`${playerId}:${d}`, value(d)]));
-		getPlayerTournaments(playerId, missing)
-			.then(found => setTournaments(prev => ({ ...prev, ...keyed(d => found[d] ?? null) })))
-			.catch(() => setTournaments(prev => ({ ...prev, ...keyed(() => null) })));
-	}, [linkedPlayer, eloHistory, eloVisible, seasonChoice, seasons, savedMatches]);
+		const accountId = linkedPlayer?.id;
+		if (!accountId || !boundriftId || !eloHistory?.points?.length) return;
+		const shown = historyForSeason(eloHistory, pickSeason(seasonChoice, seasons, eloHistory.points), seasons);
+		const months = [...new Set([...shown.points].reverse().slice(0, eloVisible).filter(needsLookup).map(p => p.month))]
+			.filter(m => !requestedMonths.current.has(`${accountId}:${m}`))
+			.slice(0, 3);
+		if (months.length === 0) return;
+		months.forEach(m => requestedMonths.current.add(`${accountId}:${m}`));
+		const hints = lookupHints(eloHistory.points, drafts.filter(d => d.eloPlayerId === accountId));
+		// Every match in those months still without an event, visible or not.
+		const pending = Object.fromEntries(months.map(m => [m, eloHistory.points.filter(p => needsLookup(p) && p.month === m).map(p => p.match_id)]));
+		const apply = found => {
+			if (historyRequest.current === accountId) setEloHistory(prev => applyEvents(prev, found, months));
+		};
+		resolveEvents(boundriftId, { months, pending, ...hints })
+			.then(res => apply(res.events))
+			.catch(() => apply({}));
+	}, [linkedPlayer, boundriftId, eloHistory, eloVisible, seasonChoice, seasons, drafts]);
 
-	// Restore the EloShowdown accounts saved on the user's profile, so they don't
+	// Accounts linked through EloShowdown get their BoundRift id once, which is
+	// saved to the profile so it isn't looked up again.
+	useEffect(() => {
+		if (!linkedPlayer || boundriftId) return;
+		let cancelled = false;
+		findBoundriftId(linkedPlayer.id)
+			.then(id => {
+				if (cancelled) return;
+				if (!id) {
+					setSyncError("BoundRift doesn't know this account — search for your Riot account ID again to relink it.");
+					return;
+				}
+				const account = { ...linkedPlayer, boundrift_id: id };
+				setAccounts(prev => prev.map(a => (a.id === account.id ? account : a)));
+				if (token) addEloAccount(token, account).catch(() => {});
+			})
+			.catch(() => {
+				if (!cancelled) setSyncError("Couldn't move this account over to BoundRift — reload the page to try again.");
+			});
+		return () => { cancelled = true; };
+	}, [linkedPlayer, boundriftId, token]);
+
+	// Restore the player accounts saved on the user's profile, so they don't
 	// have to search for themselves on every visit, and show the active account's
-	// saved history from the MatchHistory table. EloShowdown is only queried when
-	// the user clicks Search.
+	// saved history from the MatchHistory table. BoundRift is only asked for
+	// matches when the user clicks Search.
 	useEffect(() => {
 		if (!token) return;
 		let cancelled = false;
@@ -243,6 +236,7 @@ export default function UserProfile({ legends = [] }) {
 		(async () => {
 			// No backend / no row yet — fall back to the search box.
 			let profile = await getProfile(token).catch(() => null);
+			if (!cancelled && profile) setMember({ displayName: profile.displayName, createdAt: profile.createdAt });
 			// Link the guest's account (which makes it active), so its work can be saved.
 			if (draftAccount) {
 				profile = await addEloAccount(token, draftAccount).catch(() => ({
@@ -280,6 +274,18 @@ export default function UserProfile({ legends = [] }) {
 		})();
 		return () => { cancelled = true; };
 	}, [token]);
+
+	// Signed in with several accounts: load the others' saved matches for the
+	// Data tab. Done again on switching, so the one just left is fresh.
+	const accountIds = accounts.map(a => a.id).join(",");
+	useEffect(() => {
+		if (!token || !accountIds.includes(",")) return;
+		let cancelled = false;
+		const others = accountIds.split(",").filter(id => id !== activeId);
+		Promise.all(others.map(id => getMatchHistory(token, id).then(items => [id, items]).catch(() => null)))
+			.then(found => { if (!cancelled) setOtherSaved(Object.fromEntries(found.filter(Boolean))); });
+		return () => { cancelled = true; };
+	}, [token, accountIds, activeId]);
 
 	// Signed in: load the Nexus Night drafts.
 	useEffect(() => {
@@ -336,19 +342,28 @@ export default function UserProfile({ legends = [] }) {
 	if (status === "loading") return null;
 
 	// The active account's Nexus Night drafts, newest event first, each drafted
-	// game paired with its EloShowdown row once that exists. Matched games fill
-	// the rows' empty picks, so History shows (and Save sends) them.
+	// game paired with its History row once that exists. A row's picks include
+	// those made on the row saved from EloShowdown it replaced; matched games
+	// fill the empty ones, as do the game scores BoundRift has, so History shows
+	// (and Save sends) them.
 	const accountDrafts = drafts
 		.filter(d => d.eloPlayerId === linkedPlayer?.id)
 		.sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
 	const draftMatches = linkedPlayer && eloHistory ? matchDraftGames(accountDrafts, eloHistory.points) : new Map();
-	const rowPicks = linkedPlayer ? draftPicks(matchChampions, accountDrafts, draftMatches, linkedPlayer.id) : matchChampions;
+	const rowPicks = linkedPlayer
+		? withSourceScores(
+			draftPicks(withLegacyPicks(matchChampions, eloHistory?.points ?? [], linkedPlayer.id), accountDrafts, draftMatches, linkedPlayer.id),
+			eloHistory?.points ?? [], linkedPlayer.id)
+		: matchChampions;
 
-	// UVS tournament a match was played in, looked up by its date.
-	const tournamentFor = m => tournaments[`${linkedPlayer?.id}:${m.date}`];
-	// Matches in the same event share a key: the resolved tournament, or the day
-	// while it's still being looked up.
-	const eventKeyFor = m => tournamentFor(m)?.id ?? `${tournamentFor(m)}-${m.date?.slice(0, 10)}`;
+	// The event a match was played at: undefined while it's being looked up,
+	// null when it wasn't found (or can't be — BoundRift has no month for
+	// matches before May 2026).
+	const tournamentFor = m => (m.event !== undefined ? m.event : needsLookup(m) && boundriftId ? undefined : null);
+	// Matches from one event share a key; one whose event isn't known is its own
+	// event. Headers group by groupKeyFor, which puts those under their month.
+	const eventKeyFor = eventKey;
+	const groupKeyFor = groupKey;
 
 	// Set (or clear, with null) one side's legend. Your own pick goes to every
 	// match in the same event while "apply to all" is ticked.
@@ -372,13 +387,15 @@ export default function UserProfile({ legends = [] }) {
 		setMatchChampions(prev => ({ ...prev, [key]: { ...prev[key], score } }));
 	}
 
-	// Every row on the page (with its picks), as Save sends it.
+	// Every row on the page (with its picks), as Save sends it. A row that took
+	// over a row saved from EloShowdown also marks that one as replaced, so it
+	// isn't loaded again.
 	function pageMatches() {
 		if (!linkedPlayer || !eloHistory) return [];
-		return eloHistory.points.map(m => toPayload(m,
-			rowPicks[`${linkedPlayer.id}:${m.match_id}`],
-			tournaments[`${linkedPlayer.id}:${m.date}`]?.name,
-			eloHistory.season_slug));
+		return eloHistory.points.flatMap(m => {
+			const row = toPayload(m, rowPicks[`${linkedPlayer.id}:${m.match_id}`]);
+			return m.legacy_id ? [row, { matchId: m.legacy_id, result: m.result, rekeyedTo: m.match_id }] : [row];
+		});
 	}
 
 	// Store a draft a moment after the last edit (signed in), so typing doesn't
@@ -432,8 +449,9 @@ export default function UserProfile({ legends = [] }) {
 		try {
 			await saveMatchHistory(token, linkedPlayer.id, matches);
 			// The stored items now match what was sent.
-			setSavedMatches(matches.map(asStored));
-			setSaveMsg({ ok: true, text: `Saved ${matches.length} matches to your history.` });
+			const stored = matches.filter(m => !m.rekeyedTo).map(asStored);
+			setSavedMatches(stored);
+			setSaveMsg({ ok: true, text: `Saved ${stored.length} matches to your history.` });
 			// Guest work carried over by logging in is stored now.
 			clearGuestDraft();
 			setCarriedOver(false);
@@ -450,30 +468,35 @@ export default function UserProfile({ legends = [] }) {
 	}
 
 	// Show an account's saved history, resetting per-account view state.
-	function showAccount(id) {
-		setActiveId(id);
+	function showAccount(account) {
+		setActiveId(account?.id ?? null);
 		setSaveMsg(null);
 		setSyncError(null);
-		if (id && isGuest) loadGuestHistory(id);
-		else if (id) loadSavedHistory(id);
+		setLinking(null);
+		setEventLink({ busy: false, error: null });
+		if (account && isGuest) loadGuestHistory(account);
+		else if (account) loadSavedHistory(account.id);
 		else { historyRequest.current = null; setEloHistory(null); setSavedMatches([]); setEloHistoryLoading(false); }
 	}
 
-	// Link a player from the search results, make it active, and save it to the profile.
+	// Link a player from the BoundRift search results, make it active, and save
+	// it to the profile. One that's already linked (perhaps through EloShowdown)
+	// is switched to instead.
 	async function selectPlayer(player) {
-		const account = {
-			id: String(player.id),
-			display_name: player.display_name,
-			primary_community: player.primary_community,
-			country: player.country,
-		};
-		setAccounts(prev => prev.some(a => a.id === account.id) ? prev : [...prev, account]);
 		setEloResults([]);
 		setEloQuery("");
 		setEloError(null);
 		setAddingAccount(false);
 		setLinkError(null);
-		showAccount(account.id);
+		const linked = accounts.find(a => boundriftIdOf(a) === player.id);
+		if (linked) {
+			switchAccount(linked.id);
+			return;
+		}
+		// "br-" keeps the id apart from EloShowdown ids, which use the same numbers.
+		const account = { id: `br-${player.id}`, boundrift_id: player.id, display_name: player.display_name };
+		setAccounts(prev => [...prev, account]);
+		showAccount(account);
 		if (isGuest) return;
 		try {
 			applyAccounts(await addEloAccount(token, account));
@@ -485,7 +508,7 @@ export default function UserProfile({ legends = [] }) {
 	async function switchAccount(id) {
 		if (id === activeId) return;
 		setLinkError(null);
-		showAccount(id);
+		showAccount(accounts.find(a => a.id === id));
 		if (isGuest) return;
 		try {
 			await selectEloAccount(token, id);
@@ -498,7 +521,7 @@ export default function UserProfile({ legends = [] }) {
 		const remaining = accounts.filter(a => a.id !== id);
 		setAccounts(remaining);
 		setLinkError(null);
-		if (id === activeId) showAccount(remaining[0]?.id ?? null);
+		if (id === activeId) showAccount(remaining[0] ?? null);
 		if (isGuest) return;
 		try {
 			applyAccounts(await removeEloAccount(token, id));
@@ -514,9 +537,7 @@ export default function UserProfile({ legends = [] }) {
 		setEloError(null);
 		setEloResults([]);
 		try {
-			const res = await fetch(`/api/elo/search?q=${encodeURIComponent(eloQuery.trim())}`);
-			if (!res.ok) throw new Error(`HTTP ${res.status}`);
-			const data = await res.json();
+			const data = await searchPlayers(eloQuery.trim());
 			setEloResults(data);
 			if (data.length === 0) setEloError("No players found.");
 		} catch {
@@ -540,7 +561,7 @@ export default function UserProfile({ legends = [] }) {
 			if (historyRequest.current !== playerId) return;
 			const { history, picks } = fromSaved(playerId, items);
 			setEloHistory(history);
-			setSavedMatches(items);
+			setSavedMatches(items.filter(m => !m.rekeyedTo));
 			setMatchChampions(prev => ({ ...prev, ...picks }));
 			setSavedStatus("ready");
 		} catch {
@@ -551,9 +572,10 @@ export default function UserProfile({ legends = [] }) {
 	}
 
 	// A guest has nothing saved, so an account's rows come straight from
-	// EloShowdown. Picks already made for it stay — they're keyed by account.
+	// BoundRift. Picks already made for it stay — they're keyed by account.
 	// savedStatus only tracks the fetch here: there's no stored history to fail.
-	async function loadGuestHistory(playerId) {
+	async function loadGuestHistory(account) {
+		const playerId = account.id;
 		historyRequest.current = playerId;
 		setEloHistory(null);
 		setEloHistoryLoading(true);
@@ -561,7 +583,9 @@ export default function UserProfile({ legends = [] }) {
 		setSavedStatus("loading");
 		setSavedMatches([]);
 		try {
-			const fresh = await getEloHistory(playerId);
+			const id = boundriftIdOf(account) ?? await findBoundriftId(account.id);
+			if (!id) throw new Error("Not on BoundRift");
+			const fresh = await getPlayerHistory(id);
 			if (historyRequest.current === playerId) setEloHistory(mergeHistory(null, fresh));
 		} catch {
 			if (historyRequest.current === playerId) setSyncError("Could not load matches for your Riot account ID. Please try again.");
@@ -570,37 +594,78 @@ export default function UserProfile({ legends = [] }) {
 		}
 	}
 
-	// Search button: pull the latest matches from EloShowdown and merge them into
-	// the rows. Picks are untouched, so nothing already chosen is lost.
-	async function handleSync() {
-		if (linkedPlayer) syncSeason(linkedPlayer.id, pickSeason(seasonChoice, seasons, savedMatches));
+	// Look up events again for the account's months — after Search brings in new
+	// matches, or a pasted link teaches it a new store.
+	function forgetLookups(accountId) {
+		for (const key of [...requestedMonths.current]) {
+			if (key.startsWith(`${accountId}:`)) requestedMonths.current.delete(key);
+		}
 	}
 
-	// Pull one season's matches from EloShowdown (null = the current season) and
-	// merge them into the rows.
-	async function syncSeason(playerId, slug) {
-		if (syncing) return;
+	// Search button: pull every match the player has from BoundRift and merge
+	// them into the rows. Picks stay — those on rows saved from EloShowdown show
+	// on the matching BoundRift row. Rows whose event wasn't found are looked up
+	// again, as the lookup may know more stores by now.
+	async function handleSync() {
+		if (!linkedPlayer || !boundriftId || syncing) return;
+		const accountId = linkedPlayer.id;
 		setSyncing(true);
 		setSyncError(null);
 		setSaveMsg(null);
 		try {
-			const fresh = await getEloHistory(playerId, slug);
-			if (historyRequest.current !== playerId) return;
-			setEloHistory(prev => mergeHistory(prev, fresh));
+			const fresh = await getPlayerHistory(boundriftId);
+			if (historyRequest.current !== accountId) return;
+			setEloHistory(retryMissing(mergeHistory(eloHistory, fresh)));
+			forgetLookups(accountId);
 		} catch {
-			if (historyRequest.current === playerId) setSyncError("Could not load matches for your Riot account ID. Please try again.");
+			if (historyRequest.current === accountId) setSyncError("Could not load matches for your Riot account ID. Please try again.");
 		} finally {
 			setSyncing(false);
 		}
 	}
 
-	// Switching season. A guest has nothing saved, so that season's rows come
-	// from EloShowdown straight away; signed-in users see what's saved and press
-	// Search to pull the season.
+	// Open (or close) the paste-a-link form under one "Event not found" header.
+	function toggleLink(key) {
+		setLinking(open => (open === key ? null : key));
+		setEventLink({ busy: false, error: null });
+	}
+
+	// A link pasted under an "Event not found" header: the event's matches get
+	// it, and its store is searched for the months whose events weren't found.
+	// It has to be the event (one of) the header's matches were played at.
+	async function handleAddEvent(link) {
+		if (!linkedPlayer || !boundriftId || !link.trim() || !eloHistory || !linking) return;
+		const accountId = linkedPlayer.id;
+		const rows = eloHistory.points.filter(p => groupKeyFor(p) === linking);
+		setEventLink({ busy: true, error: null });
+		try {
+			const res = await lookupEvent(link.trim(), boundriftId);
+			if (historyRequest.current !== accountId) return;
+			if (!rows.some(p => res.matches[p.match_id])) {
+				setEventLink({ busy: false, error: `None of these matches were played at ${res.event.name} — check the link.` });
+				return;
+			}
+			setEloHistory(prev => applyEvents(retryMissing(prev), res.matches));
+			forgetLookups(accountId);
+			setLinking(null);
+			setEventLink({ busy: false, error: null });
+		} catch (err) {
+			setEventLink({ busy: false, error: err.message });
+		}
+	}
+
+	// "Same match as…": the user pairs a row saved from EloShowdown that didn't
+	// pair on its own with its BoundRift row. Its picks show on that row, and
+	// Save marks the old one as replaced, like an automatic pair.
+	function pairRow(legacyId, matchId) {
+		setEloHistory(prev => pairByHand(prev, legacyId, matchId));
+	}
+
+	// Switching season. BoundRift sends every season at once, so nothing needs
+	// fetching.
 	function changeSeason(slug) {
 		setSeasonChoice(slug);
 		setEloVisible(ELO_PAGE_SIZE);
-		if (isGuest && linkedPlayer && slug !== "all") syncSeason(linkedPlayer.id, slug);
 	}
 
 	const showSearch = profileStatus === "ready" && (!linkedPlayer || addingAccount);
@@ -609,13 +674,21 @@ export default function UserProfile({ legends = [] }) {
 
 	// What the record boxes and Data tab count: the active account's saved
 	// matches — or, for a guest, who has none, the rows on the page.
-	const statMatches = isGuest ? pageMatches().map(asStored) : savedMatches;
+	const statMatches = isGuest ? pageMatches().filter(m => !m.rekeyedTo).map(asStored) : savedMatches;
+	// The Data tab's report: every linked account's saved matches, each tagged
+	// with its account (the active account's as above; a guest has only that).
+	const dataMatches = [
+		...(linkedPlayer ? liveItems(linkedPlayer.id, statMatches).map(m => ({ ...m, account: linkedPlayer.id })) : []),
+		...accounts.filter(a => a.id !== activeId && otherSaved[a.id])
+			.flatMap(a => liveItems(a.id, otherSaved[a.id]).map(m => ({ ...m, account: a.id }))),
+	];
+	const dataAccounts = accounts.filter(a => a.id === activeId || otherSaved[a.id]).map(a => ({ id: a.id, name: a.display_name ?? a.id }));
 	// User card numbers: the latest season of those. Shown as "—" until they've
 	// loaded (or with no account linked).
 	const statsReady = Boolean(linkedPlayer) && savedStatus === "ready";
 	const cardSeason = latestSeason(statMatches);
 	// The tabs' season, its label and options, and the rows narrowed to it.
-	const season = pickSeason(seasonChoice, seasons, statMatches);
+	const season = pickSeason(seasonChoice, seasons, eloHistory?.points?.length ? eloHistory.points : statMatches);
 	const seasonList = seasons.length ? seasons : seasonsOf(statMatches).map(slug => ({ slug, name: seasonLabel(slug) }));
 	const seasonName = seasonList.find(s => s.slug === season)?.name ?? (season ? seasonLabel(season) : "All seasons");
 	const seasonOptions = [...seasonList.map(s => [s.slug, s.name]), ["all", "All seasons"]];
@@ -627,28 +700,46 @@ export default function UserProfile({ legends = [] }) {
 		onCreate: createDraft, onChange: changeDraft, onDelete: removeDraft, onGoToHistory: () => setMatchTab("history"),
 	};
 	const cardStats = summarize(cardSeason.matches);
-	const user = isGuest ? GUEST : USER;
-	const rank = isGuest ? GUEST_RANK : RANK_COLORS[USER.rank] || { color: COLORS.accent, glow: "color-mix(in srgb, var(--accent) 27%, transparent)", icon: "⭐" };
+	// Who's signed in: the name stored at sign-up (the part of their email
+	// before the @), their email and when they joined.
+	const user = isGuest ? GUEST : {
+		username: member?.displayName ?? authUser?.email?.split("@")[0] ?? "",
+		subtitle: authUser?.email ?? "",
+		joined: member?.createdAt ? new Date(member.createdAt).toLocaleDateString("en-GB", { month: "long", year: "numeric" }) : null,
+	};
+	// The legend on their most recent match that has one picked.
+	const lastPlayed = sortChronological(statMatches.filter(m => m.myChampion)).at(-1) ?? null;
+	const lastLegend = lastPlayed ? legends.find(l => l.id === lastPlayed.myChampion) ?? null : null;
+	// The legend they've picked most, with how many games: { legend, games }.
+	const topPick = recordsBy(statMatches, m => m.myChampion)[0];
+	const mostPlayed = topPick && legends.some(l => l.id === topPick.key)
+		? { legend: legends.find(l => l.id === topPick.key), games: topPick.games }
+		: null;
 
 	// Picks that differ from what's stored, keyed "matchId:mine" /
 	// "matchId:opponent" / "matchId:score" — the phone save bar counts these and
-	// outlines their slots.
+	// outlines their slots. BoundRift's own score on a row with none stored isn't
+	// a pick the user made, so it isn't counted.
 	const unsaved = new Set();
 	if (linkedPlayer && eloHistory) {
 		const stored = new Map(savedMatches.map(m => [String(m.matchId), m]));
 		for (const m of eloHistory.points) {
 			const picks = rowPicks[`${linkedPlayer.id}:${m.match_id}`] || {};
 			const saved = stored.get(String(m.match_id));
+			const sourceScore = !saved?.score && picks.score === m.score;
 			if ((picks.mine ?? null) !== (saved?.myChampion ?? null)) unsaved.add(`${m.match_id}:mine`);
 			if ((picks.opponent ?? null) !== (saved?.opponentChampion ?? null)) unsaved.add(`${m.match_id}:opponent`);
-			if ((picks.score ?? null) !== (saved?.score ?? null)) unsaved.add(`${m.match_id}:score`);
+			if ((picks.score ?? null) !== (saved?.score ?? null) && !sourceScore) unsaved.add(`${m.match_id}:score`);
 		}
 	}
+	// "Event not found" headers offer a pasted link — once there's a BoundRift
+	// player to look the event's pairings up for.
+	const canLink = Boolean(boundriftId);
 
 	if (isMobile) {
 		return (
 			<MobileProfile
-				legends={legends} user={user} rank={rank} isGuest={isGuest} carriedOver={carriedOver}
+				legends={legends} user={user} lastLegend={lastLegend} lastPlayed={lastPlayed} mostPlayed={mostPlayed} isGuest={isGuest} carriedOver={carriedOver}
 				linkedPlayer={linkedPlayer} accounts={accounts} activeId={activeId}
 				profileStatus={profileStatus} linkError={linkError} showSearch={showSearch} firstRun={firstRun} addingAccount={addingAccount}
 				eloQuery={eloQuery} setEloQuery={setEloQuery} eloResults={eloResults} eloLoading={eloLoading} eloError={eloError}
@@ -662,8 +753,11 @@ export default function UserProfile({ legends = [] }) {
 				season={season} seasonName={seasonName} seasons={seasons} seasonOptions={seasonOptions} onSeasonChange={changeSeason}
 				syncing={syncing} syncError={syncError} onSync={handleSync} onRetry={() => loadSavedHistory(linkedPlayer.id)}
 				eloVisible={eloVisible} onShowMore={() => setEloVisible(v => v + ELO_PAGE_SIZE)}
-				matchChampions={rowPicks} onPick={setChampion} onScore={setScore} eventKeyFor={eventKeyFor} tournamentFor={tournamentFor}
+				matchChampions={rowPicks} onPick={setChampion} onScore={setScore} eventKeyFor={eventKeyFor} groupKeyFor={groupKeyFor} tournamentFor={tournamentFor}
 				fillEvent={fillEvent} setFillEvent={setFillEvent}
+				canLink={canLink} linking={linking} onToggleLink={toggleLink} eventLink={eventLink} onAddEvent={handleAddEvent}
+				allPoints={eloHistory?.points ?? []} onPairRow={pairRow}
+				dataMatches={dataMatches} dataAccounts={dataAccounts}
 				unsaved={unsaved} saving={saving} onSave={handleSaveHistory} saveMsg={saveMsg} onDismissSave={dismissSave}
 			/>
 		);
@@ -685,26 +779,23 @@ export default function UserProfile({ legends = [] }) {
 				</div>
 
 				<div style={{ display: "flex", alignItems: "center", gap: 12, position: "relative" }}>
-				{/* Avatar */}
-				<div style={{
-					width: 40, height: 40, borderRadius: 0, flexShrink: 0,
-					background: "linear-gradient(135deg, var(--bg-hover), var(--bg-alt))",
-					border: "2px solid var(--border)",
-					display: "flex", alignItems: "center", justifyContent: "center",
-					fontSize: 20, boxShadow: "0 0 12px var(--shadow)",
-				}}>{user.avatar}</div>
+				{/* Avatar: the legend they last played, else their initials */}
+				{lastLegend
+					? <LegendIcon legend={lastLegend} size={48} borderColor={COLORS.borderHover} />
+					: (
+						<div style={{
+							width: 48, height: 48, flexShrink: 0, background: COLORS.bgHover, border: `1px solid ${COLORS.borderHover}`,
+							display: "flex", alignItems: "center", justifyContent: "center",
+							fontSize: 16, fontWeight: 700, color: COLORS.textStrong, fontFamily: FONT_MONO,
+						}}>{initials(user.username)}</div>
+					)}
 
 				{/* Info */}
-				<div style={{ flex: 1 }}>
-					<div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-						<h1 style={{ fontSize: 15, fontWeight: 900, color: COLORS.accent, letterSpacing: "0.08em", fontFamily: FONT_MONO }}>
+				<div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 3, fontFamily: FONT_MONO }}>
+					<div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+						<h1 style={{ fontSize: 16, fontWeight: 900, color: COLORS.accent, letterSpacing: "0.04em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
 							{user.username}
 						</h1>
-						<span style={{
-							background: rank.glow, border: `1px solid ${alpha(rank.color, 27)}`,
-							borderRadius: 0, padding: "0 6px",
-							fontSize: 10, color: rank.color, fontFamily: FONT_MONO, letterSpacing: "0.1em",
-						}}>{rank.icon} {user.rank}</span>
 						{linkedPlayer && (
 							<ProfileSwitcher accounts={accounts} activeId={activeId}
 								onSelect={switchAccount}
@@ -712,12 +803,23 @@ export default function UserProfile({ legends = [] }) {
 								onAdd={() => { setAddingAccount(true); setEloResults([]); setEloError(null); }} />
 						)}
 					</div>
-					<div style={{ fontSize: 11, color: COLORS.textMuted, fontStyle: "italic", marginBottom: 2, fontFamily: FONT_MONO }}>
-						{user.title}
+					<div style={{ fontSize: 11, color: COLORS.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+						{user.subtitle}
+						{user.joined && <span style={{ color: COLORS.textDim }}> · Member since {user.joined}</span>}
 					</div>
-					{!isGuest && (
-						<div style={{ fontSize: 9, color: COLORS.textDim, fontFamily: FONT_MONO, letterSpacing: "0.08em" }}>
-							MEMBER SINCE {USER.joinDate.toUpperCase()}
+					{mostPlayed && (
+						<div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, minWidth: 0 }}>
+							<span style={{ fontSize: 9, letterSpacing: "0.14em", color: COLORS.textDim, flexShrink: 0 }}>MOST PLAYED</span>
+							<span style={{ color: COLORS.textStrong, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{legendLabel(mostPlayed.legend)}</span>
+							<RuneIcons domains={mostPlayed.legend.domains} size={12} />
+							<span style={{ color: COLORS.textDim, flexShrink: 0 }}>{mostPlayed.games} {mostPlayed.games === 1 ? "game" : "games"}</span>
+						</div>
+					)}
+					{lastLegend && (
+						<div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, minWidth: 0 }}>
+							<span style={{ fontSize: 9, letterSpacing: "0.14em", color: COLORS.textDim, flexShrink: 0 }}>LAST PLAYED</span>
+							<span style={{ color: COLORS.textStrong, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{legendLabel(lastLegend)}</span>
+							<RuneIcons domains={lastLegend.domains} size={12} />
 						</div>
 					)}
 				</div>
@@ -729,7 +831,7 @@ export default function UserProfile({ legends = [] }) {
 			{isGuest && !firstRun && <GuestNotice />}
 			{carriedOver && <GuestNotice carried onSave={handleSaveHistory} saving={saving} />}
 
-			{/* ── EloShowdown Search ── */}
+			{/* ── Player search (BoundRift) ── */}
 			<div style={{
 				background: COLORS.bgCard, border: `1px solid ${COLORS.border}`,
 				borderRadius: 0, padding: "8px 12px", marginBottom: 10,
@@ -812,7 +914,7 @@ export default function UserProfile({ legends = [] }) {
 								<div style={{ flex: 1 }}>
 									<div style={{ fontSize: 12, color: COLORS.text, fontFamily: FONT_MONO }}>{player.display_name}</div>
 									<div style={{ fontSize: 10, color: COLORS.textMuted, fontFamily: FONT_MONO }}>
-										{player.primary_community} · {countryFlag(player.country)} {player.country}
+										{playerSummary(player)}
 									</div>
 								</div>
 							</div>
@@ -845,17 +947,18 @@ export default function UserProfile({ legends = [] }) {
 						{matchTab === "nexus" ? (
 							<NexusNight {...nexusProps} />
 						) : matchTab === "data" ? (
-							<MatchStats matches={statMatches} legends={legends} status={savedStatus}
+							<MatchStats matches={dataMatches} accounts={dataAccounts} legends={legends} status={savedStatus}
 								season={season} seasonName={seasonName} seasons={seasons} />
 						) : (<>
-						{/* Current Elo + season from the rows shown, and Search to pull the latest from EloShowdown. */}
+						{/* Current Elo + season from the rows shown, and Search to pull the latest from BoundRift. */}
 						<div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, fontFamily: FONT_MONO }}>
 							<div style={{ fontSize: 10, color: COLORS.textDim, letterSpacing: "0.15em" }}>
 								ELO
 							</div>
-							{shownHistory?.points.at(-1)?.elo_after != null && (
+							{/* The newest rated row — sealed events aren't rated */}
+							{shownHistory?.points.findLast(p => p.elo_after != null) && (
 								<div style={{ fontSize: 14, fontWeight: 700, color: COLORS.accent }}>
-									{shownHistory.points.at(-1).elo_after}
+									{shownHistory.points.findLast(p => p.elo_after != null).elo_after}
 								</div>
 							)}
 							<div style={{ fontSize: 10, color: COLORS.textDim, letterSpacing: "0.1em" }}>
@@ -910,16 +1013,20 @@ export default function UserProfile({ legends = [] }) {
 										{recent.map((m, i) => {
 											const resultColor = m.result === "win" ? COLORS.win : m.result === "loss" ? COLORS.loss : COLORS.draw;
 											const changeSign = m.elo_change > 0 ? "+" : "";
-											const d = new Date(m.date);
-											const dateStr = d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 											const picks = rowPicks[`${linkedPlayer.id}:${m.match_id}`] || {};
-											// Consecutive matches from the same tournament share one header row.
-											const showHeader = i === 0 || eventKeyFor(m) !== eventKeyFor(recent[i - 1]);
-											const endsGroup = i < recent.length - 1 && eventKeyFor(m) !== eventKeyFor(recent[i + 1]);
+											// Consecutive matches from the same event (or, while it isn't
+											// known, the same month) share one header row.
+											const showHeader = i === 0 || groupKeyFor(m) !== groupKeyFor(recent[i - 1]);
+											const endsGroup = i < recent.length - 1 && groupKeyFor(m) !== groupKeyFor(recent[i + 1]);
 											return (
 												<Fragment key={m.match_id}>
 												{showHeader && (
-													<TournamentHeader tournament={tournamentFor(m)} dateStr={dateStr} />
+													<TournamentHeader tournament={tournamentFor(m)} dateStr={playedLabel(m.date ?? m.month) || m.season}
+														linking={linking === groupKeyFor(m)}
+														onLink={canLink && tournamentFor(m) === null ? () => toggleLink(groupKeyFor(m)) : null} />
+												)}
+												{showHeader && linking === groupKeyFor(m) && (
+													<EventLinkForm state={eventLink} onAdd={handleAddEvent} />
 												)}
 												{/* You | result + Elo | opponent. Equal side columns keep the result centred. */}
 												<div
@@ -928,7 +1035,7 @@ export default function UserProfile({ legends = [] }) {
 														alignItems: "center", columnGap: 16,
 														height: 50, padding: "0 4px", background: COLORS.bg,
 														border: `1px solid ${COLORS.border}`, borderTop: "none",
-														marginBottom: endsGroup ? 12 : 0,
+														marginBottom: endsGroup && !isUnpairedLegacy(m, eloHistory.points) ? 12 : 0,
 													}}>
 													<LegendPick side="left" player="You" champions={legends} value={picks.mine}
 														onSelect={id => setChampion(m, "mine", id)}
@@ -949,6 +1056,10 @@ export default function UserProfile({ legends = [] }) {
 													<LegendPick side="right" player={m.opponent_name} champions={legends} value={picks.opponent}
 														onSelect={id => setChampion(m, "opponent", id)} />
 												</div>
+												{isUnpairedLegacy(m, eloHistory.points) && (
+													<SameMatch row={m} candidates={pairCandidates(eloHistory.points, m)} last={endsGroup}
+														onPair={matchId => pairRow(m.match_id, matchId)} />
+												)}
 												</Fragment>
 											);
 										})}
@@ -1006,7 +1117,7 @@ export default function UserProfile({ legends = [] }) {
 }
 
 // ── Profile switcher ─────────────────────────────────────────────────────────
-// Chip next to the username showing the active EloShowdown account. The menu
+// Chip next to the username showing the active player account. The menu
 // lists every linked account: click one to switch, ✕ to unlink, or add another.
 
 function ProfileSwitcher({ accounts, activeId, onSelect, onRemove, onAdd }) {
@@ -1029,7 +1140,7 @@ function ProfileSwitcher({ accounts, activeId, onSelect, onRemove, onAdd }) {
 					padding: "1px 8px", cursor: "pointer", transition: "border-color 0.2s",
 					fontSize: 11, color: COLORS.accent, fontFamily: font,
 				}}>
-				🔗 {active?.display_name ?? active?.id}
+				{active?.display_name ?? active?.id}
 				{accounts.length > 1 && <span style={{ fontSize: 10, color: COLORS.textMuted }}>+{accounts.length - 1}</span>}
 				<span style={{ fontSize: 8, color: COLORS.textMuted }}>{open ? "▲" : "▼"}</span>
 			</button>
@@ -1089,31 +1200,137 @@ function ProfileSwitcher({ accounts, activeId, onSelect, onRemove, onAdd }) {
 }
 
 // ── Tournament header ────────────────────────────────────────────────────────
-// Full-width row above each group of matches from the same UVS tournament.
+// Full-width row above each group of matches from the same event — or, while
+// their event isn't known, the same month. Events found on BoundRift link to
+// its page; ones saved before BoundRift only have a name. An event that wasn't
+// found gets LINK EVENT (`onLink`), which opens the paste-a-link form below.
 
-function TournamentHeader({ tournament, dateStr }) {
+function TournamentHeader({ tournament, dateStr, onLink, linking }) {
 	const label = tournament === undefined
-		? "Looking up tournament…"
+		? "Looking up event…"
 		: tournament
 			? tournament.name
-			: "Tournament not found";
+			: "Event not found";
 	return (
 		<div style={{
 			display: "flex", alignItems: "center", gap: 8, height: 30, padding: "0 10px",
 			background: COLORS.bgCard, border: `1px solid ${COLORS.border}`, borderRadius: 0,
 			fontSize: 13, letterSpacing: "0.04em", fontFamily: FONT_MONO,
 		}}>
-			{tournament ? (
+			{tournament?.url ? (
 				<a href={tournament.url} target="_blank" rel="noopener noreferrer"
 					onMouseEnter={e => { e.currentTarget.style.textDecoration = "underline"; }}
 					onMouseLeave={e => { e.currentTarget.style.textDecoration = "none"; }}
 					style={{ color: COLORS.accent, fontWeight: 700, textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
 					{label}
 				</a>
+			) : tournament ? (
+				<span style={{ color: COLORS.textStrong, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
 			) : (
 				<span style={{ color: COLORS.textDim, fontStyle: "italic" }}>{label}</span>
 			)}
+			{onLink && (
+				<button onClick={onLink} aria-expanded={linking}
+					onMouseEnter={e => { e.currentTarget.style.borderColor = COLORS.accentDim; }}
+					onMouseLeave={e => { e.currentTarget.style.borderColor = linking ? COLORS.accentDim : COLORS.border; }}
+					style={{
+						marginLeft: 8, padding: "2px 10px", background: linking ? COLORS.bgHover : "transparent", borderRadius: 0,
+						border: `1px solid ${linking ? COLORS.accentDim : COLORS.border}`, color: COLORS.accent, cursor: "pointer",
+						fontFamily: FONT_MONO, fontSize: 10, letterSpacing: "0.12em", flexShrink: 0,
+					}}>
+					{linking ? "CANCEL" : "LINK EVENT"}
+				</button>
+			)}
 			<span style={{ color: COLORS.textDim, marginLeft: "auto", flexShrink: 0, fontSize: 11 }}>{dateStr}</span>
+		</div>
+	);
+}
+
+// ── Event link ───────────────────────────────────────────────────────────────
+// Opens under an "Event not found" header. Events are only looked for at the
+// stores the player is known to play at, so pasting one event from a new store
+// links its matches and lets the lookup find that store's other events.
+
+function EventLinkForm({ state, onAdd }) {
+	const [link, setLink] = useState("");
+	function submit(e) {
+		e.preventDefault();
+		onAdd(link);
+	}
+	const off = state.busy || !link.trim();
+	return (
+		<form onSubmit={submit} style={{ padding: "8px 10px", background: COLORS.bgRaised, border: `1px solid ${COLORS.border}`, borderTop: "none", fontFamily: FONT_MONO }}>
+			<div style={{ fontSize: 11, color: COLORS.textMuted, lineHeight: 1.5, marginBottom: 6 }}>
+				Paste the link to the event these were played at, from PlayRiftbound, UVS or BoundRift &mdash; other events at the same store are then found too.
+			</div>
+			<div style={{ display: "flex", gap: 6 }}>
+				<input type="url" value={link} onChange={e => setLink(e.target.value)} aria-label="Event link" autoFocus
+					placeholder="https://events.playriftbound.com/en-US/events/…"
+					onFocus={e => { e.target.style.borderColor = COLORS.accentDim; }}
+					onBlur={e => { e.target.style.borderColor = COLORS.borderHover; }}
+					style={{
+						flex: 1, minWidth: 0, background: COLORS.bgRaised, border: `1px solid ${COLORS.borderHover}`, borderRadius: 0,
+						padding: "5px 8px", color: COLORS.textStrong, fontFamily: FONT_MONO, fontSize: 12, outline: "none", caretColor: COLORS.accent,
+					}} />
+				<button type="submit" disabled={off} style={{
+					background: off ? COLORS.border : COLORS.bgHover, border: `1px solid ${off ? COLORS.border : COLORS.accentDim}`, borderRadius: 0,
+					padding: "5px 14px", color: off ? COLORS.textDim : COLORS.accent, fontFamily: FONT_MONO, fontSize: 10, letterSpacing: "0.12em",
+					cursor: off ? "not-allowed" : "pointer", whiteSpace: "nowrap", flexShrink: 0,
+				}}>{state.busy ? "ADDING…" : "ADD EVENT"}</button>
+			</div>
+			{state.error && <div style={{ marginTop: 6, fontSize: 11, color: COLORS.loss }}>{state.error}</div>}
+		</form>
+	);
+}
+
+// ── Same match as… ───────────────────────────────────────────────────────────
+// A strip under a row saved from EloShowdown that didn't pair with a BoundRift
+// row — usually an opponent who has since renamed. SAME MATCH AS… lists the
+// BoundRift rows it could be (same result and season, around the same time);
+// picking one pairs them.
+
+function SameMatch({ row, candidates, last, onPair }) {
+	const [open, setOpen] = useState(false);
+	return (
+		<div style={{
+			padding: "6px 10px", background: COLORS.bgRaised, border: `1px solid ${COLORS.border}`, borderTop: "none",
+			marginBottom: last ? 12 : 0, fontFamily: FONT_MONO, fontSize: 11,
+		}}>
+			<div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+				<span style={{ color: COLORS.textMuted, flex: 1, minWidth: 0 }}>
+					Saved from EloShowdown &mdash; not matched to a BoundRift match{candidates.length ? "." : ", and none fits."}
+				</span>
+				{candidates.length > 0 && (
+					<button onClick={() => setOpen(o => !o)} aria-expanded={open}
+						onMouseEnter={e => { e.currentTarget.style.borderColor = COLORS.accentDim; }}
+						onMouseLeave={e => { e.currentTarget.style.borderColor = open ? COLORS.accentDim : COLORS.border; }}
+						style={{
+							padding: "2px 10px", background: open ? COLORS.bgHover : "transparent", borderRadius: 0, flexShrink: 0,
+							border: `1px solid ${open ? COLORS.accentDim : COLORS.border}`, color: COLORS.accent, cursor: "pointer",
+							fontFamily: FONT_MONO, fontSize: 10, letterSpacing: "0.12em",
+						}}>{open ? "CANCEL" : "SAME MATCH AS…"}</button>
+				)}
+			</div>
+			{open && (
+				<div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 4, maxHeight: 260, overflowY: "auto" }}>
+					<span style={{ color: COLORS.textDim }}>Which BoundRift match is this game vs {row.opponent_name}? Opponents show their current name.</span>
+					{candidates.map(c => (
+						<button key={c.match_id} onClick={() => onPair(c.match_id)}
+							onMouseEnter={e => { e.currentTarget.style.background = COLORS.bgHover; }}
+							onMouseLeave={e => { e.currentTarget.style.background = COLORS.bg; }}
+							style={{
+								display: "flex", gap: 12, alignItems: "center", padding: "5px 8px", background: COLORS.bg, borderRadius: 0,
+								border: `1px solid ${COLORS.border}`, color: COLORS.text, cursor: "pointer", fontFamily: FONT_MONO, fontSize: 11, textAlign: "left",
+							}}>
+							<span style={{ color: COLORS.textStrong, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+								vs {c.opponent_name}{c.event?.name && <span style={{ color: COLORS.textDim }}> · {c.event.name}</span>}
+							</span>
+							{c.score && <span>{c.score}</span>}
+							<span style={{ color: COLORS.textDim, minWidth: 64, textAlign: "right" }}>{playedLabel(c.date ?? c.month) || c.season}</span>
+						</button>
+					))}
+				</div>
+			)}
 		</div>
 	);
 }

@@ -1,5 +1,5 @@
 // Nexus Night drafts — games logged at a local event as they're played, before
-// UVS / EloShowdown publish the results. Once the real matches arrive, the
+// the results reach BoundRift. Once the real matches arrive, the
 // profile matches each drafted game to its row and fills in the picks.
 //
 //   GET    /drafts[?cursor=<token>]  → { drafts: [...], nextCursor }
@@ -17,7 +17,7 @@
 //                     begins_with "<eloPlayerId>#"; account ids can't start
 //                     with "~", so the two never overlap.
 //   draftId           client-generated id ([A-Za-z0-9_-], ≤ 64 chars)
-//   eloPlayerId       EloShowdown account the event was played on
+//   eloPlayerId       linked account the event was played on (see userProfile.mjs)
 //   eventName         e.g. "Nexus Night @ Zen"
 //   date              YYYY-MM-DD the event was played
 //   games             [{ id, opponent, myChampion, opponentChampion, result,

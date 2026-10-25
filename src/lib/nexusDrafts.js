@@ -1,15 +1,16 @@
 // Nexus Night drafts: games logged at a local event as they're played, before
-// UVS / EloShowdown publish the results. Signed-in users' drafts are stored by
+// the results reach BoundRift. Signed-in users' drafts are stored by
 // lambda/matchDrafts.mjs; a guest's stay in this browser (localStorage).
 //
 // Draft: { draftId, eloPlayerId, eventName, date: "YYYY-MM-DD", games, createdAt? }
 // Game:  { id, opponent, myChampion, opponentChampion, result, score }
+// (eloPlayerId is the linked account's id — see lambda/userProfile.mjs.)
 //
 // Once the real matches arrive, matchDraftGames() pairs each drafted game with
-// its EloShowdown row (same opponent, within a day of the event), and
-// draftPicks() turns those pairs into History picks.
+// its History row (same opponent, near the event's date), and draftPicks()
+// turns those pairs into History picks.
 
-import { scoreOptions } from "./matchStats";
+import { matchNumber, scoreOptions } from "./matchStats";
 
 const LOCAL_KEY = "riftbound-nexus-drafts";
 
@@ -34,21 +35,24 @@ const norm = s => (s ?? "").trim().toLowerCase();
 const day = d => d?.slice(0, 10);
 const daysApart = (a, b) => Math.abs(Date.parse(a) - Date.parse(b)) / 86400000;
 
-// gameId → the EloShowdown elo-history point it was (most likely) played as:
-// the same opponent name (any case) on the event's date, or a day either side
-// for time-zone differences; the closest date wins, then the earlier match.
-// Each point pairs with at most one game. Games without an opponent never match.
+// gameId → the History row it was (most likely) played as: the same opponent
+// name (any case) on the event's date, or a day either side for time-zone
+// differences. A row whose event hasn't been found yet only knows its month, so
+// it can match a draft in that month — after any row with a date, then the
+// earlier match. Each row pairs with at most one game. Games without an
+// opponent never match.
 export function matchDraftGames(drafts, points) {
 	const found = new Map();
 	const taken = new Set();
+	// Days from the draft, with a month-only row counted as further than any dated one.
+	const distance = (p, draft) => (day(p.date) ? daysApart(day(p.date), draft.date) : 2);
 	for (const draft of drafts) {
 		for (const game of draft.games) {
 			if (!norm(game.opponent)) continue;
 			const best = points
 				.filter(p => !taken.has(String(p.match_id)) && norm(p.opponent_name) === norm(game.opponent)
-					&& day(p.date) && daysApart(day(p.date), draft.date) <= 1)
-				.sort((a, b) => daysApart(day(a.date), draft.date) - daysApart(day(b.date), draft.date)
-					|| Number(a.match_id) - Number(b.match_id))[0];
+					&& (day(p.date) ? daysApart(day(p.date), draft.date) <= 1 : p.month === draft.date.slice(0, 7)))
+				.sort((a, b) => distance(a, draft) - distance(b, draft) || matchNumber(a.match_id) - matchNumber(b.match_id))[0];
 			if (best) {
 				taken.add(String(best.match_id));
 				found.set(game.id, best);

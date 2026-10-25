@@ -1,21 +1,17 @@
 import "server-only";
 
-// Server-side reads from the public EloShowdown API.
+// EloShowdown stopped updating when Riftbound's events moved from UVS to
+// PlayRiftbound (October 2026); match history now comes from BoundRift
+// (lib/boundrift.js). This is only used to move accounts linked before then:
+// an EloShowdown player's `riftbound_id` is their UVS player id, which is also
+// their BoundRift id.
 
 const ELO_BASE = "https://eloshowdown.com/api/v1";
 
-async function eloGet(path) {
-	const res = await fetch(`${ELO_BASE}${path}`, { next: { revalidate: 86400 } });
-	if (!res.ok) throw new Error(`EloShowdown ${res.status} for ${path}`);
-	return res.json();
-}
-
-// { id, display_name, riftbound_id, primary_community, primary_community_slug, country, ... }
-export function getPlayer(playerId) {
-	return eloGet(`/players/${playerId}`);
-}
-
-// { slug, name, country, state, player_count, is_active }
-export function getCommunity(slug) {
-	return eloGet(`/communities/${slug}`);
+// The BoundRift id for an EloShowdown player id, or null when they have none.
+export async function boundriftIdFor(eloPlayerId) {
+	const res = await fetch(`${ELO_BASE}/players/${eloPlayerId}`, { next: { revalidate: 30 * 86400 } });
+	if (!res.ok) throw new Error(`EloShowdown ${res.status} for player ${eloPlayerId}`);
+	const player = await res.json();
+	return player.riftbound_id ? String(player.riftbound_id) : null;
 }

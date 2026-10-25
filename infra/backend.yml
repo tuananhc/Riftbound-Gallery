@@ -277,7 +277,7 @@ Resources:
     DependsOn: UserProfileLogGroup
     Properties:
       FunctionName: !Sub ${AWS::StackName}-user-profile
-      Description: GET/PUT /profile - read the profile and manage linked EloShowdown accounts
+      Description: GET/PUT /profile - read the profile and manage linked player accounts
       Runtime: nodejs24.x
       Architectures: [arm64]
       Handler: userProfile.handler

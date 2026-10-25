@@ -47,8 +47,9 @@ export default function RootLayout({ children }) {
 	);
 }
 
-// Credits for the data and assets the site is built on. Riot account IDs are
-// looked up through EloShowdown's public API; card art and game assets are Riot's.
+// Credits for the data and assets the site is built on. Riot account IDs, match
+// history and events are looked up through BoundRift (EloShowdown before
+// October 2026); card art and game assets are Riot's.
 function Acknowledgements() {
 	const link = { color: COLORS.textMuted, textDecoration: "underline" };
 	return (
@@ -58,10 +59,10 @@ function Acknowledgements() {
 				Riftbound, its card art and game assets are the property of <a href="https://www.riotgames.com" target="_blank" rel="noopener noreferrer" style={link}>Riot Games</a>, and the game is published by <a href="https://www.uvsgames.com" target="_blank" rel="noopener noreferrer" style={link}>UVS Games</a>. Card data comes from the official <a href="https://riftbound.leagueoflegends.com/en-us/card-gallery/" target="_blank" rel="noopener noreferrer" style={link}>Riftbound Card Gallery</a>.
 			</p>
 			<p style={{ margin: 0 }}>
-				Match history, Elo and tournament data for your Riot account ID are provided by <a href="https://eloshowdown.com/riftbound/" target="_blank" rel="noopener noreferrer" style={link}>EloShowdown</a> through their public API.
+				Match history, Elo and tournament data for your Riot account ID are provided by <a href="https://boundrift.com" target="_blank" rel="noopener noreferrer" style={link}>BoundRift</a>, from the events on Riot&apos;s PlayRiftbound event site and the UVS event locator. Matches saved before October 2026 came from <a href="https://eloshowdown.com/riftbound/" target="_blank" rel="noopener noreferrer" style={link}>EloShowdown</a>.
 			</p>
 			<p style={{ margin: 0 }}>
-				Riftbound Gallery is a fan project. It is not endorsed by or affiliated with Riot Games, UVS Games or EloShowdown.
+				Riftbound Gallery is a fan project. It is not endorsed by or affiliated with Riot Games, UVS Games, BoundRift or EloShowdown.
 			</p>
 		</section>
 	);

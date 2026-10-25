@@ -3,33 +3,41 @@
 //
 // Fronted by API Gateway (HTTP API) with a Cognito JWT authorizer. The userId is
 // derived from the verified token, NEVER from the request body. A user can link
-// several EloShowdown accounts, so each match is keyed by userId (PK) +
+// several player accounts, so each match is keyed by userId (PK) +
 // accountMatchId (SK) = "<eloPlayerId>#<matchId>". Two of the user's own
 // accounts playing each other therefore get two items, and one account's
 // history is a Query with begins_with(accountMatchId, "<eloPlayerId>#").
 //
-// Every field of an EloShowdown elo-history point is kept (match_id, date,
-// result, opponent_name, opponent_id, elo_before, elo_change, elo_after, plus
-// the response's season_slug), alongside the user's own picks and notes.
+// Matches come from BoundRift; their ids are stored as "br-<id>". Rows saved
+// before October 2026 came from EloShowdown and keep its plain numeric ids,
+// Elo and season slugs. When the page finds the BoundRift match an EloShowdown
+// row was, it saves the BoundRift row and sets `rekeyedTo` on the old item, so
+// it isn't shown again — the old item itself is never deleted.
 //
 // Item schema:
 //   userId            PK — Cognito sub
 //   accountMatchId    SK — "<eloPlayerId>#<matchId>"
-//   eloPlayerId       EloShowdown account the match was played on
-//   matchId           EloShowdown match id
+//   eloPlayerId       linked account the match was played on (the account's
+//                     id: "br-<BoundRift id>", or an EloShowdown id for
+//                     accounts linked before BoundRift)
+//   matchId           "br-<BoundRift match id>", or an EloShowdown match id
 //   opponent          opponent's display name
-//   opponentId        opponent's EloShowdown player id
+//   opponentId        opponent's player id (same scheme as matchId)
 //   myChampion        your legend (card id)
 //   opponentChampion  opponent's legend (card id)
 //   result            WIN | LOSS | DRAW
 //   score             final game score, yours first — one of SCORES[result]
-//   playedAt          ISO date the match was played
+//   playedAt          ISO start of the event the match was played at, once known
+//   month             "YYYY-MM" the match was played in (BoundRift, May 2026 on)
 //   eventName         tournament / event name
+//   eventId           BoundRift event id
 //   notes             free-text notes (max 2000 chars)
 //   eloBefore         Elo going into the match (number)
 //   eloChange         Elo gained / lost in the match (number)
 //   eloAfter          Elo after the match (number)
-//   season            EloShowdown season slug, e.g. "season-4-vendetta"
+//   season            set the match was rated in, e.g. "Vendetta" (EloShowdown
+//                     rows: its slug, e.g. "season-4-vendetta")
+//   rekeyedTo         on an EloShowdown row: the BoundRift matchId that replaced it
 //   updatedAt         ISO timestamp of the last write
 //
 // Writes are UpdateItem, not PutItem, so re-saving from the page never wipes
@@ -129,7 +137,10 @@ export const handler = async (event) => {
 				myChampion: text(m.myChampion, MAX_TEXT),
 				opponentChampion: text(m.opponentChampion, MAX_TEXT),
 				playedAt: text(m.playedAt, MAX_TEXT),
+				month: /^\d{4}-\d{2}$/.test(m.month ?? "") ? m.month : undefined,
 				eventName: text(m.eventName, MAX_TEXT),
+				eventId: text(m.eventId, MAX_TEXT),
+				rekeyedTo: text(m.rekeyedTo, MAX_TEXT),
 				notes: text(m.notes, MAX_NOTES),
 				eloBefore: num(m.eloBefore),
 				eloChange: num(m.eloChange),

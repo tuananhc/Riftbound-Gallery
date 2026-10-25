@@ -1,13 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  async rewrites() {
-    return [
-      {
-        source: "/api/elo/:path*",
-        destination: "https://eloshowdown.com/api/v1/:path*",
-      },
-    ];
-  },
   images: {
     remotePatterns: [
 			{ hostname: "cmsassets.rgpub.io" },

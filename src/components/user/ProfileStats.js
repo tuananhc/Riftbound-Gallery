@@ -1,6 +1,6 @@
 "use client";
 import { COLORS, FONT_MONO } from "../../lib/data";
-import { seasonLabel } from "../../lib/matchStats";
+import { seasonLabel, playedLabel } from "../../lib/matchStats";
 
 // ── Profile stats ────────────────────────────────────────────────────────────
 // Headline numbers on the user card, from `summarize()` in lib/matchStats.js.
@@ -33,10 +33,10 @@ export function StatTiles({ stats, season, ready }) {
 	const { record, streaks, last, peak } = stats;
 	const change = last?.eloChange;
 	const current = streaks.current;
-	const peakDate = peak?.playedAt && new Date(peak.playedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+	const peakDate = playedLabel(peak?.playedAt ?? peak?.month);
 	return (
 		<div style={{ marginTop: 10, fontFamily: FONT_MONO }}>
-			<div style={{ fontSize: 10, color: COLORS.textDim, letterSpacing: "0.14em", marginBottom: 6 }}>
+			<div style={{ fontSize: 10, fontWeight: 700, color: COLORS.textStrong, letterSpacing: "0.14em", marginBottom: 6 }}>
 				{season ? seasonLabel(season).toUpperCase() : "ALL SAVED MATCHES"}
 			</div>
 			{!ready ? (

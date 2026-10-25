@@ -10,12 +10,12 @@ import LegendIcon from "../cards/LegendIcon";
 
 // ── Nexus Night tab ──────────────────────────────────────────────────────────
 // Log the games of a local event as you play them — opponent, legends, result,
-// score — so nothing is forgotten by the time UVS / EloShowdown publish the
-// results. Each drafted game then finds its real match (lib/nexusDrafts.js) and
+// score — so nothing is forgotten by the time the results reach BoundRift.
+// Each drafted game then finds its real match (lib/nexusDrafts.js) and
 // fills that History row's picks, ready to review and save.
 //
 //   drafts      the active account's drafts, newest first
-//   matches     Map gameId → EloShowdown point the game was matched to
+//   matches     Map gameId → History row the game was matched to
 //   savedById   Map matchId → saved MatchHistory item (says what's stored)
 //   saveState   { [draftId]: "saving" | "saved" | "error" }
 
@@ -29,8 +29,8 @@ export default function NexusNight({ drafts, legends, matches, savedById, saveSt
 		<div style={{ fontFamily: FONT_MONO, display: "flex", flexDirection: "column", gap: mobile ? 12 : 10 }}>
 			<div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
 				<div style={{ flex: "1 1 260px", fontSize: 11, lineHeight: 1.6, color: COLORS.textMuted }}>
-					Log games as you play them. Once UVS posts the results, press Search in History and
-					each game fills in its match, ready to save.
+					Log games as you play them. Once the results reach BoundRift (a few days for
+					PlayRiftbound events), press Search in History and each game fills in its match, ready to save.
 					{isGuest && <span style={{ color: COLORS.textDim }}> As a guest, drafts stay in this browser only.</span>}
 				</div>
 				<button onClick={onCreate} style={{ ...primaryButton, height: mobile ? 48 : 30, width: mobile ? "100%" : "auto" }}>+ NEW EVENT</button>
@@ -110,10 +110,10 @@ function gameStatus(game, matches, savedById) {
 function StatusChip({ status, onGoToHistory }) {
 	const chip = { fontSize: 9, letterSpacing: "0.12em", fontWeight: 700, whiteSpace: "nowrap", padding: "3px 6px", border: "1px solid", background: "transparent", fontFamily: FONT_MONO };
 	if (status.kind === "empty") return <span style={{ ...chip, borderColor: "transparent", color: COLORS.textDim }}>ADD OPPONENT</span>;
-	if (status.kind === "waiting") return <span title="No EloShowdown match with this opponent near the event date yet" style={{ ...chip, borderColor: COLORS.border, color: COLORS.textDim }}>WAITING</span>;
+	if (status.kind === "waiting") return <span title="No BoundRift match with this opponent near the event date yet" style={{ ...chip, borderColor: COLORS.border, color: COLORS.textDim }}>WAITING</span>;
 	if (status.kind === "saved") return <span style={{ ...chip, borderColor: COLORS.accentDim, color: COLORS.accent }}>SAVED ✓</span>;
 	return (
-		<button onClick={onGoToHistory} title="Matched to an EloShowdown result — review and save it in History"
+		<button onClick={onGoToHistory} title="Matched to a BoundRift result — review and save it in History"
 			style={{ ...chip, cursor: "pointer", borderColor: COLORS.accent, color: COLORS.bg, background: COLORS.accent }}>FOUND → SAVE</button>
 	);
 }
@@ -188,7 +188,7 @@ function GameRow({ game, round, status, legends, legendById, mobile, onChange, o
 			)}
 			{status.mismatch && (
 				<div style={{ padding: mobile ? "0 12px 10px" : "0 10px 6px 42px", fontSize: 10, color: COLORS.textMuted }}>
-					EloShowdown has this as a <span style={{ color: RESULT_COLOR[status.mismatch], fontWeight: 700 }}>{status.mismatch}</span> — History uses their result.
+					BoundRift has this as a <span style={{ color: RESULT_COLOR[status.mismatch], fontWeight: 700 }}>{status.mismatch}</span> — History uses their result.
 				</div>
 			)}
 			{choosing && !mobile && (

@@ -1,5 +1,5 @@
 // Stats over saved MatchHistory items — { matchId, result: "WIN"|"LOSS"|"DRAW",
-// score, playedAt, opponent, opponentId, myChampion, opponentChampion,
+// score, playedAt, month, opponent, opponentId, myChampion, opponentChampion,
 // eloBefore, eloChange, eloAfter, season, ... } (see lambda/saveMatchHistory.mjs).
 // Pure functions; the profile's Data tab and record boxes render these.
 
@@ -10,6 +10,75 @@ export const SCORES = {
 	LOSS: ["0-2", "1-2", "0-1"],
 	DRAW: ["1-1", "0-0"],
 };
+
+// Riftbound's sets, which are the rating seasons: BoundRift restarts everyone's
+// Elo with each one. Mirrors the set list on BoundRift's own site (it has no API
+// for it), oldest first, so a new set needs a line here. `end` is the next
+// set's start.
+export const SEASONS = [
+	{ slug: "Origins", start: null, end: "2026-02-13T00:00:00.000Z" },
+	{ slug: "Spiritforged", start: "2026-02-13T00:00:00.000Z", end: "2026-05-08T00:00:00.000Z" },
+	{ slug: "Unleashed", start: "2026-05-08T00:00:00.000Z", end: "2026-07-31T00:00:00.000Z" },
+	{ slug: "Vendetta", start: "2026-07-31T00:00:00.000Z", end: "2026-10-23T00:00:00.000Z" },
+	{ slug: "Radiance", start: "2026-10-23T00:00:00.000Z", end: "2027-01-29T00:00:00.000Z" },
+	{ slug: "Legacy", start: "2027-01-29T00:00:00.000Z", end: "2027-04-30T00:00:00.000Z" },
+	{ slug: "The Reckoning", start: "2027-04-30T00:00:00.000Z", end: null },
+];
+
+// EloShowdown's season slugs, on rows saved before the switch to BoundRift.
+const ELOSHOWDOWN_SEASONS = {
+	"season-1": "Origins",
+	"season-2-spiritforge": "Spiritforged",
+	"season-3-unleashed": "Unleashed",
+	"season-4-vendetta": "Vendetta",
+	"season-5-radiance": "Radiance",
+};
+
+// A stored season — a set name, or an EloShowdown slug — as a set name.
+export function seasonKey(season) {
+	return ELOSHOWDOWN_SEASONS[season] ?? season ?? null;
+}
+
+const seasonIndex = season => SEASONS.findIndex(s => s.slug === seasonKey(season));
+
+// The seasons that have started, newest first, in the shape the season picker
+// reads: { slug, name, start, end, is_current }.
+export function startedSeasons(now = new Date().toISOString()) {
+	const started = SEASONS.filter(s => !s.start || s.start <= now);
+	return started.map((s, i) => ({ ...s, name: s.slug, is_current: i === started.length - 1 })).reverse();
+}
+
+// The season in play at an ISO date or a "YYYY-MM" month (taken as its 1st).
+export function seasonAt(at) {
+	if (!at) return null;
+	const t = at.length === 7 ? `${at}-01` : at;
+	return SEASONS.find(s => (!s.start || t >= s.start) && (!s.end || t < s.end))?.slug ?? null;
+}
+
+// Match and player ids from BoundRift are stored as "br-<id>", which keeps them
+// apart from the EloShowdown ids on rows and accounts saved before the switch.
+export const isBoundriftId = id => String(id ?? "").startsWith("br-");
+export const matchNumber = id => Number(String(id ?? "").replace(/^br-/, ""));
+
+// Oldest first, over { id, at, month, season } — a match's id, its date when
+// known, the "YYYY-MM" it was played in, and its season. BoundRift numbers
+// matches in the order they're played, so two BoundRift matches go by season
+// then id (many only know their month). Anything else goes by date, else month,
+// else when its season began, with the id breaking ties.
+export function compareChronological(a, b) {
+	if (isBoundriftId(a.id) && isBoundriftId(b.id)) {
+		return seasonIndex(a.season) - seasonIndex(b.season) || matchNumber(a.id) - matchNumber(b.id);
+	}
+	const when = m => m.at ?? m.month ?? SEASONS[seasonIndex(m.season)]?.start ?? "";
+	return when(a).localeCompare(when(b)) || matchNumber(a.id) - matchNumber(b.id);
+}
+
+// "3 Oct" for an ISO date, "Oct 2026" for a "YYYY-MM" month, "" for neither.
+export function playedLabel(at, options = { day: "numeric", month: "short" }) {
+	if (!at) return "";
+	if (at.length === 7) return new Date(`${at}-01T12:00:00Z`).toLocaleDateString("en-GB", { month: "short", year: "numeric" });
+	return new Date(at).toLocaleDateString("en-GB", options);
+}
 
 // Scores to offer for a result, either case ("win" or "WIN").
 export function scoreOptions(result) {
@@ -22,40 +91,40 @@ export function bestOf(score) {
 	return /2|1-1/.test(score) ? 3 : 1;
 }
 
-// Oldest first; matches from one event share a timestamp, so matchId breaks ties.
+// Oldest first (see compareChronological).
 export function sortChronological(matches) {
-	return [...matches].sort((a, b) =>
-		(a.playedAt ?? "").localeCompare(b.playedAt ?? "") || Number(a.matchId) - Number(b.matchId)
-	);
+	return [...matches].sort((a, b) => compareChronological(
+		{ id: a.matchId, at: a.playedAt, month: a.month, season: a.season },
+		{ id: b.matchId, at: b.playedAt, month: b.month, season: b.season },
+	));
 }
 
-// Seasons present, most recently played first.
+// Seasons present, newest first. Works for stored items and history rows.
 export function seasonsOf(matches) {
-	const latest = new Map();
-	for (const m of matches) {
-		if (!m.season) continue;
-		if ((m.playedAt ?? "") > (latest.get(m.season) ?? "")) latest.set(m.season, m.playedAt ?? "");
-	}
-	return [...latest].sort((a, b) => b[1].localeCompare(a[1])).map(([season]) => season);
+	const present = new Set(matches.map(m => seasonKey(m.season)).filter(Boolean));
+	return [...present].sort((a, b) => seasonIndex(b) - seasonIndex(a));
 }
 
-// "season-4-vendetta" → "Season 4 Vendetta"
+// "Vendetta" → "Vendetta"; an EloShowdown slug ("season-4-vendetta") → its set.
 export function seasonLabel(slug) {
+	const key = seasonKey(slug);
+	if (SEASONS.some(s => s.slug === key)) return key;
 	return slug.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 }
 
-// The season a match belongs to: its stored slug, or — for rows saved before
-// seasons were stored — the season (from EloShowdown's list) whose start/end
-// contain the match's date. Works for stored items and elo-history points.
-export function seasonOfMatch(m, seasons = []) {
-	if (m.season) return m.season;
-	const at = m.playedAt ?? m.date;
+// The season a match belongs to: its stored season, or — for rows saved before
+// seasons were stored — the season in play on its date. Works for stored items
+// and history rows. `seasons` is the picker's list.
+export function seasonOfMatch(m, seasons = SEASONS) {
+	if (m.season) return seasonKey(m.season);
+	const at = m.playedAt ?? m.date ?? m.month;
 	if (!at) return null;
-	return seasons.find(s => (!s.start || at >= s.start) && (!s.end || at <= s.end))?.slug ?? null;
+	const t = at.length === 7 ? `${at}-01` : at;
+	return seasons.find(s => (!s.start || t >= s.start) && (!s.end || t < s.end))?.slug ?? null;
 }
 
-// season / legend of null mean "all". `seasons` (EloShowdown's list) places
-// rows that have no stored season by their date.
+// season / legend of null mean "all". `seasons` places rows that have no stored
+// season by their date.
 export function filterMatches(matches, { season, legend, seasons }) {
 	return matches.filter(m =>
 		(!season || seasonOfMatch(m, seasons) === season) && (!legend || m.myChampion === legend)
@@ -106,7 +175,7 @@ export function peakElo(series) {
 // none record a season (items saved before seasons were stored).
 export function latestSeason(matches) {
 	const season = seasonsOf(matches)[0] ?? null;
-	return { season, matches: season ? matches.filter(m => m.season === season) : matches };
+	return { season, matches: season ? matches.filter(m => seasonKey(m.season) === season) : matches };
 }
 
 // Headline numbers: the record, streaks, the latest Elo and the peak.
@@ -150,7 +219,7 @@ export function matchupExtremes(cells, minGames = 2) {
 	return { best: byRate(1), toughest: byRate(-1) };
 }
 
-// The opponent you've played most, by EloShowdown id (name as a fallback).
+// The opponent you've played most, by player id (name as a fallback).
 export function mostPlayedOpponent(matches) {
 	const top = recordsBy(matches, m => m.opponentId ?? m.opponent)[0];
 	if (!top) return null;

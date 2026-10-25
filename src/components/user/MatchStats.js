@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { COLORS, FONT_MONO, alpha } from "../../lib/data";
 import {
-	sortChronological, filterMatches, eloSeries, recordsBy, seasonOfMatch, seasonLabel,
+	sortChronological, filterMatches, eloSeries, recordsBy, seasonOfMatch, seasonLabel, playedLabel,
 	matchupGrid, matchupExtremes, mostPlayedOpponent,
 } from "../../lib/matchStats";
 import RuneIcons from "../cards/RuneIcons";
@@ -10,9 +10,10 @@ import LegendIcon from "../cards/LegendIcon";
 import Dropdown from "../Dropdown";
 
 // ── Data tab ─────────────────────────────────────────────────────────────────
-// Analysis of the active account's saved matches. Opens on Overview (Elo over
-// time, results by your legend and by opponent legend); Matchups switches to the
-// your-legend × opponent-legend grid. The headline numbers live on the user card.
+// Analysis of the saved matches of every linked account together, or one of
+// them picked in the account filter. Opens on Overview (Elo over time, results
+// by your legend and by opponent legend); Matchups switches to the your-legend
+// × opponent-legend grid. The headline numbers live on the user card.
 
 const LABEL = { fontSize: 10, color: COLORS.textDim, letterSpacing: "0.14em", fontFamily: FONT_MONO };
 
@@ -49,28 +50,37 @@ function rateTint(rate) {
 
 // The season comes from the selector beside the DATA / HISTORY tabs: `season`
 // is its slug (null = all seasons), `seasonName` its label, and `seasons` is
-// EloShowdown's list, used to place rows saved without a season by date.
+// the season list, used to place rows saved without a season by date.
+// Each match carries the `account` it was played on, and `accounts`
+// ([{ id, name }]) fills the account filter, shown with two or more.
 // `mobile` switches to the phone layouts; `onGoToHistory` lets the phone empty
 // state jump to the History tab, where picks are made.
-export default function MatchStats({ matches, legends, status, season, seasonName, seasons, mobile, onGoToHistory }) {
+export default function MatchStats({ matches, accounts = [], legends, status, season, seasonName, seasons, mobile, onGoToHistory }) {
 	const [view, setView] = useState("overview");
 	const [legend, setLegend] = useState("");
+	// "" = every account.
+	const [account, setAccount] = useState("");
 
 	if (status === "loading") return <Note>Loading your saved matches…</Note>;
 	if (status === "error") return <Note color={COLORS.loss}>Couldn&rsquo;t load your saved matches. Reload the page to try again.</Note>;
 	if (!matches.length) return <Note>No saved matches yet. Load them in History with Search, then save.</Note>;
 
 	const legendById = new Map(legends.map(l => [l.id, l]));
-	const inSeason = filterMatches(matches, { season, legend: null, seasons });
+	const shownAccount = accounts.some(a => a.id === account) ? account : "";
+	const inSeason = filterMatches(matches, { season, legend: null, seasons }).filter(m => !shownAccount || m.account === shownAccount);
 	const filtered = sortChronological(filterMatches(inSeason, { legend: legend || null }));
 	const myLegends = recordsBy(inSeason, m => m.myChampion).map(r => r.key);
 	const legendOptions = [["", "All"], ...myLegends.map(id => [id, legendById.get(id)?.tags_text ?? id])];
+	const accountOptions = [["", "All accounts"], ...accounts.map(a => [a.id, a.name])];
 	const emptyNote = season ? `No saved matches in ${seasonName ?? "this season"}${legend ? " for this legend" : ""}.` : "No saved matches for this filter.";
+	// Elo is kept per account, so one line across several makes no sense.
+	const mixed = new Set(filtered.map(m => m.account)).size > 1;
 
 	if (mobile) {
 		const hasPicks = filtered.some(m => m.myChampion || m.opponentChampion);
 		return (
 			<div style={{ fontFamily: FONT_MONO, display: "flex", flexDirection: "column", gap: 12 }}>
+				{accounts.length > 1 && <FieldSelect label="ACCOUNT" value={shownAccount} options={accountOptions} onChange={setAccount} />}
 				<FieldSelect label="LEGEND" value={legend} options={legendOptions} onChange={setLegend} />
 				<Segmented value={view} onChange={setView} options={[["overview", "OVERVIEW"], ["matchups", "MATCHUPS"]]} />
 				{filtered.length === 0
@@ -78,7 +88,7 @@ export default function MatchStats({ matches, legends, status, season, seasonNam
 					: !hasPicks
 						? <NoPicksYet onGoToHistory={onGoToHistory} />
 						: view === "overview"
-							? <MobileOverview matches={filtered} legendById={legendById} seasons={seasons} />
+							? <MobileOverview matches={filtered} legendById={legendById} seasons={seasons} mixed={mixed} />
 							: <MobileMatchups matches={filtered} legendById={legendById} />}
 			</div>
 		);
@@ -88,6 +98,7 @@ export default function MatchStats({ matches, legends, status, season, seasonNam
 		<div style={{ fontFamily: FONT_MONO }}>
 			{/* Filters, then the Overview / Matchups switch */}
 			<div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, marginBottom: 12 }}>
+				{accounts.length > 1 && <Select value={shownAccount} onChange={setAccount} options={accountOptions} ariaLabel="Account" />}
 				<Select value={legend} onChange={setLegend}
 					options={[["", "All legends"], ...legendOptions.slice(1)]} />
 				<div style={{ marginLeft: "auto", display: "flex" }}>
@@ -110,23 +121,26 @@ export default function MatchStats({ matches, legends, status, season, seasonNam
 			{filtered.length === 0
 				? <Note>{emptyNote}</Note>
 				: view === "overview"
-					? <Overview matches={filtered} legendById={legendById} seasons={seasons} />
+					? <Overview matches={filtered} legendById={legendById} seasons={seasons} mixed={mixed} />
 					: <Matchups matches={filtered} legendById={legendById} />}
 		</div>
 	);
 }
 
 // ── Overview ─────────────────────────────────────────────────────────────────
-// Elo over time beside your legends, then opponent legends full width.
+// Elo over time beside your legends, then opponent legends full width. With
+// several accounts' matches (`mixed`), the Elo panel asks for one account.
 
-function Overview({ matches, legendById, seasons }) {
+const MIXED_ELO = "Elo is kept per account — pick one in the account filter to see its line.";
+
+function Overview({ matches, legendById, seasons, mixed }) {
 	const mine = recordsBy(matches, m => m.myChampion);
 	const theirs = recordsBy(matches, m => m.opponentChampion);
 	return (
 		<>
 			<div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 8 }}>
 				<Panel title="ELO OVER TIME">
-					<EloChart series={eloSeries(matches)} seasons={seasons} />
+					{mixed ? <Hint>{MIXED_ELO}</Hint> : <EloChart series={eloSeries(matches)} seasons={seasons} />}
 				</Panel>
 				<Panel title="BY YOUR LEGEND">
 					{mine.length
@@ -233,7 +247,7 @@ function EloChart({ series, seasons }) {
 					background: COLORS.bgCard, border: `1px solid ${COLORS.border}`, padding: "6px 8px",
 					fontSize: 11, color: COLORS.text, whiteSpace: "nowrap", boxShadow: `0 4px 12px ${COLORS.shadow}`,
 				}}>
-					<div style={{ color: COLORS.textDim }}>{m.playedAt ? new Date(m.playedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : ""} · vs {m.opponent}</div>
+					<div style={{ color: COLORS.textDim }}>{playedLabel(m.playedAt ?? m.month)} · vs {m.opponent}</div>
 					<div>
 						<span style={{ color: COLORS.accent, fontWeight: 700 }}>{m.eloAfter}</span>
 						{m.eloChange != null && m.eloChange !== 0 && (
@@ -337,8 +351,8 @@ function RowCells({ r, cols, cells, legendById, name }) {
 
 // ── Shared pieces ────────────────────────────────────────────────────────────
 
-function Select({ value, onChange, options, label }) {
-	return <Dropdown variant="compact" value={value} options={options} onChange={onChange} label={label} ariaLabel={label ?? "Legend"} />;
+function Select({ value, onChange, options, label, ariaLabel }) {
+	return <Dropdown variant="compact" value={value} options={options} onChange={onChange} label={label} ariaLabel={ariaLabel ?? label ?? "Legend"} />;
 }
 
 function Panel({ title, children }) {
@@ -412,7 +426,7 @@ function NoPicksYet({ onGoToHistory }) {
 	);
 }
 
-function MobileOverview({ matches, legendById, seasons }) {
+function MobileOverview({ matches, legendById, seasons, mixed }) {
 	const mine = recordsBy(matches, m => m.myChampion);
 	const theirs = recordsBy(matches, m => m.opponentChampion);
 	return (
@@ -422,7 +436,7 @@ function MobileOverview({ matches, legendById, seasons }) {
 					<span style={LABEL}>ELO OVER TIME</span>
 					<span style={{ fontSize: 10, color: COLORS.textDim }}>DRAG TO SCRUB</span>
 				</div>
-				<ScrubChart series={eloSeries(matches)} seasons={seasons} />
+				{mixed ? <Hint>{MIXED_ELO}</Hint> : <ScrubChart series={eloSeries(matches)} seasons={seasons} />}
 			</div>
 			<LegendList title="BY YOUR LEGEND" rows={mine} legendById={legendById} tone={() => COLORS.accent} emptyHint="Pick your legends in History to see this." />
 			<LegendList title="VS OPPONENT LEGEND" rows={theirs} legendById={legendById} colored
@@ -468,7 +482,8 @@ function LegendList({ title, rows, legendById, tone, colored, emptyHint }) {
 // after a touch it lingers for 2s.
 const SCRUB_HEIGHT = 150;
 const SCRUB_LINGER_MS = 2000;
-const fmtDate = (d, opts) => (d ? new Date(d).toLocaleDateString("en-GB", opts).toUpperCase() : "");
+// A match's date (or, if only that is known, its month), upper-case.
+const fmtDate = (m, opts) => playedLabel(m?.playedAt ?? m?.month, opts).toUpperCase();
 
 function ScrubChart({ series, seasons }) {
 	const [index, setIndex] = useState(null);
@@ -544,7 +559,7 @@ function ScrubChart({ series, seasons }) {
 								background: COLORS.bgRaised, border: `1px solid ${COLORS.borderHover}`, boxShadow: `0 8px 24px ${COLORS.shadow}`,
 								padding: "8px 10px", display: "flex", flexDirection: "column", gap: 3,
 							}}>
-								<span style={{ fontSize: 9, letterSpacing: "0.1em", color: COLORS.textDim }}>{fmtDate(m.playedAt, { day: "numeric", month: "short", year: "numeric" })}</span>
+								<span style={{ fontSize: 9, letterSpacing: "0.1em", color: COLORS.textDim }}>{fmtDate(m, { day: "numeric", month: "short", year: "numeric" })}</span>
 								<span style={{ fontSize: 11, color: COLORS.textStrong, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>vs {m.opponent}</span>
 								<span style={{ display: "flex", gap: 8, alignItems: "baseline", fontSize: 11 }}>
 									<span style={{ color: COLORS.accent, fontWeight: 700, fontSize: 14 }}>{m.eloAfter}</span>
@@ -558,7 +573,7 @@ function ScrubChart({ series, seasons }) {
 			</div>
 			<div style={{ display: "flex", justifyContent: "space-between", paddingLeft: 38, marginTop: 8, fontSize: 9, color: COLORS.textDim, letterSpacing: "0.06em" }}>
 				{[series[0], series[Math.floor((series.length - 1) / 2)], series.at(-1)].map((p, i) => (
-					<span key={i}>{fmtDate(p.playedAt, { day: "numeric", month: "short" })}</span>
+					<span key={i}>{fmtDate(p, { day: "numeric", month: "short" })}</span>
 				))}
 			</div>
 		</>

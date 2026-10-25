@@ -1,9 +1,9 @@
 "use client";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { COLORS, FONT_MONO, LAYOUT, alpha } from "../../lib/data";
 import { titleCase } from "../../lib/cards/data";
-import { seasonLabel, scoreOptions, bestOf } from "../../lib/matchStats";
-import { countryFlag } from "../../lib/countries";
+import { seasonLabel, scoreOptions, bestOf, playedLabel } from "../../lib/matchStats";
+import { playerSummary, isUnpairedLegacy, pairCandidates } from "../../lib/history";
 import BottomSheet from "../BottomSheet";
 import LegendIcon from "../cards/LegendIcon";
 import RuneIcons from "../cards/RuneIcons";
@@ -23,7 +23,8 @@ import GetStarted from "./GetStarted";
 
 const LABEL = { fontSize: 10, letterSpacing: "0.14em", color: COLORS.textDim };
 const RESULT_COLOR = { win: COLORS.win, loss: COLORS.loss, draw: COLORS.draw };
-const shortDate = d => (d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "");
+// "3 Oct" for a date, "Oct 2026" for a month-only match (see playedLabel).
+const shortDate = d => playedLabel(d);
 
 export default function MobileProfile(p) {
 	const [accountsOpen, setAccountsOpen] = useState(false);
@@ -83,7 +84,7 @@ export default function MobileProfile(p) {
 						? <History {...p} onOpenPicker={setPicker} />
 						: (
 							<div style={{ padding: 12 }}>
-								<MatchStats mobile matches={p.savedMatches} legends={p.legends} status={p.savedStatus}
+								<MatchStats mobile matches={p.dataMatches} accounts={p.dataAccounts} legends={p.legends} status={p.savedStatus}
 									season={p.season} seasonName={p.seasonName} seasons={p.seasons}
 									onGoToHistory={() => p.setMatchTab("history")} />
 							</div>
@@ -103,25 +104,39 @@ export default function MobileProfile(p) {
 
 // ── User card ────────────────────────────────────────────────────────────────
 
-function UserCard({ user, rank, isGuest, linkedPlayer, cardStats, cardSeason, statsReady, onOpenAccounts }) {
+function UserCard({ user, lastLegend, mostPlayed, linkedPlayer, cardStats, cardSeason, statsReady, onOpenAccounts }) {
 	const { record, streaks, last, peak } = cardStats;
 	const winPct = record.winRate == null ? "—" : `${Math.round(record.winRate * 100)}%`;
-	const initials = user.username.replace(/[^a-z0-9]/gi, "").slice(0, 2).toUpperCase();
+	const initials = user.username.replace(/[^a-z0-9]/gi, "").slice(0, 2).toUpperCase() || "?";
 	return (
 		<div style={{ padding: "12px 12px 0" }}>
 			<div style={{ background: COLORS.bgCard, border: `1px solid ${COLORS.border}` }}>
 				<div style={{ display: "flex", gap: 12, padding: 12, alignItems: "center" }}>
-					<span style={{
-						width: 52, height: 52, borderRadius: "50%", flexShrink: 0, background: COLORS.bgHover, border: `1px solid ${COLORS.borderHover}`,
-						display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 700, color: COLORS.textStrong,
-					}}>{isGuest ? user.avatar : initials}</span>
-					<div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0, flex: 1 }}>
-						<div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-							<span style={{ fontSize: 15, fontWeight: 700, color: COLORS.textStrong, overflow: "hidden", textOverflow: "ellipsis" }}>{user.username}</span>
-							<span style={{ fontSize: 9, letterSpacing: "0.14em", fontWeight: 700, color: rank.color, border: `1px solid ${rank.color}`, padding: "2px 6px", flexShrink: 0 }}>
-								{user.rank.toUpperCase()}
+					{/* The legend they last played, else their initials */}
+					{lastLegend ? <LegendIcon legend={lastLegend} size={52} borderColor={COLORS.borderHover} /> : (
+						<span style={{
+							width: 52, height: 52, flexShrink: 0, background: COLORS.bgHover, border: `1px solid ${COLORS.borderHover}`,
+							display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 700, color: COLORS.textStrong,
+						}}>{initials}</span>
+					)}
+					<div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0, flex: 1 }}>
+						<span style={{ fontSize: 15, fontWeight: 700, color: COLORS.textStrong, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.username}</span>
+						<span style={{ fontSize: 11, color: COLORS.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.subtitle}</span>
+						{mostPlayed && (
+							<span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, minWidth: 0 }}>
+								<span style={{ fontSize: 9, letterSpacing: "0.14em", color: COLORS.textDim, flexShrink: 0 }}>MOST</span>
+								<span style={{ color: COLORS.textStrong, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{mostPlayed.legend.tags_text}</span>
+								<RuneIcons domains={mostPlayed.legend.domains} size={12} />
+								<span style={{ color: COLORS.textDim, flexShrink: 0 }}>{mostPlayed.games}G</span>
 							</span>
-						</div>
+						)}
+						{lastLegend && (
+							<span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, minWidth: 0 }}>
+								<span style={{ fontSize: 9, letterSpacing: "0.14em", color: COLORS.textDim, flexShrink: 0 }}>LAST</span>
+								<span style={{ color: COLORS.textStrong, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{lastLegend.tags_text}</span>
+								<RuneIcons domains={lastLegend.domains} size={12} />
+							</span>
+						)}
 						{linkedPlayer && (
 							<button onClick={onOpenAccounts} style={{
 								alignSelf: "flex-start", maxWidth: "100%", height: 36, display: "flex", alignItems: "center", gap: 8, padding: "0 10px 0 6px",
@@ -135,7 +150,7 @@ function UserCard({ user, rank, isGuest, linkedPlayer, cardStats, cardSeason, st
 					</div>
 				</div>
 				<div style={{ padding: 12, borderTop: `1px solid ${COLORS.border}` }}>
-					<div style={{ ...LABEL, marginBottom: 8 }}>{cardSeason.season ? seasonLabel(cardSeason.season).toUpperCase() : "ALL SAVED MATCHES"}</div>
+					<div style={{ ...LABEL, color: COLORS.textStrong, marginBottom: 8 }}>{cardSeason.season ? seasonLabel(cardSeason.season).toUpperCase() : "ALL SAVED MATCHES"}</div>
 					{!statsReady ? (
 						<div style={{ fontSize: 11, color: COLORS.textDim }}>Stats appear once your saved matches load.</div>
 					) : (
@@ -144,7 +159,7 @@ function UserCard({ user, rank, isGuest, linkedPlayer, cardStats, cardSeason, st
 							<Tile span={3} hero label="ELO" value={last?.eloAfter ?? "—"} valueColor={COLORS.accent}
 								sub={last?.eloChange ? `${last.eloChange > 0 ? "+" : ""}${last.eloChange} last` : ""}
 								subColor={last?.eloChange > 0 ? COLORS.win : COLORS.loss} />
-							<Tile span={3} hero label="PEAK" value={peak?.eloAfter ?? "—"} sub={shortDate(peak?.playedAt)} />
+							<Tile span={3} hero label="PEAK" value={peak?.eloAfter ?? "—"} sub={shortDate(peak?.playedAt ?? peak?.month)} />
 							<Tile span={2} label="RECORD" value={<Record record={record} />} sub={`${record.games} games`} />
 							<Tile span={2} label="WIN%" value={winPct} sub={record.draws ? "draws = games" : ""} />
 							<Tile span={2} label="STREAK" value={streaks.current ? `${streaks.current.result[0]}${streaks.current.length}` : "—"}
@@ -186,7 +201,7 @@ function EsBadge() {
 	);
 }
 
-// ── Linking an EloShowdown account ───────────────────────────────────────────
+// ── Linking a player account (BoundRift search) ──────────────────────────────
 
 function LinkAccount({ addingAccount, eloQuery, setEloQuery, eloResults, eloLoading, eloError, onSearch, onPickPlayer, onCancelAdd }) {
 	return (
@@ -217,7 +232,7 @@ function LinkAccount({ addingAccount, eloQuery, setEloQuery, eloResults, eloLoad
 							background: "transparent", border: "none", borderTop: i ? `1px solid ${COLORS.border}` : "none", cursor: "pointer", textAlign: "left", fontFamily: FONT_MONO,
 						}}>
 							<span style={{ fontSize: 13, color: COLORS.textStrong }}>{player.display_name}</span>
-							<span style={{ fontSize: 10, color: COLORS.textMuted }}>{player.primary_community} · {countryFlag(player.country)} {player.country}</span>
+							<span style={{ fontSize: 10, color: COLORS.textMuted }}>{playerSummary(player)}</span>
 						</button>
 					))}
 				</div>
@@ -261,7 +276,8 @@ function AccountSheet({ isGuest, accounts, activeId, savedMatches, onSwitchAccou
 function History(p) {
 	const { eloHistory, eloVisible, savedStatus, eloHistoryLoading } = p;
 	const points = eloHistory?.points ?? [];
-	const current = points.at(-1)?.elo_after;
+	// The newest rated row — sealed events aren't rated.
+	const current = points.findLast(m => m.elo_after != null)?.elo_after;
 	return (
 		<div style={{ display: "flex", flexDirection: "column" }}>
 			<div style={{ display: "flex", alignItems: "center", gap: 16, padding: 12, borderBottom: `1px solid ${COLORS.border}` }}>
@@ -331,6 +347,34 @@ function SearchIcon() {
 	);
 }
 
+// Opens under an "Event not found" header: pasting the event's link links its
+// matches, and lets the lookup find that store's other events.
+function EventLink({ state, onAdd }) {
+	const [link, setLink] = useState("");
+	function submit(e) {
+		e.preventDefault();
+		onAdd(link);
+	}
+	const off = state.busy || !link.trim();
+	return (
+		<form onSubmit={submit} style={{ margin: "0 12px 8px", background: COLORS.bgRaised, border: `1px solid ${COLORS.border}`, padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+			<span style={{ fontSize: 12, lineHeight: 1.6, color: COLORS.textMuted }}>
+				Paste the link to the event these were played at, from PlayRiftbound, UVS or BoundRift &mdash; other events at the same store are then found too.
+			</span>
+			<div style={{ display: "flex", gap: 8 }}>
+				<input type="url" value={link} onChange={e => setLink(e.target.value)} placeholder="Event link" aria-label="Event link"
+					onFocus={e => { e.target.style.borderColor = COLORS.accent; }}
+					onBlur={e => { e.target.style.borderColor = COLORS.border; }}
+					style={{ flex: 1, minWidth: 0, height: 48, padding: "0 12px", background: COLORS.bgRaised, border: `1px solid ${COLORS.border}`, color: COLORS.textStrong, fontFamily: FONT_MONO, fontSize: 16, outline: "none" }} />
+				<button type="submit" disabled={off} style={{ ...secondaryButton, padding: "0 14px", flexShrink: 0, opacity: off ? 0.5 : 1 }}>
+					{state.busy ? "…" : "ADD"}
+				</button>
+			</div>
+			{state.error && <span style={{ fontSize: 12, color: COLORS.loss, lineHeight: 1.5 }}>{state.error}</span>}
+		</form>
+	);
+}
+
 // Placeholder rows in the real row's shape, so nothing jumps when data lands.
 function Skeleton() {
 	return (
@@ -346,43 +390,96 @@ function Skeleton() {
 	);
 }
 
-// Visible rows (newest first) grouped into consecutive events. Rounds number
-// each match within its event from the earliest, across all rows.
+// Visible rows (newest first) grouped into consecutive events — or, while a
+// row's event isn't known, its month. Rounds number each match within its
+// event from the earliest, across all rows; a month group has no rounds. An
+// event that wasn't found gets LINK, which opens the paste-a-link form.
 function Events(p) {
-	const { eloHistory, eloVisible, eventKeyFor, tournamentFor } = p;
+	const { eloHistory, eloVisible, eventKeyFor, groupKeyFor, tournamentFor, canLink, linking, onToggleLink, eventLink, onAddEvent } = p;
 	const round = new Map();
 	const seen = new Map();
 	for (const m of eloHistory.points) {
 		const key = eventKeyFor(m);
 		seen.set(key, (seen.get(key) ?? 0) + 1);
-		round.set(String(m.match_id), seen.get(key));
+		if (!key.startsWith("match:")) round.set(String(m.match_id), seen.get(key));
 	}
 	const events = [];
 	for (const m of [...eloHistory.points].reverse().slice(0, eloVisible)) {
-		const key = eventKeyFor(m);
-		if (events.at(-1)?.key !== key) events.push({ key, tournament: tournamentFor(m), date: m.date, matches: [] });
+		const key = groupKeyFor(m);
+		if (events.at(-1)?.key !== key) events.push({ key, tournament: tournamentFor(m), when: shortDate(m.date ?? m.month) || m.season, matches: [] });
 		events.at(-1).matches.push(m);
 	}
 	return events.map(ev => {
-		const name = ev.tournament === undefined ? "Looking up tournament…" : ev.tournament ? ev.tournament.name : "Tournament not found";
+		const name = ev.tournament === undefined ? "Looking up event…" : ev.tournament ? ev.tournament.name : "Event not found";
+		const open = linking === ev.key;
 		return (
 			<div key={ev.key}>
 				<div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, padding: "16px 12px 8px" }}>
-					{ev.tournament ? (
+					{ev.tournament?.url ? (
 						<a href={ev.tournament.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, fontWeight: 700, color: COLORS.accent, lineHeight: 1.4 }}>{name} ↗</a>
+					) : ev.tournament ? (
+						<span style={{ fontSize: 13, fontWeight: 700, color: COLORS.textStrong, lineHeight: 1.4 }}>{name}</span>
 					) : (
 						<span style={{ fontSize: 13, color: COLORS.textDim, fontStyle: "italic", lineHeight: 1.4 }}>{name}</span>
 					)}
-					<span style={{ fontSize: 10, color: COLORS.textDim, letterSpacing: "0.08em", whiteSpace: "nowrap" }}>{shortDate(ev.date)}</span>
+					<span style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+						{canLink && ev.tournament === null && (
+							<button onClick={() => onToggleLink(ev.key)} aria-expanded={open} style={{
+								height: 44, padding: "0 12px", margin: "-14px 0", background: "transparent", border: "none",
+								color: COLORS.accent, fontFamily: FONT_MONO, fontSize: 11, letterSpacing: "0.12em", fontWeight: 700, cursor: "pointer",
+							}}>{open ? "CANCEL" : "LINK"}</button>
+						)}
+						<span style={{ fontSize: 10, color: COLORS.textDim, letterSpacing: "0.08em", whiteSpace: "nowrap" }}>{ev.when}</span>
+					</span>
 				</div>
+				{open && <EventLink state={eventLink} onAdd={onAddEvent} />}
 				<div style={{ margin: "0 12px", background: COLORS.bgCard, border: `1px solid ${COLORS.border}` }}>
 					{ev.matches.map((m, i) => (
-						<MatchRow key={m.match_id} {...p} m={m} first={i === 0} round={round.get(String(m.match_id))} />
+						<Fragment key={m.match_id}>
+							<MatchRow {...p} m={m} first={i === 0} round={round.get(String(m.match_id))} />
+							{isUnpairedLegacy(m, p.allPoints) && <SameMatch row={m} candidates={pairCandidates(p.allPoints, m)} onPair={p.onPairRow} />}
+						</Fragment>
 					))}
 				</div>
 			</div>
 		);
 	});
+}
+
+// Under a row saved from EloShowdown that didn't pair with a BoundRift row —
+// usually an opponent who has since renamed. SAME MATCH AS… opens a sheet of
+// the BoundRift matches it could be; picking one pairs them.
+function SameMatch({ row, candidates, onPair }) {
+	const [open, setOpen] = useState(false);
+	return (
+		<div style={{ padding: "8px 10px", background: COLORS.bgRaised, borderTop: `1px dashed ${COLORS.border}`, display: "flex", alignItems: "center", gap: 10 }}>
+			<span style={{ flex: 1, minWidth: 0, fontSize: 11, lineHeight: 1.5, color: COLORS.textMuted }}>
+				Saved from EloShowdown &mdash; not matched to a BoundRift match{candidates.length ? "." : ", and none fits."}
+			</span>
+			{candidates.length > 0 && (
+				<button onClick={() => setOpen(true)} style={{ ...secondaryButton, height: 44, padding: "0 12px", flexShrink: 0, color: COLORS.accent }}>SAME AS…</button>
+			)}
+			{open && (
+				<BottomSheet title="SAME MATCH AS…" subtitle={`vs ${row.opponent_name} · ${shortDate(row.date)} · opponents show their current name`} onClose={() => setOpen(false)}>
+					{candidates.map(c => (
+						<button key={c.match_id} onClick={() => { onPair(row.match_id, c.match_id); setOpen(false); }} style={{
+							width: "100%", height: 52, display: "flex", alignItems: "center", gap: 12, padding: "0 16px",
+							background: "transparent", border: "none", borderBottom: `1px solid ${COLORS.border}`,
+							fontFamily: FONT_MONO, fontSize: 13, color: COLORS.text, cursor: "pointer", textAlign: "left",
+						}}>
+							<span style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
+								<span style={{ color: COLORS.textStrong, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>vs {c.opponent_name}</span>
+								{c.event?.name && <span style={{ fontSize: 10, color: COLORS.textDim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.event.name}</span>}
+							</span>
+							{c.score && <span>{c.score}</span>}
+							<span style={{ fontSize: 10, color: COLORS.textDim, minWidth: 60, textAlign: "right" }}>{shortDate(c.date ?? c.month) || c.season}</span>
+						</button>
+					))}
+					<div style={{ height: "calc(16px + env(safe-area-inset-bottom))" }} />
+				</BottomSheet>
+			)}
+		</div>
+	);
 }
 
 // Line 1: result, Elo change, opponent, round. Line 2: your legend, the final
@@ -476,7 +573,7 @@ function ScoreSheet({ picker, linkedPlayer, matchChampions, onScore, onClose }) 
 	const pick = score => { onScore(match, score); onClose(); };
 	return (
 		<BottomSheet onClose={onClose} title={`FINAL SCORE · ${match.result.toUpperCase()}`}
-			subtitle={[round && `R${round}`, `vs ${match.opponent_name}`, shortDate(match.date)].filter(Boolean).join(" · ")}>
+			subtitle={[round && `R${round}`, `vs ${match.opponent_name}`, shortDate(match.date ?? match.month)].filter(Boolean).join(" · ")}>
 			<div style={{ padding: 16, display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
 				{scoreOptions(match.result).map(score => {
 					const selected = score === current;
@@ -521,7 +618,7 @@ function LegendSheet({ picker, legends, linkedPlayer, matchChampions, eloHistory
 	return (
 		<BottomSheet height="80%" onClose={onClose}
 			title={side === "mine" ? "YOUR LEGEND" : "OPPONENT LEGEND"}
-			subtitle={[round && `R${round}`, `vs ${match.opponent_name}`, shortDate(match.date)].filter(Boolean).join(" · ")}>
+			subtitle={[round && `R${round}`, `vs ${match.opponent_name}`, shortDate(match.date ?? match.month)].filter(Boolean).join(" · ")}>
 			<div style={{ position: "sticky", top: 0, zIndex: 1, background: COLORS.bgCard }}>
 				<div style={{ padding: "8px 16px" }}>
 					<div style={{ height: 48, display: "flex", alignItems: "center", gap: 10, padding: "0 12px", background: COLORS.bgRaised, border: `1px solid ${COLORS.accent}`, color: COLORS.textDim }}>

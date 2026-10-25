@@ -1,12 +1,15 @@
 // GET /profile — return the caller's Users row.
-// PUT /profile — manage the caller's linked EloShowdown / UVS accounts.
+// PUT /profile — manage the caller's linked player accounts.
 //
 // Fronted by API Gateway (HTTP API) with a Cognito JWT authorizer. The userId is
 // derived from the verified token, NEVER from the request body.
 //
 // A user can link several accounts. They live on the Users item as:
-//   eloPlayers:        [{ id, display_name, primary_community, country }, ...]
+//   eloPlayers:        [{ id, boundrift_id, display_name, primary_community, country }, ...]
 //   activeEloPlayerId: id of the account whose history the profile page shows
+// Accounts linked through BoundRift have id "br-<BoundRift id>". Ones linked
+// through EloShowdown before October 2026 keep its id (their saved matches are
+// keyed by it) and gain a boundrift_id once the page has looked it up.
 //
 // PUT body — one action per request:
 //   { action: "add", player: {...} }  link an account (or refresh its details) and make it active
@@ -49,7 +52,7 @@ function shapePlayer(p) {
 	const id = p && typeof p === "object" ? toId(p.id) : undefined;
 	if (!id) return null;
 	const out = { id };
-	for (const k of ["display_name", "primary_community", "country"]) {
+	for (const k of ["boundrift_id", "display_name", "primary_community", "country"]) {
 		const v = text(p[k]);
 		if (v) out[k] = v;
 	}

@@ -27,7 +27,7 @@ riftbound/
     │   ├── news/              # /news and /news/[slug]
     │   ├── devlog/            # /devlog and /devlog/[slug]
     │   ├── login/, signup/    # Cognito sign in / sign up
-    │   └── api/               # tournaments (UVS lookup), crawl (deck sites)
+    │   └── api/               # players, events (BoundRift), crawl (deck sites)
     ├── components/            # Client UI, by area
     │   ├── Navbar.js          # Nav, auth menu, light/dark toggle
     │   ├── auth/              # Sign-in / sign-up forms
@@ -40,9 +40,11 @@ riftbound/
         ├── api.js             # Fetch wrappers for API Gateway
         ├── db.js              # DynamoDB client (server only)
         ├── cards/             # Card queries, card/rune/legend config, text parser
-        ├── matchStats.js      # Record, streaks, Elo, matchup stats
-        ├── eloshowdown.js     # EloShowdown API client
-        ├── uvs.js, geocode.js # Tournament lookup helpers
+        ├── matchStats.js      # Record, streaks, Elo, matchup stats, seasons
+        ├── history.js         # Match rows: merging BoundRift with saved rows
+        ├── boundrift.js       # BoundRift client: players, history, events
+        ├── playerEvents.js    # Which event each match was played at
+        ├── eloshowdown.js     # Moves accounts linked through EloShowdown
         └── posts.js           # Markdown reader for news and dev log
 ```
 
@@ -92,9 +94,9 @@ Your post content in **Markdown** here.
 ## Architecture
 
 The site runs on **Vercel**. Everything user-specific — accounts, linked
-EloShowdown profiles, saved match history — lives in **AWS** behind an
-authenticated API. Third-party data (EloShowdown, UVS, deck sites) is only
-ever fetched by the site's own server routes, never by the browser directly.
+player accounts, saved match history — lives in **AWS** behind an
+authenticated API. Third-party data (BoundRift, deck sites) is only ever
+fetched by the site's own server routes, never by the browser directly.
 
 ### Runtime
 
@@ -124,9 +126,8 @@ flowchart LR
   end
 
   subgraph ext["Third-party"]
+    br["BoundRift"]
     elo["EloShowdown API"]
-    uvs["UVS event locator"]
-    osm["OSM Nominatim"]
     riot["Riot card CDN"]
     pa["Piltover Archive"]
   end
@@ -139,8 +140,8 @@ flowchart LR
   apigw --> getH & saveH --> hist
   apigw --> prof --> users
   next -->|"Scan, IAM keys"| cards
-  next -->|"/api/elo proxy"| elo
-  next -->|"/api/tournaments"| uvs & osm
+  next -->|"/api/players, /api/events"| br
+  next -->|"old account ids"| elo
   next -->|"/api/crawl"| pa
   next -->|images| s3 & riot
 ```
@@ -163,7 +164,7 @@ sign-up is confirmed, the pool's post-confirmation trigger runs
 
 | Route | Lambda | Table | Does |
 |---|---|---|---|
-| `GET /profile` | `user-profile` | `Users` | Read linked EloShowdown accounts |
+| `GET /profile` | `user-profile` | `Users` | Read linked player accounts |
 | `PUT /profile` | `user-profile` | `Users` | Add, select or remove a linked account |
 | `GET /history` | `get-match-history` | `MatchHistory` | One account's saved matches, paginated |
 | `POST /history` | `save-match-history` | `MatchHistory` | Upsert matches with legend picks |
@@ -173,8 +174,8 @@ sign-up is confirmed, the pool's post-confirmation trigger runs
 | Table | Key | Holds |
 |---|---|---|
 | `RiftboundCards` | — | Every card; read by the Next.js server. Name set by `DYNAMODB_TABLE_CARDS` |
-| `Users` | `userId` | Profile, linked EloShowdown accounts, the active one |
-| `MatchHistory` | `userId` + `accountMatchId` (`<eloPlayerId>#<matchId>`) | Each match's EloShowdown data (result, opponent, Elo before / change / after, season) plus the user's legend picks |
+| `Users` | `userId` | Profile, linked player accounts, the active one |
+| `MatchHistory` | `userId` + `accountMatchId` (`<eloPlayerId>#<matchId>`) | Each match's BoundRift data (result, opponent, Elo before / change / after, season, event) plus the user's legend picks. Rows saved before October 2026 hold EloShowdown's, until replaced |
 
 **S3.** The public `riftbound` bucket (in `us-east-1`; everything else is in
 `ap-southeast-2`) holds champion icons, rune icons and type icons. They're
@@ -184,9 +185,8 @@ served through the Next.js image optimizer, like the card art from Riot's CDN.
 
 | Service | Called from | For |
 |---|---|---|
-| [EloShowdown](https://eloshowdown.com/riftbound/) | `/api/elo/*` (a rewrite in `next.config.js`), `/api/tournaments` | Player search and Elo history |
-| UVS event locator | `/api/tournaments` (`src/lib/uvs.js`) | Which tournament a match was played in |
-| OpenStreetMap Nominatim | `/api/tournaments` (`src/lib/geocode.js`) | Locating a player's community to find nearby events |
+| [BoundRift](https://boundrift.com) | `/api/players/*`, `/api/events/*` (`src/lib/boundrift.js`, `src/lib/playerEvents.js`) | Player search, match and Elo history, and which event a match was played at. BoundRift rates matches from Riot's PlayRiftbound event site and the UVS event locator; it has no documented API, so these are the JSON endpoints its own site uses — keep requests cached and few |
+| [EloShowdown](https://eloshowdown.com/riftbound/) | `/api/players/eloshowdown/[id]` | The BoundRift id of an account linked before October 2026, when EloShowdown stopped updating |
 | Riot card CDN | Image optimizer | Card art |
 | Piltover Archive | `/api/crawl` | Community deck lists for the Decks page |
 
@@ -228,17 +228,17 @@ Setup, adding a Lambda, and debugging a failed deploy: see
 
 | Route | Description |
 |---|---|
-| `/` | Profile: linked EloShowdown accounts, stats, match history with legend picks (sign-in required) |
+| `/` | Profile: linked player accounts, stats, match history with legend picks (sign-in required) |
 | `/cards` | Card search with filters, card details and deck builder |
 | `/decks` | Community deck lists from Piltover Archive and other sources |
 | `/news`, `/news/[slug]` | News index and posts |
 | `/devlog`, `/devlog/[slug]` | Development log |
-| `/about` | Why the site is called Bilgewater Tracker, plus Riot Games and EloShowdown credits |
+| `/about` | Why the site is called Bilgewater Tracker, plus Riot Games, BoundRift and EloShowdown credits |
 | `/login`, `/signup` | Cognito sign in and sign up |
 | `/user` | Redirects to `/` (old profile URL) |
 
 ## Credits
 
-- Match history and tournament data provided by [EloShowdown](https://eloshowdown.com/riftbound/) via their public API
+- Match history, Elo and tournament data provided by [BoundRift](https://boundrift.com); matches saved before October 2026 came from [EloShowdown](https://eloshowdown.com/riftbound/)
 - Card data sourced from the [Riftbound Card Gallery](https://riftbound.leagueoflegends.com/en-us/card-gallery/)
 - Riftbound is a trading card game developed by [Riot Games](https://www.riotgames.com) and published by [UVS Games](https://www.uvsgames.com)
