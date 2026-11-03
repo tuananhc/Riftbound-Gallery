@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Navbar from "../components/Navbar";
 import { CardStoreProvider } from "../components/CardStoreProvider";
-import { BASE_STYLES, FONTS, FONT_SANS_URL, COLORS, LAYOUT, SITE_NAME, THEME_STORAGE_KEY } from "../lib/data";
+import { BASE_STYLES, FONTS, FONT_SANS, FONT_SANS_URL, COLORS, LAYOUT, SITE_NAME, THEME_STORAGE_KEY } from "../lib/data";
 
 export const metadata = {
 	title: { default: SITE_NAME, template: `%s — ${SITE_NAME}` },
@@ -35,7 +35,7 @@ export default function RootLayout({ children }) {
 					borderTop: `1px solid ${COLORS.border}`,
 					padding: `24px ${LAYOUT.pagePad}`,
 					display: "flex", flexWrap: "wrap", gap: "12px 24px", justifyContent: "space-between", alignItems: "center",
-					background: COLORS.bgAlt, fontSize: 11, letterSpacing: "0.08em", color: COLORS.textDim,
+					background: COLORS.bgAlt, fontFamily: FONT_SANS, fontSize: 11, letterSpacing: "0.08em", color: COLORS.textDim,
 				}}>
 					<span>{SITE_NAME} · A FAN SITE, NOT ENDORSED BY RIOT GAMES</span>
 					<Link href="/about" style={{ color: COLORS.textMuted, textDecoration: "underline", textUnderlineOffset: 3 }}>

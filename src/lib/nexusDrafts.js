@@ -14,7 +14,7 @@ import { matchNumber, scoreOptions } from "./matchStats";
 
 const LOCAL_KEY = "riftbound-nexus-drafts";
 
-const newId = () => (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`).replace(/[^A-Za-z0-9_-]/g, "");
+export const newId = () => (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`).replace(/[^A-Za-z0-9_-]/g, "");
 
 // Today in the browser's time zone, as YYYY-MM-DD.
 export function today() {

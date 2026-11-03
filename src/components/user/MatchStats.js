@@ -54,8 +54,10 @@ function rateTint(rate) {
 // Each match carries the `account` it was played on, and `accounts`
 // ([{ id, name }]) fills the account filter, shown with two or more.
 // `mobile` switches to the phone layouts; `onGoToHistory` lets the phone empty
-// state jump to the History tab, where picks are made.
-export default function MatchStats({ matches, accounts = [], legends, status, season, seasonName, seasons, mobile, onGoToHistory }) {
+// state jump to the History tab, where picks are made. `matches` holds the
+// unofficial matches (lib/unofficial.js) only while `includeUnofficial` is on;
+// `unofficialCount` of them could be, and the toggle shows once there are any.
+export default function MatchStats({ matches, accounts = [], legends, status, season, seasonName, seasons, mobile, onGoToHistory, unofficialCount = 0, includeUnofficial = false, onIncludeUnofficial }) {
 	const [view, setView] = useState("overview");
 	const [legend, setLegend] = useState("");
 	// "" = every account.
@@ -63,7 +65,10 @@ export default function MatchStats({ matches, accounts = [], legends, status, se
 
 	if (status === "loading") return <Note>Loading your saved matches…</Note>;
 	if (status === "error") return <Note color={COLORS.loss}>Couldn&rsquo;t load your saved matches. Reload the page to try again.</Note>;
-	if (!matches.length) return <Note>No saved matches yet. Load them in History with Search, then save.</Note>;
+	const unofficialToggle = unofficialCount > 0 && (
+		<IncludeUnofficial on={includeUnofficial} count={unofficialCount} onChange={onIncludeUnofficial} mobile={mobile} />
+	);
+	if (!matches.length) return <>{unofficialToggle}<Note>No saved matches yet. Load them in Match History (Official) with Search, then save.</Note></>;
 
 	const legendById = new Map(legends.map(l => [l.id, l]));
 	const shownAccount = accounts.some(a => a.id === account) ? account : "";
@@ -82,6 +87,7 @@ export default function MatchStats({ matches, accounts = [], legends, status, se
 			<div style={{ fontFamily: FONT_MONO, display: "flex", flexDirection: "column", gap: 12 }}>
 				{accounts.length > 1 && <FieldSelect label="ACCOUNT" value={shownAccount} options={accountOptions} onChange={setAccount} />}
 				<FieldSelect label="LEGEND" value={legend} options={legendOptions} onChange={setLegend} />
+				{unofficialToggle}
 				<Segmented value={view} onChange={setView} options={[["overview", "OVERVIEW"], ["matchups", "MATCHUPS"]]} />
 				{filtered.length === 0
 					? <Note>{emptyNote}</Note>
@@ -101,6 +107,7 @@ export default function MatchStats({ matches, accounts = [], legends, status, se
 				{accounts.length > 1 && <Select value={shownAccount} onChange={setAccount} options={accountOptions} ariaLabel="Account" />}
 				<Select value={legend} onChange={setLegend}
 					options={[["", "All legends"], ...legendOptions.slice(1)]} />
+				{unofficialToggle}
 				<div style={{ marginLeft: "auto", display: "flex" }}>
 					{[["overview", "OVERVIEW"], ["matchups", "MATCHUPS"]].map(([key, text]) => (
 						<button key={key} onClick={() => setView(key)} aria-pressed={view === key}
@@ -145,7 +152,7 @@ function Overview({ matches, legendById, seasons, mixed }) {
 				<Panel title="BY YOUR LEGEND">
 					{mine.length
 						? mine.map(r => <LegendRecord key={r.key} legend={legendById.get(r.key)} id={r.key} record={r} color={COLORS.accent} />)
-						: <Hint>Pick your legends in History to see this.</Hint>}
+						: <Hint>Pick your legends in Match History (Official) to see this.</Hint>}
 				</Panel>
 			</div>
 			<div style={{ marginTop: 8 }}>
@@ -155,7 +162,7 @@ function Overview({ matches, legendById, seasons, mixed }) {
 							{theirs.map(r => <LegendRecord key={r.key} legend={legendById.get(r.key)} id={r.key} record={r}
 								color={r.winRate > 0.5 ? COLORS.win : r.winRate < 0.5 ? COLORS.loss : COLORS.textDim} />)}
 						</div>
-					) : <Hint>Pick opponent legends in History to see this.</Hint>}
+					) : <Hint>Pick opponent legends in Match History (Official) to see this.</Hint>}
 				</Panel>
 			</div>
 		</>
@@ -182,7 +189,7 @@ function EloChart({ series, seasons }) {
 		return () => observer.disconnect();
 	}, [drawable]);
 
-	if (!drawable) return <Hint>Elo shows here once two or more saved matches have it — Search and save in History.</Hint>;
+	if (!drawable) return <Hint>Elo shows here once two or more saved matches have it — Search and save in Match History (Official).</Hint>;
 
 	const elos = series.map(m => m.eloAfter);
 	const step = Math.max(...elos) - Math.min(...elos) > 300 ? 100 : 50;
@@ -296,7 +303,7 @@ function Matchups({ matches, legendById }) {
 		<>
 			<div style={{ ...LABEL, marginBottom: 6 }}>YOUR LEGEND × OPPONENT LEGEND · WIN% (GAMES)</div>
 			{rows.length === 0 ? (
-				<Hint>Pick both legends on a match in History to see matchups.</Hint>
+				<Hint>Pick both legends on a match in Match History (Official) to see matchups.</Hint>
 			) : (
 				<div style={{ overflowX: "auto", marginBottom: 12 }}>
 					<div style={{
@@ -350,6 +357,27 @@ function RowCells({ r, cols, cells, legendById, name }) {
 }
 
 // ── Shared pieces ────────────────────────────────────────────────────────────
+
+// Tick box for counting unofficial matches alongside the official ones.
+function IncludeUnofficial({ on, count, onChange, mobile }) {
+	return (
+		<button onClick={() => onChange(!on)} role="checkbox" aria-checked={on}
+			onMouseEnter={e => { e.currentTarget.style.color = COLORS.text; }}
+			onMouseLeave={e => { e.currentTarget.style.color = on ? COLORS.text : COLORS.textMuted; }}
+			style={{
+				display: "flex", alignItems: "center", gap: 8, height: mobile ? 44 : 26, padding: mobile ? "0 4px" : "0 8px",
+				background: "transparent", border: mobile ? "none" : `1px solid ${on ? COLORS.accentDim : COLORS.border}`, borderRadius: 0,
+				color: on ? COLORS.text : COLORS.textMuted, cursor: "pointer", fontFamily: FONT_MONO, fontSize: mobile ? 12 : 11, textAlign: "left",
+			}}>
+			<span style={{
+				width: mobile ? 20 : 14, height: mobile ? 20 : 14, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
+				border: `1px solid ${on ? COLORS.accent : COLORS.borderHover}`, background: on ? COLORS.accent : "transparent",
+				color: COLORS.bg, fontSize: mobile ? 12 : 10, fontWeight: 900,
+			}}>{on ? "✓" : ""}</span>
+			Include unofficial matches ({count})
+		</button>
+	);
+}
 
 function Select({ value, onChange, options, label, ariaLabel }) {
 	return <Dropdown variant="compact" value={value} options={options} onChange={onChange} label={label} ariaLabel={ariaLabel ?? label ?? "Legend"} />;
@@ -415,7 +443,7 @@ function NoPicksYet({ onGoToHistory }) {
 	return (
 		<div style={{ background: COLORS.bgCard, border: `1px solid ${COLORS.border}`, padding: "32px 20px", display: "flex", flexDirection: "column", alignItems: "center", gap: 14, textAlign: "center" }}>
 			<div style={LABEL}>NO LEGEND DATA YET</div>
-			<div style={{ fontSize: 13, color: COLORS.text, lineHeight: 1.6 }}>Pick your legends in History to see this.</div>
+			<div style={{ fontSize: 13, color: COLORS.text, lineHeight: 1.6 }}>Pick your legends in Match History (Official) to see this.</div>
 			{onGoToHistory && (
 				<button onClick={onGoToHistory} style={{
 					height: 44, padding: "0 18px", background: COLORS.bgRaised, border: `1px solid ${COLORS.borderHover}`,
@@ -438,10 +466,10 @@ function MobileOverview({ matches, legendById, seasons, mixed }) {
 				</div>
 				{mixed ? <Hint>{MIXED_ELO}</Hint> : <ScrubChart series={eloSeries(matches)} seasons={seasons} />}
 			</div>
-			<LegendList title="BY YOUR LEGEND" rows={mine} legendById={legendById} tone={() => COLORS.accent} emptyHint="Pick your legends in History to see this." />
+			<LegendList title="BY YOUR LEGEND" rows={mine} legendById={legendById} tone={() => COLORS.accent} emptyHint="Pick your legends in Match History (Official) to see this." />
 			<LegendList title="VS OPPONENT LEGEND" rows={theirs} legendById={legendById} colored
 				tone={r => r.winRate > 0.5 ? COLORS.win : r.winRate < 0.5 ? COLORS.loss : COLORS.textDim}
-				emptyHint="Pick opponent legends in History to see this." />
+				emptyHint="Pick opponent legends in Match History (Official) to see this." />
 		</div>
 	);
 }
@@ -489,7 +517,7 @@ function ScrubChart({ series, seasons }) {
 	const [index, setIndex] = useState(null);
 	const linger = useRef(null);
 	useEffect(() => () => clearTimeout(linger.current), []);
-	if (series.length < 2) return <Hint>Elo shows here once two or more saved matches have it — Search and save in History.</Hint>;
+	if (series.length < 2) return <Hint>Elo shows here once two or more saved matches have it — Search and save in Match History (Official).</Hint>;
 
 	const elos = series.map(m => m.eloAfter);
 	const max = Math.max(...elos);
@@ -599,7 +627,7 @@ function MobileMatchups({ matches, legendById }) {
 					<span style={{ fontSize: 10, color: COLORS.textDim }}>SWIPE →</span>
 				</div>
 				{rows.length === 0 ? (
-					<div style={{ padding: "0 12px 12px" }}><Hint>Pick both legends on a match in History to see matchups.</Hint></div>
+					<div style={{ padding: "0 12px 12px" }}><Hint>Pick both legends on a match in Match History (Official) to see matchups.</Hint></div>
 				) : (
 					<div style={{ overflowX: "auto", overflowY: "hidden", scrollbarWidth: "none", borderTop: `1px solid ${COLORS.border}` }}>
 						<div style={{ width: "max-content" }}>

@@ -1,5 +1,5 @@
 import { ALL_COLORS, ALL_TAGS, COLOR_CONFIG, KEYWORD_STYLES, TAGS_IMG } from "../../lib/cards/data";
-import { COLORS, FONT_MONO, LAYOUT, SHOW } from "../../lib/data";
+import { COLORS, FONT_SANS, LAYOUT, SHOW } from "../../lib/data";
 import Image from "next/image";
 
 export default function CardFilters({
@@ -30,7 +30,7 @@ export default function CardFilters({
 		}}>
 			{/* Search */}
 			<div>
-				<div style={{ fontSize: 10, letterSpacing: "0.2em", color: COLORS.text, marginBottom: 10, fontFamily: FONT_MONO }}>SEARCH</div>
+				<div style={{ fontSize: 10, letterSpacing: "0.2em", color: COLORS.text, marginBottom: 10, fontFamily: FONT_SANS }}>SEARCH</div>
 				<div style={{ position: "relative" }}>
 					<span style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: COLORS.textDim, fontSize: 14 }}>⚔</span>
 					<input className="search-input" placeholder="Name or ability text..." value={search} onChange={e => setSearch(e.target.value)} />
@@ -39,7 +39,7 @@ export default function CardFilters({
 
 			{/* Cost */}
 			<div>
-				<div style={{ fontSize: 10, letterSpacing: "0.2em", color: COLORS.text, marginBottom: 10, fontFamily: FONT_MONO, display: "flex", justifyContent: "space-between" }}>
+				<div style={{ fontSize: 10, letterSpacing: "0.2em", color: COLORS.text, marginBottom: 10, fontFamily: FONT_SANS, display: "flex", justifyContent: "space-between" }}>
 					<span>COST</span>
 					<span style={{ color: COLORS.textMuted }}>{costRange[0]}–{costRange[1]}</span>
 				</div>
@@ -51,7 +51,7 @@ export default function CardFilters({
 							border: `1px solid ${n >= costRange[0] && n <= costRange[1] ? COLORS.accentDim : COLORS.border}`,
 							display: "flex", alignItems: "center", justifyContent: "center",
 							fontSize: 10, color: n >= costRange[0] && n <= costRange[1] ? COLORS.accent : COLORS.textDim,
-							fontFamily: FONT_MONO, transition: "all 0.15s",
+							fontFamily: FONT_SANS, transition: "all 0.15s",
 						}}>{n}</div>
 					))}
 				</div>
@@ -61,7 +61,7 @@ export default function CardFilters({
 
 			{/* Colors */}
 			<div>
-				<div style={{ fontSize: 10, letterSpacing: "0.2em", color: COLORS.text, marginBottom: 10, fontFamily: FONT_MONO }}>CARD DOMAIN</div>
+				<div style={{ fontSize: 10, letterSpacing: "0.2em", color: COLORS.text, marginBottom: 10, fontFamily: FONT_SANS }}>CARD DOMAIN</div>
 				<div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
 					{ALL_COLORS.map(color => {
 						const c      = COLOR_CONFIG[color];
@@ -86,7 +86,7 @@ export default function CardFilters({
 
 			{/* Type */}
 			<div>
-				<div style={{ fontSize: 10, letterSpacing: "0.2em", color: COLORS.text, marginBottom: 10, fontFamily: FONT_MONO }}>TYPE</div>
+				<div style={{ fontSize: 10, letterSpacing: "0.2em", color: COLORS.text, marginBottom: 10, fontFamily: FONT_SANS }}>TYPE</div>
 				<div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
 					{ALL_TAGS.map(tag => {
 						const active = selectedTags.includes(tag);
@@ -109,7 +109,7 @@ export default function CardFilters({
 
 			{/* Additional attributes */}
 			<div>
-				<div style={{ fontSize: 10, letterSpacing: "0.2em", color: COLORS.text, marginBottom: 10, fontFamily: FONT_MONO }}>ATTRIBUTES</div>
+				<div style={{ fontSize: 10, letterSpacing: "0.2em", color: COLORS.text, marginBottom: 10, fontFamily: FONT_SANS }}>ATTRIBUTES</div>
 				<div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
 					{Object.keys(KEYWORD_STYLES).map(attribute => {
 						const active = selectedAttribute.includes(attribute);
@@ -127,7 +127,7 @@ export default function CardFilters({
 
 			{/* Set filters */}
 			<div>
-				<div style={{ fontSize: 10, letterSpacing: "0.2em", color: COLORS.text, marginBottom: 10, fontFamily: FONT_MONO }}>SET</div>
+				<div style={{ fontSize: 10, letterSpacing: "0.2em", color: COLORS.text, marginBottom: 10, fontFamily: FONT_SANS }}>SET</div>
 				<div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
 					{["Proving Grounds", "Origins", "Spiritforged", "Unleashed"].map(attribute => {
 						const active = releaseSet === attribute;

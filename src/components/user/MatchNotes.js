@@ -114,12 +114,12 @@ export default function MatchNotes({ entries, legends, status, seasonName, showA
 			}}>
 				<div style={LABEL}>NO NOTES YET</div>
 				<div style={{ fontSize: mobile ? 13 : 12, lineHeight: 1.6, color: COLORS.text, maxWidth: 420 }}>
-					No match in {seasonName} has a note. Open a match&rsquo;s note in History and write down what happened &mdash; they&rsquo;ll collect here by matchup.
+					No match in {seasonName} has a note. Open a match&rsquo;s note in either Match History tab and write down what happened &mdash; they&rsquo;ll collect here by matchup.
 				</div>
 				<button onClick={onGoToHistory} style={{
 					height: mobile ? 48 : 28, padding: "0 16px", background: COLORS.bgRaised, border: `1px solid ${COLORS.borderHover}`, borderRadius: 0,
 					color: COLORS.accent, cursor: "pointer", fontFamily: FONT_MONO, fontSize: mobile ? 11 : 10, letterSpacing: "0.12em", fontWeight: 700,
-				}}>GO TO HISTORY</button>
+				}}>GO TO MATCH HISTORY</button>
 			</div>
 		);
 	}
@@ -155,7 +155,7 @@ function NoteCard({ entry, legendById, showAccount, mobile }) {
 				<span style={{
 					minWidth: 44, height: 22, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
 					background: alpha(color, 14), color, fontSize: 10, fontWeight: 700, letterSpacing: "0.12em",
-				}}>{m.result.toUpperCase()}</span>
+				}}>{m.result ? m.result.toUpperCase() : "—"}</span>
 				<span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: mobile ? "1 1 100%" : "0 1 auto", order: mobile ? 3 : 0 }}>
 					<Side legend={legendById.get(entry.mine)} />
 					<span style={{ fontSize: 10, color: COLORS.textDim, flexShrink: 0 }}>{entry.score ?? "vs"}</span>

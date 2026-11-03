@@ -1,6 +1,6 @@
 "use client";
 import { useState, useMemo, useEffect, useRef } from "react";
-import { COLORS, FONT_MONO, LAYOUT, SHOW } from "../../lib/data";
+import { COLORS, FONT_SANS, LAYOUT, SHOW } from "../../lib/data";
 import { useIsMobile } from "../../hooks/useIsMobile";
 import { FOCUS_CARD_SEARCH } from "../Navbar";
 import { MobileSearchHeader, DeckFab, FilterSheet, CardDetailSheet, DeckSheet, filterChips, SORT_OPTIONS } from "./MobileCards";
@@ -147,31 +147,31 @@ export default function CardGrid({ initialCards }) {
 			<style suppressHydrationWarning>{`
 				.card-item { background: var(--bg-card); border: 1px solid var(--border); border-radius: 0; padding: 14px; cursor: pointer; transition: all 0.25s ease; }
 				.card-item:hover { transform: translateY(-3px); }
-				.filter-btn { background: var(--bg-raised); border: 1px solid var(--border); border-radius: 0; padding: 6px 12px; cursor: pointer; font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; color: var(--text-muted); transition: all 0.2s; letter-spacing: 0.05em; }
-				.filter-attribute-btn { background: var(--bg-raised); border: 1px solid var(--border); border-radius: 0; padding: 3px 6px; cursor: pointer; font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; color: var(--text-muted); transition: all 0.2s; letter-spacing: 0.05em; }
+				.filter-btn { background: var(--bg-raised); border: 1px solid var(--border); border-radius: 0; padding: 6px 12px; cursor: pointer; font-family: ${FONT_SANS}; font-size: 11px; color: var(--text-muted); transition: all 0.2s; letter-spacing: 0.05em; }
+				.filter-attribute-btn { background: var(--bg-raised); border: 1px solid var(--border); border-radius: 0; padding: 3px 6px; cursor: pointer; font-family: ${FONT_SANS}; font-size: 11px; color: var(--text-muted); transition: all 0.2s; letter-spacing: 0.05em; }
 				.filter-btn:hover { border-color: var(--border-hover); color: var(--text); }
-				.search-input { width: 100%; background: var(--bg-card); border: 1px solid var(--border); border-radius: 0; padding: 11px 14px 11px 40px; color: var(--text); font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 15px; outline: none; transition: border-color 0.2s; }
+				.search-input { width: 100%; background: var(--bg-card); border: 1px solid var(--border); border-radius: 0; padding: 11px 14px 11px 40px; color: var(--text); font-family: ${FONT_SANS}; font-size: 15px; outline: none; transition: border-color 0.2s; }
 				.search-input:focus { border-color: var(--border-hover); }
 				.search-input::placeholder { color: var(--text-dim); }
-				.sort-select { background: var(--bg-raised); border: 1px solid var(--border); border-radius: 0; padding: 7px 12px; color: var(--text-muted); font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; cursor: pointer; outline: none; }
+				.sort-select { background: var(--bg-raised); border: 1px solid var(--border); border-radius: 0; padding: 7px 12px; color: var(--text-muted); font-family: ${FONT_SANS}; font-size: 11px; cursor: pointer; outline: none; }
 				.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; z-index: 100; animation: fadeIn 0.2s ease; }
 				.modal-card { animation: fadeUp 0.25s ease; }
-				.cost-badge { width: 28px; height: 28px; background: var(--border); border: 1px solid var(--border-hover); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: var(--accent); font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; flex-shrink: 0; }
-				.tag-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--border); border: 1px solid var(--border-hover); border-radius: 0; padding: 2px 8px; font-size: 11px; color: var(--text-muted); font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: 0.04em; }
+				.cost-badge { width: 28px; height: 28px; background: var(--border); border: 1px solid var(--border-hover); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: var(--accent); font-family: ${FONT_SANS}; flex-shrink: 0; }
+				.tag-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--border); border: 1px solid var(--border-hover); border-radius: 0; padding: 2px 8px; font-size: 11px; color: var(--text-muted); font-family: ${FONT_SANS}; letter-spacing: 0.04em; }
 				.range-slider { -webkit-appearance: none; width: 100%; height: 4px; background: var(--border); border-radius: 0; outline: none; }
 				.range-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--accent-dim); cursor: pointer; border: 2px solid var(--accent); }
-				.clear-btn { background: transparent; border: 1px solid color-mix(in srgb, var(--loss) 20%, transparent); border-radius: 0; padding: 8px; color: color-mix(in srgb, var(--loss) 60%, transparent); font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 10px; letter-spacing: 0.15em; cursor: pointer; transition: all 0.2s; width: 100%; }
+				.clear-btn { background: transparent; border: 1px solid color-mix(in srgb, var(--loss) 20%, transparent); border-radius: 0; padding: 8px; color: color-mix(in srgb, var(--loss) 60%, transparent); font-family: ${FONT_SANS}; font-size: 10px; letter-spacing: 0.15em; cursor: pointer; transition: all 0.2s; width: 100%; }
 				.clear-btn:hover { border-color: color-mix(in srgb, var(--loss) 45%, transparent); color: var(--loss); }
 				.card-wrapper { position: relative; }
 				.add-deck-btn { position: absolute; bottom: 8px; right: 8px; width: 28px; height: 28px; background: color-mix(in srgb, var(--bg-card) 85%, transparent); border: 1px solid var(--border-hover); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; color: var(--accent); opacity: 0; transition: opacity 0.15s, background 0.15s; z-index: 2; }
 				.card-wrapper:hover .add-deck-btn { opacity: 1; }
 				.add-deck-btn:hover { background: color-mix(in srgb, var(--accent) 13%, transparent); color: var(--accent); border-color: var(--accent); }
-				.deck-row { display: flex; align-items: center; justify-content: space-between; padding: 5px 10px; border-radius: 0; font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; color: var(--text); transition: background 0.15s; }
+				.deck-row { display: flex; align-items: center; justify-content: space-between; padding: 5px 10px; border-radius: 0; font-family: ${FONT_SANS}; font-size: 12px; color: var(--text); transition: background 0.15s; }
 				.deck-row:hover { background: var(--bg-hover); }
 				.deck-count-btn { background: var(--border); border: 1px solid var(--border-hover); border-radius: 0; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-muted); font-size: 13px; line-height: 1; transition: border-color 0.15s, color 0.15s; }
 				.deck-count-btn:hover { border-color: var(--accent-dim); color: var(--accent); }
 				.deck-panel { position: fixed; top: 62px; right: 0; bottom: 0; width: 300px; background: var(--bg); border-left: 1px solid var(--border); display: flex; flex-direction: column; z-index: 50; transition: transform 0.3s cubic-bezier(0.4,0,0.2,1); }
-				.deck-btn { background: var(--bg-raised); border: 1px solid var(--border); border-radius: 0; padding: 7px 14px; color: var(--text-muted); font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; cursor: pointer; letter-spacing: 0.08em; transition: all 0.2s; display: flex; align-items: center; gap: 7px; margin-right: 8px; }
+				.deck-btn { background: var(--bg-raised); border: 1px solid var(--border); border-radius: 0; padding: 7px 14px; color: var(--text-muted); font-family: ${FONT_SANS}; font-size: 11px; cursor: pointer; letter-spacing: 0.08em; transition: all 0.2s; display: flex; align-items: center; gap: 7px; margin-right: 8px; }
 				.deck-btn:hover { border-color: var(--border-hover); color: var(--accent); }
 				.deck-btn.active { background: color-mix(in srgb, var(--accent) 13%, transparent); border-color: var(--accent-dim); color: var(--accent); }
 				.deck-badge { background: var(--border-hover); color: var(--text); border-radius: 0; padding: 1px 7px; font-size: 10px; font-weight: 700; }
@@ -194,7 +194,7 @@ export default function CardGrid({ initialCards }) {
 
 				<section style={{ flex: 1, minWidth: 0, overflowX: "clip", padding: LAYOUT.cardsPad, transition: "padding-right 0.3s", ...(deckOpen ? { paddingRight: 328 } : {}) }}>
 					<div style={{ display: SHOW.desktopFlex, justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-						<div style={{ fontSize: 11, color: COLORS.textDim, letterSpacing: "0.1em", fontFamily: FONT_MONO }}>
+						<div style={{ fontSize: 11, color: COLORS.textDim, letterSpacing: "0.1em", fontFamily: FONT_SANS }}>
 							{filtered.length === 0 ? "NO CARDS FOUND" : `${filtered.length} OF ${initialCards.length} CARDS`}
 						</div>
 						<div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -202,19 +202,19 @@ export default function CardGrid({ initialCards }) {
 								DECK BUILDER
 								{deckTotal > 0 && <span className="deck-badge">{deckTotal}</span>}
 							</button>
-							<Dropdown variant="compact" label="SORT" value={sortBy} onChange={setSortBy} options={SORT_OPTIONS} />
+							<Dropdown font={FONT_SANS} variant="compact" label="SORT" value={sortBy} onChange={setSortBy} options={SORT_OPTIONS} />
 						</div>
 					</div>
 
 					{filtered.length === 0 ? (
-						<div style={{ padding: "72px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: 14, textAlign: "center", fontFamily: FONT_MONO }}>
+						<div style={{ padding: "72px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: 14, textAlign: "center", fontFamily: FONT_SANS }}>
 							<span style={{ fontSize: 13, letterSpacing: "0.18em", fontWeight: 700, color: COLORS.textMuted }}>THE RIFT REVEALS NOTHING</span>
 							<span style={{ fontSize: 12, color: COLORS.textDim, lineHeight: 1.6 }}>
 								{search ? `No cards match “${search}” with these filters.` : "No cards match these filters."}
 							</span>
 							<button onClick={clearFilters} style={{
 								height: 44, padding: "0 18px", background: COLORS.bgRaised, border: `1px solid ${COLORS.borderHover}`, color: COLORS.text,
-								fontFamily: FONT_MONO, fontSize: 11, letterSpacing: "0.12em", fontWeight: 700, cursor: "pointer",
+								fontFamily: FONT_SANS, fontSize: 11, letterSpacing: "0.12em", fontWeight: 700, cursor: "pointer",
 							}}>CLEAR SEARCH &amp; FILTERS</button>
 						</div>
 					) : (

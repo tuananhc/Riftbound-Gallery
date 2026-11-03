@@ -1,6 +1,6 @@
 "use client";
 import Image from "next/image";
-import { COLORS, FONT_MONO, alpha } from "../../lib/data";
+import { COLORS, FONT_SANS, alpha } from "../../lib/data";
 import { ALL_COLORS, COLOR_CONFIG } from "../../lib/cards/data";
 
 // Deck sections in display order; the phone deck sheet uses them too.
@@ -27,10 +27,10 @@ function ChampionCard({ entry, role, onRemove }) {
 				}
 			</div>
 			<div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 4 }}>
-				<div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.14em", color: isLegend ? COLORS.accent : COLORS.accent, fontFamily: FONT_MONO }}>
+				<div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.14em", color: isLegend ? COLORS.accent : COLORS.accent, fontFamily: FONT_SANS }}>
 					{isLegend ? "LEGEND" : "CHOSEN CHAMPION"}
 				</div>
-				<div style={{ fontSize: 12, fontWeight: 700, color: COLORS.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: FONT_MONO }}>
+				<div style={{ fontSize: 12, fontWeight: 700, color: COLORS.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontFamily: FONT_SANS }}>
 					{isLegend ? `${card.tags_text} - ${card.name}` : card.name}
 				</div>
 				<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -39,7 +39,7 @@ function ChampionCard({ entry, role, onRemove }) {
 							<Image key={c} src={COLOR_CONFIG[c].icon} alt={c} width={13} height={13} style={{ opacity: 0.85 }} />
 						))}
 						{colors.length === 0 && (
-							<span style={{ fontSize: 12, color: COLORS.textDim, fontFamily: FONT_MONO }}>COLORLESS</span>
+							<span style={{ fontSize: 12, color: COLORS.textDim, fontFamily: FONT_SANS }}>COLORLESS</span>
 						)}
 					</div>
 					<button className="deck-count-btn" onClick={() => onRemove(card.id)}>−</button>
@@ -53,9 +53,9 @@ function ChosenChampionSection({ legendEntry, championEntry, onRemove }) {
 	if (!legendEntry && !championEntry) return null;
 	return (
 		<div style={{ padding: "10px 10px 6px", display: "flex", flexDirection: "column", gap: 8 }}>
-			<span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.18em", color: COLORS.textMuted, fontFamily: FONT_MONO }}>Legend</span>
+			<span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.18em", color: COLORS.textMuted, fontFamily: FONT_SANS }}>Legend</span>
 			{legendEntry && <ChampionCard entry={legendEntry} role="legend" onRemove={onRemove} />}
-			<span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.18em", color: COLORS.textMuted, fontFamily: FONT_MONO }}>Chosen Champion</span>
+			<span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.18em", color: COLORS.textMuted, fontFamily: FONT_SANS }}>Chosen Champion</span>
 			{championEntry && <ChampionCard entry={championEntry} role="champion" onRemove={onRemove} />}
 		</div>
 	);
@@ -66,8 +66,8 @@ function DeckSection({ label, entries, onAdd, onRemove }) {
 	return (
 		<div style={{ marginBottom: 4 }}>
 			<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "5px 10px 3px" }}>
-				<span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.18em", color: COLORS.textMuted, fontFamily: FONT_MONO }}>{label.toUpperCase()}</span>
-				<span style={{ fontSize: 12, color: COLORS.textDim, fontFamily: FONT_MONO }}>{sectionTotal}</span>
+				<span style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.18em", color: COLORS.textMuted, fontFamily: FONT_SANS }}>{label.toUpperCase()}</span>
+				<span style={{ fontSize: 12, color: COLORS.textDim, fontFamily: FONT_SANS }}>{sectionTotal}</span>
 			</div>
 			{entries.map(({ card, count }) => (
 				<div key={card.id} className="deck-row">
@@ -97,10 +97,10 @@ export default function DeckPanel({ deck, deckOpen, deckTotal, legendId, champio
 		<div className="deck-panel" style={{ transform: deckOpen ? "translateX(0)" : "translateX(100%)" }}>
 			<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
 				<div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-					<span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.18em", color: COLORS.accent, fontFamily: FONT_MONO }}>DECK BUILDER</span>
+					<span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.18em", color: COLORS.accent, fontFamily: FONT_SANS }}>DECK BUILDER</span>
 					<span style={{
 						fontSize: 10,
-						fontFamily: FONT_MONO,
+						fontFamily: FONT_SANS,
 						letterSpacing: "0.08em",
 						padding: deckTotal > 0 ? "6px 8px" : "0",
 						borderRadius: 0,
@@ -115,7 +115,7 @@ export default function DeckPanel({ deck, deckOpen, deckTotal, legendId, champio
 
 			<div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
 				{deck.length === 0 ? (
-					<div style={{ textAlign: "center", padding: "48px 16px", color: COLORS.textDim, fontFamily: FONT_MONO, fontSize: 11, letterSpacing: "0.12em", lineHeight: 2 }}>
+					<div style={{ textAlign: "center", padding: "48px 16px", color: COLORS.textDim, fontFamily: FONT_SANS, fontSize: 11, letterSpacing: "0.12em", lineHeight: 2 }}>
 						CHOOSE A LEGEND<br />TO START BUILDING
 					</div>
 				) : (
@@ -135,13 +135,13 @@ export default function DeckPanel({ deck, deckOpen, deckTotal, legendId, champio
 				<button
 					onClick={onCopyList}
 					disabled={deckTotal === 0}
-					style={{ flex: 1, background: "transparent", border: "1px solid var(--border-hover)", borderRadius: 0, padding: "8px", color: deckTotal === 0 ? COLORS.borderHover : COLORS.textMuted, fontFamily: FONT_MONO, fontSize: 10, letterSpacing: "0.1em", cursor: deckTotal === 0 ? "default" : "pointer", transition: "all 0.2s" }}
+					style={{ flex: 1, background: "transparent", border: "1px solid var(--border-hover)", borderRadius: 0, padding: "8px", color: deckTotal === 0 ? COLORS.borderHover : COLORS.textMuted, fontFamily: FONT_SANS, fontSize: 10, letterSpacing: "0.1em", cursor: deckTotal === 0 ? "default" : "pointer", transition: "all 0.2s" }}
 				>
 					COPY LIST
 				</button>
 				<button
 					onClick={onClear}
-					style={{ flex: 1, background: "transparent", border: "1px solid color-mix(in srgb, var(--loss) 45%, transparent)", borderRadius: 0, padding: "8px", color: COLORS.loss, fontFamily: FONT_MONO, fontSize: 10, letterSpacing: "0.1em", cursor: "pointer", transition: "all 0.2s" }}
+					style={{ flex: 1, background: "transparent", border: "1px solid color-mix(in srgb, var(--loss) 45%, transparent)", borderRadius: 0, padding: "8px", color: COLORS.loss, fontFamily: FONT_SANS, fontSize: 10, letterSpacing: "0.1em", cursor: "pointer", transition: "all 0.2s" }}
 					onMouseEnter={e => { e.currentTarget.style.background = "color-mix(in srgb, var(--loss) 12%, transparent)"; e.currentTarget.style.borderColor = COLORS.loss; e.currentTarget.style.color = COLORS.loss; }}
 					onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "color-mix(in srgb, var(--loss) 45%, transparent)"; e.currentTarget.style.color = COLORS.loss; }}
 				>

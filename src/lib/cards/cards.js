@@ -2,7 +2,7 @@ import "server-only";
 
 import { dynamo } from "../db";
 import { ScanCommand } from "@aws-sdk/lib-dynamodb";
-import { legendOptions } from "./data";
+import { legendOptions, isBaseCard } from "./data";
 
 // Card data only changes when the crawler re-uploads, so each query's result is
 // kept in server memory for an hour. The pages' `revalidate` doesn't apply under
@@ -58,3 +58,25 @@ export const getLegends = cached(async () => legendOptions(await scanCards({
 	ExpressionAttributeNames: { "#name": "name" },
 	ExpressionAttributeValues: { ":legend": "Legend" },
 })));
+
+// Main-deck cards (no legends, battlefields or runes, base printings only) for
+// the sideboard notes' IN / OUT pickers, trimmed to what the picker shows.
+export const getSideboardCards = cached(async () => {
+	const items = await scanCards({
+		FilterExpression: "NOT contains(card_type_text, :legend) AND NOT contains(card_type_text, :field) AND NOT contains(card_type_text, :rune)",
+		ProjectionExpression: "id, #name, image, domain_text, card_type_text, energy_text",
+		ExpressionAttributeNames: { "#name": "name" },
+		ExpressionAttributeValues: { ":legend": "Legend", ":field": "Battlefield", ":rune": "Rune" },
+	});
+	return items
+		.filter(c => isBaseCard(c.id))
+		.map(c => ({
+			id: c.id,
+			name: c.name,
+			image: c.image ?? null,
+			type: c.card_type_text ?? "",
+			cost: c.energy_text ?? "",
+			domains: (c.domain_text ?? "").split(",").map(d => d.trim()).filter(Boolean),
+		}))
+		.sort((a, b) => a.name.localeCompare(b.name));
+});

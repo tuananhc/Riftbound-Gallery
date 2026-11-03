@@ -30,7 +30,7 @@ export default function NexusNight({ drafts, legends, matches, savedById, saveSt
 			<div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
 				<div style={{ flex: "1 1 260px", fontSize: 11, lineHeight: 1.6, color: COLORS.textMuted }}>
 					Log games as you play them. Once the results reach BoundRift (a few days for
-					PlayRiftbound events), press Search in History and each game fills in its match, ready to save.
+					PlayRiftbound events), press Search in Match History (Official) and each game fills in its match, ready to save.
 					{isGuest && <span style={{ color: COLORS.textDim }}> As a guest, drafts stay in this browser only.</span>}
 				</div>
 				<button onClick={onCreate} style={{ ...primaryButton, height: mobile ? 48 : 30, width: mobile ? "100%" : "auto" }}>+ NEW EVENT</button>
@@ -85,7 +85,7 @@ function EventCard({ draft, legends, legendById, matches, savedById, saveState, 
 			<div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, padding: mobile ? 12 : "8px 10px", borderTop: `1px solid ${COLORS.border}` }}>
 				<button onClick={() => update({ games: [...draft.games, newGame(draft.games.at(-1))] })} disabled={draft.games.length >= 20}
 					style={{ ...secondaryButton, height: mobile ? 44 : 28 }}>+ ADD ROUND</button>
-				{allSaved && <span style={{ fontSize: 11, color: COLORS.accent }}>Every game is saved to History — this draft can go.</span>}
+				{allSaved && <span style={{ fontSize: 11, color: COLORS.accent }}>Every game is saved to Match History (Official) — this draft can go.</span>}
 				<button onClick={() => (confirmDelete ? onDelete(draft.draftId) : setConfirmDelete(true))} onBlur={() => setConfirmDelete(false)}
 					style={{ ...secondaryButton, height: mobile ? 44 : 28, marginLeft: "auto", color: confirmDelete ? COLORS.loss : COLORS.textMuted, borderColor: confirmDelete ? COLORS.loss : COLORS.border }}>
 					{confirmDelete ? "CONFIRM DELETE" : "DELETE DRAFT"}
@@ -113,7 +113,7 @@ function StatusChip({ status, onGoToHistory }) {
 	if (status.kind === "waiting") return <span title="No BoundRift match with this opponent near the event date yet" style={{ ...chip, borderColor: COLORS.border, color: COLORS.textDim }}>WAITING</span>;
 	if (status.kind === "saved") return <span style={{ ...chip, borderColor: COLORS.accentDim, color: COLORS.accent }}>SAVED ✓</span>;
 	return (
-		<button onClick={onGoToHistory} title="Matched to a BoundRift result — review and save it in History"
+		<button onClick={onGoToHistory} title="Matched to a BoundRift result — review and save it in Match History (Official)"
 			style={{ ...chip, cursor: "pointer", borderColor: COLORS.accent, color: COLORS.bg, background: COLORS.accent }}>FOUND → SAVE</button>
 	);
 }
@@ -188,7 +188,7 @@ function GameRow({ game, round, status, legends, legendById, mobile, onChange, o
 			)}
 			{status.mismatch && (
 				<div style={{ padding: mobile ? "0 12px 10px" : "0 10px 6px 42px", fontSize: 10, color: COLORS.textMuted }}>
-					BoundRift has this as a <span style={{ color: RESULT_COLOR[status.mismatch], fontWeight: 700 }}>{status.mismatch}</span> — History uses their result.
+					BoundRift has this as a <span style={{ color: RESULT_COLOR[status.mismatch], fontWeight: 700 }}>{status.mismatch}</span> — Match History (Official) uses their result.
 				</div>
 			)}
 			{choosing && !mobile && (
@@ -258,7 +258,7 @@ function LegendList({ legends, current, onPick, mobile, maxHeight }) {
 }
 
 // 16px type on phones so iOS doesn't zoom in on focus.
-function TextInput({ value, onChange, placeholder, mobile, ariaLabel, type = "text", style }) {
+export function TextInput({ value, onChange, placeholder, mobile, ariaLabel, type = "text", style }) {
 	return (
 		<input type={type} value={value ?? ""} onChange={e => onChange(e.target.value)} placeholder={placeholder} aria-label={ariaLabel}
 			onFocus={e => { e.target.style.borderColor = COLORS.accent; }}

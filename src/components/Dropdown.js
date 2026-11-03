@@ -14,12 +14,14 @@ import BottomSheet from "./BottomSheet";
 //   variant  "field"   — 48px labelled field (phones, filter cards)
 //            "compact" — small label + box, for desktop toolbars
 //            "text"    — "LABEL Value ▾" with no box (e.g. sort)
+//   font     the trigger's and options' font — FONT_MONO unless the page uses
+//            FONT_SANS (the Cards page)
 //
 // Keyboard: Enter / Space / ↑ ↓ open; ↑ ↓ move; Enter picks; Esc closes.
 
 const POPOVER_MAX_HEIGHT = 320;
 
-export default function Dropdown({ value, options, onChange, label, variant = "compact", ariaLabel }) {
+export default function Dropdown({ value, options, onChange, label, variant = "compact", ariaLabel, font = FONT_MONO }) {
 	const isMobile = useIsMobile();
 	const [open, setOpen] = useState(false);
 	const [pos, setPos] = useState(null);
@@ -103,7 +105,7 @@ export default function Dropdown({ value, options, onChange, label, variant = "c
 				<button {...trigger} style={{
 					width: "100%", height: 48, display: "flex", alignItems: "center", gap: 8, padding: "0 10px", minWidth: 0,
 					background: COLORS.bgRaised, border: `1px solid ${open ? COLORS.accentDim : COLORS.border}`,
-					color: COLORS.text, fontFamily: FONT_MONO, cursor: "pointer", textAlign: "left",
+					color: COLORS.text, fontFamily: font, cursor: "pointer", textAlign: "left",
 				}}>
 					<span style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1, minWidth: 0 }}>
 						{label && <span style={{ fontSize: 9, letterSpacing: "0.14em", color: COLORS.textDim }}>{label}</span>}
@@ -113,7 +115,7 @@ export default function Dropdown({ value, options, onChange, label, variant = "c
 				</button>
 			)}
 			{variant === "compact" && (
-				<span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontFamily: FONT_MONO }}>
+				<span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontFamily: font }}>
 					{label && <span style={{ fontSize: 10, letterSpacing: "0.14em", color: COLORS.textDim }}>{label}</span>}
 					<button {...trigger}
 						onMouseEnter={e => { if (!open) e.currentTarget.style.borderColor = COLORS.borderHover; }}
@@ -121,7 +123,7 @@ export default function Dropdown({ value, options, onChange, label, variant = "c
 						style={{
 							height: 28, display: "inline-flex", alignItems: "center", gap: 10, padding: "0 8px 0 10px",
 							background: COLORS.bgRaised, border: `1px solid ${open ? COLORS.accentDim : COLORS.border}`,
-							color: COLORS.text, fontFamily: FONT_MONO, fontSize: 11, cursor: "pointer", whiteSpace: "nowrap",
+							color: COLORS.text, fontFamily: font, fontSize: 11, cursor: "pointer", whiteSpace: "nowrap",
 						}}>
 						{current}<Caret open={open} />
 					</button>
@@ -130,7 +132,7 @@ export default function Dropdown({ value, options, onChange, label, variant = "c
 			{variant === "text" && (
 				<button {...trigger} style={{
 					height: 32, display: "inline-flex", alignItems: "center", gap: 6, padding: "0 0 0 10px",
-					background: "transparent", border: "none", color: COLORS.textMuted, fontFamily: FONT_MONO,
+					background: "transparent", border: "none", color: COLORS.textMuted, fontFamily: font,
 					fontSize: 11, letterSpacing: "0.1em", cursor: "pointer",
 				}}>
 					{label}<span style={{ color: COLORS.textStrong }}>{current.toUpperCase()}</span><Caret open={open} />
@@ -138,7 +140,7 @@ export default function Dropdown({ value, options, onChange, label, variant = "c
 			)}
 
 			{open && isMobile && (
-				<BottomSheet title={(label ?? name).toUpperCase()} onClose={close}>
+				<BottomSheet title={(label ?? name).toUpperCase()} onClose={close} font={font}>
 					<div ref={listRef} role="listbox" aria-label={name} style={{ paddingBottom: "calc(12px + env(safe-area-inset-bottom))" }}>
 						{options.map(([v, text], i) => (
 							<Option key={v} index={i} text={text} selected={v === value} active={i === active} tall onPick={() => choose(v)} />
@@ -148,7 +150,7 @@ export default function Dropdown({ value, options, onChange, label, variant = "c
 			)}
 			{open && !isMobile && pos && createPortal(
 				<div ref={listRef} role="listbox" aria-label={name} style={{
-					position: "fixed", ...pos, zIndex: 1000, overflowY: "auto", fontFamily: FONT_MONO,
+					position: "fixed", ...pos, zIndex: 1000, overflowY: "auto", fontFamily: font,
 					background: COLORS.bgCard, border: `1px solid ${COLORS.borderHover}`, boxShadow: `0 8px 24px ${COLORS.shadow}`,
 				}}>
 					{options.map(([v, text], i) => (

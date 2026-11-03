@@ -1,26 +1,29 @@
 "use client";
 import { Fragment, useState, useEffect, useRef, useCallback } from "react";
-import { createPortal } from "react-dom";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { COLORS, FONT_MONO, alpha } from "../../lib/data";
+import { COLORS, FONT_MONO } from "../../lib/data";
 import { legendLabel } from "../../lib/cards/data";
 import LegendIcon from "../cards/LegendIcon";
 import RuneIcons from "../cards/RuneIcons";
 import MatchStats from "./MatchStats";
 import MobileProfile from "./MobileProfile";
 import NexusNight from "./NexusNight";
-import MatchNotes, { NoteEditor, NoteIcon } from "./MatchNotes";
+import MatchNotes, { NoteEditor } from "./MatchNotes";
+import SideboardNotes from "./SideboardNotes";
+import UnofficialMatches from "./UnofficialMatches";
+import { LegendPick, ScorePick, NoteToggle } from "./MatchPicks";
 import Dropdown from "../Dropdown";
 import { useIsMobile } from "../../hooks/useIsMobile";
 import { StatTiles } from "./ProfileStats";
-import { latestSeason, summarize, sortChronological, seasonOfMatch, seasonsOf, seasonLabel, scoreOptions, bestOf, startedSeasons, playedLabel, recordsBy } from "../../lib/matchStats";
+import { latestSeason, summarize, sortChronological, seasonOfMatch, seasonsOf, seasonLabel, scoreOptions, startedSeasons, playedLabel, recordsBy } from "../../lib/matchStats";
 import { countryFlag } from "../../lib/countries";
 import { useAuth } from "../../hooks/useAuth";
-import { saveMatchHistory, getMatchHistory, getDrafts, saveDraft, deleteDraft, searchPlayers, getPlayerHistory, findBoundriftId, resolveEvents, lookupEvent, getProfile, addEloAccount, selectEloAccount, removeEloAccount } from "../../lib/api";
+import { saveMatchHistory, getMatchHistory, getDrafts, saveDraft, deleteDraft, getUnofficialMatches, saveUnofficialMatch, deleteUnofficialMatch, getSideboardNotes, saveSideboardNote, deleteSideboardNote, getSideboardCards, searchPlayers, getPlayerHistory, findBoundriftId, resolveEvents, lookupEvent, getProfile, addEloAccount, selectEloAccount, removeEloAccount } from "../../lib/api";
 import { byPlayed, fromSaved, mergeHistory, withLegacyPicks, applyEvents, retryMissing, needsLookup, lookupHints, eventKey, groupKeys, withSourceScores, playerSummary, isUnpairedLegacy, pairCandidates, pairByHand, liveItems } from "../../lib/history";
 import { readGuestDraft, writeGuestDraft, clearGuestDraft } from "../../lib/guestDraft";
 import { newDraft, matchDraftGames, draftPicks, readLocalDrafts, writeLocalDrafts } from "../../lib/nexusDrafts";
+import { matchupKey, noteIsEmpty, readLocalNotes, writeLocalNotes } from "../../lib/sideboardNotes";
+import { newUnofficial, byNewest, asStatItem, asRow, readLocalUnofficial, writeLocalUnofficial, readIncludeUnofficial, writeIncludeUnofficial } from "../../lib/unofficial";
 import GuestNotice, { GUEST_SAVE_HINT } from "./GuestNotice";
 import GetStarted from "./GetStarted";
 
@@ -29,6 +32,18 @@ const GUEST = { username: "Guest", subtitle: "Not signed in — nothing on this 
 
 // "shadowrift" → "SH" — the avatar when no legend has been played yet.
 const initials = name => name.replace(/[^a-z0-9]/gi, "").slice(0, 2).toUpperCase() || "?";
+
+// The match section's tabs ([key, label, phone label]), and those the season
+// selector applies to.
+const MATCH_TABS = [
+	["data", "DATA", "DATA"],
+	["history", "MATCH HISTORY (OFFICIAL)", "OFFICIAL"],
+	["unofficial", "MATCH HISTORY (UNOFFICIAL)", "UNOFFICIAL"],
+	["notes", "GAME NOTES", "GAME NOTES"],
+	["sideboard", "SIDEBOARD NOTES", "SIDEBOARD"],
+	["nexus", "NEXUS NIGHT", "NEXUS NIGHT"],
+];
+const SEASONAL_TABS = ["data", "history", "notes"];
 
 // How many match-history rows to reveal per "Load More" click.
 const ELO_PAGE_SIZE = 10;
@@ -171,8 +186,9 @@ export default function UserProfile({ legends = [] }) {
 	// "Apply to all matches in this event" in your legend picker — on by default,
 	// since a player almost always runs one legend for a whole event.
 	const [fillEvent, setFillEvent] = useState(true);
-	// Match section tab: "data" (analysis), "history" (the editable rows),
-	// "notes" (match notes by matchup) or "nexus" (Nexus Night drafts).
+	// Match section tab: "data" (analysis), "history" (the official rows, from
+	// BoundRift), "unofficial" (games logged by hand), "notes" (match notes by
+	// matchup) or "nexus" (Nexus Night drafts).
 	const [matchTab, setMatchTab] = useState("data");
 	const [saveMsg, setSaveMsg] = useState(null);
 	const dismissSave = useCallback(() => setSaveMsg(null), []);
@@ -194,6 +210,27 @@ export default function UserProfile({ legends = [] }) {
 	// "error" }, and the saves waiting on the typing to stop: { [key]: { timer, send } }.
 	const [noteSave, setNoteSave] = useState({});
 	const noteTimers = useRef({});
+	// Unofficial matches (every linked account's — lib/unofficial.js), their load
+	// status, each one's save state ({ [matchId]: "saving" | "saved" | "error" })
+	// and the saves waiting on the typing to stop ({ [matchId]: { timer, send } }).
+	// Sideboard notes (one per matchup), their load status and save states
+	// keyed "myLegend|oppLegend", and the IN / OUT picker's cards — fetched the
+	// first time the tab opens.
+	const [sideboard, setSideboard] = useState([]);
+	const [sideboardStatus, setSideboardStatus] = useState("loading");
+	const [sideboardSave, setSideboardSave] = useState({});
+	const sideboardTimers = useRef({});
+	const [sideCards, setSideCards] = useState(null);
+	const [sideCardsFailed, setSideCardsFailed] = useState(false);
+	const sideCardsRequested = useRef(false);
+	const [unofficial, setUnofficial] = useState([]);
+	const [unofficialStatus, setUnofficialStatus] = useState("loading");
+	const [unofficialSave, setUnofficialSave] = useState({});
+	const unofficialTimers = useRef({});
+	// Whether the Data tab counts unofficial matches. The page renders nothing
+	// until the session resolves, so reading the browser's choice here can't
+	// differ from the server render.
+	const [includeUnofficial, setIncludeUnofficial] = useState(readIncludeUnofficial);
 	// History rows (desktop) whose note box is open, by "playerId:matchId".
 	const [openNotes, setOpenNotes] = useState(() => new Set());
 	// The seasons (Riftbound sets) that have started: the selector's options, and
@@ -333,6 +370,33 @@ export default function UserProfile({ legends = [] }) {
 		return () => { cancelled = true; };
 	}, [token]);
 
+	// Signed in: load the sideboard notes.
+	useEffect(() => {
+		if (!token) return;
+		let cancelled = false;
+		getSideboardNotes(token)
+			.then(found => { if (!cancelled) { setSideboard(found); setSideboardStatus("ready"); } })
+			.catch(() => { if (!cancelled) setSideboardStatus("error"); });
+		return () => { cancelled = true; };
+	}, [token]);
+
+	// The IN / OUT picker's card list, once, when Sideboard Notes first opens.
+	useEffect(() => {
+		if (matchTab !== "sideboard" || sideCardsRequested.current) return;
+		sideCardsRequested.current = true;
+		getSideboardCards().then(setSideCards).catch(() => setSideCardsFailed(true));
+	}, [matchTab]);
+
+	// Signed in: load the unofficial matches.
+	useEffect(() => {
+		if (!token) return;
+		let cancelled = false;
+		getUnofficialMatches(token)
+			.then(found => { if (!cancelled) { setUnofficial(found); setUnofficialStatus("ready"); } })
+			.catch(() => { if (!cancelled) setUnofficialStatus("error"); });
+		return () => { cancelled = true; };
+	}, [token]);
+
 	// Guests: pick up this tab's draft, so their work survives moving between
 	// pages. Nothing is stored for them, so the save checks start out "ready".
 	// A one-time read of sessionStorage, which doesn't exist during SSR — the
@@ -344,6 +408,10 @@ export default function UserProfile({ legends = [] }) {
 		setProfileStatus("ready");
 		setDrafts(readLocalDrafts());
 		setDraftsStatus("ready");
+		setUnofficial(readLocalUnofficial());
+		setUnofficialStatus("ready");
+		setSideboard(readLocalNotes());
+		setSideboardStatus("ready");
 		const draft = readGuestDraft();
 		if (!draft) return;
 		setAccounts(draft.accounts);
@@ -359,10 +427,16 @@ export default function UserProfile({ legends = [] }) {
 		writeGuestDraft({ accounts, activeId, history: eloHistory, picks: matchChampions });
 	}, [status, profileStatus, accounts, activeId, eloHistory, matchChampions]);
 
-	// A guest's Nexus Night drafts live in this browser.
+	// A guest's Nexus Night drafts and unofficial matches live in this browser.
 	useEffect(() => {
 		if (status === "guest" && draftsStatus === "ready") writeLocalDrafts(drafts);
 	}, [status, draftsStatus, drafts]);
+	useEffect(() => {
+		if (status === "guest" && unofficialStatus === "ready") writeLocalUnofficial(unofficial);
+	}, [status, unofficialStatus, unofficial]);
+	useEffect(() => {
+		if (status === "guest" && sideboardStatus === "ready") writeLocalNotes(sideboard);
+	}, [status, sideboardStatus, sideboard]);
 
 	// A guest with legend picks gets the browser's "leave site?" prompt on
 	// closing or reloading the tab — closing it is when their work is lost.
@@ -516,6 +590,114 @@ export default function UserProfile({ legends = [] }) {
 			setDrafts(prev => [removed, ...prev]);
 			setDraftSave(prev => ({ ...prev, [id]: "error" }));
 		});
+	}
+
+	// Store an unofficial match a moment after the last edit (signed in) — or at
+	// once, through flushUnofficial — so typing doesn't send a request per key. A
+	// guest's are written to this browser.
+	function persistUnofficial(match) {
+		if (isGuest) return;
+		const id = match.matchId;
+		clearTimeout(unofficialTimers.current[id]?.timer);
+		setUnofficialSave(prev => ({ ...prev, [id]: "saving" }));
+		const send = () => {
+			delete unofficialTimers.current[id];
+			saveUnofficialMatch(token, match)
+				// Still "saving" if more was edited while this one was in flight.
+				.then(() => { if (!unofficialTimers.current[id]) setUnofficialSave(prev => (prev[id] ? { ...prev, [id]: "saved" } : prev)); })
+				.catch(() => setUnofficialSave(prev => (prev[id] ? { ...prev, [id]: "error" } : prev)));
+		};
+		unofficialTimers.current[id] = { send, timer: setTimeout(send, DRAFT_SAVE_DELAY_MS) };
+	}
+
+	function flushUnofficial(id) {
+		const pending = unofficialTimers.current[id];
+		if (!pending) return;
+		clearTimeout(pending.timer);
+		pending.send();
+	}
+
+	// A new match goes on top, carrying the last one's legend and kind.
+	function createUnofficial() {
+		const match = newUnofficial(linkedPlayer.id, unofficial.filter(m => m.eloPlayerId === linkedPlayer.id).sort(byNewest)[0]);
+		setUnofficial(prev => [match, ...prev]);
+		persistUnofficial(match);
+	}
+
+	function changeUnofficial(match) {
+		setUnofficial(prev => prev.map(m => (m.matchId === match.matchId ? match : m)));
+		persistUnofficial(match);
+	}
+
+	// Remove an unofficial match; if the delete fails it comes back, marked unsaved.
+	function removeUnofficial(id) {
+		const removed = unofficial.find(m => m.matchId === id);
+		clearTimeout(unofficialTimers.current[id]?.timer);
+		delete unofficialTimers.current[id];
+		setUnofficial(prev => prev.filter(m => m.matchId !== id));
+		setUnofficialSave(prev => { const next = { ...prev }; delete next[id]; return next; });
+		if (isGuest || !removed) return;
+		deleteUnofficialMatch(token, id).catch(() => {
+			setUnofficial(prev => [removed, ...prev]);
+			setUnofficialSave(prev => ({ ...prev, [id]: "error" }));
+		});
+	}
+
+	// Store a sideboard note a moment after the last edit (signed in) — or at
+	// once, through flushSideboard — so typing doesn't send a request per key.
+	function persistSideboard(note) {
+		if (isGuest) return;
+		const key = matchupKey(note.myLegend, note.oppLegend);
+		clearTimeout(sideboardTimers.current[key]?.timer);
+		setSideboardSave(prev => ({ ...prev, [key]: "saving" }));
+		const send = () => {
+			delete sideboardTimers.current[key];
+			saveSideboardNote(token, note)
+				// Still "saving" if more was edited while this one was in flight.
+				.then(() => { if (!sideboardTimers.current[key]) setSideboardSave(prev => (prev[key] ? { ...prev, [key]: "saved" } : prev)); })
+				.catch(() => setSideboardSave(prev => (prev[key] ? { ...prev, [key]: "error" } : prev)));
+		};
+		sideboardTimers.current[key] = { send, timer: setTimeout(send, DRAFT_SAVE_DELAY_MS) };
+	}
+
+	function flushSideboard(key) {
+		const pending = sideboardTimers.current[key];
+		if (!pending) return;
+		clearTimeout(pending.timer);
+		pending.send();
+	}
+
+	// Edit a matchup's note, creating it on the first edit. A note emptied of
+	// everything is deleted rather than stored blank.
+	function changeSideboard(note) {
+		const key = matchupKey(note.myLegend, note.oppLegend);
+		const exists = sideboard.some(n => matchupKey(n.myLegend, n.oppLegend) === key);
+		if (noteIsEmpty(note)) {
+			if (exists) removeSideboard(note.myLegend, note.oppLegend);
+			return;
+		}
+		setSideboard(prev => (exists ? prev.map(n => (matchupKey(n.myLegend, n.oppLegend) === key ? note : n)) : [...prev, note]));
+		persistSideboard(note);
+	}
+
+	// Remove a matchup's note; if the delete fails it comes back, marked unsaved.
+	function removeSideboard(myLegend, oppLegend) {
+		const key = matchupKey(myLegend, oppLegend);
+		const removed = sideboard.find(n => matchupKey(n.myLegend, n.oppLegend) === key);
+		clearTimeout(sideboardTimers.current[key]?.timer);
+		delete sideboardTimers.current[key];
+		setSideboard(prev => prev.filter(n => matchupKey(n.myLegend, n.oppLegend) !== key));
+		setSideboardSave(prev => { const next = { ...prev }; delete next[key]; return next; });
+		if (isGuest || !removed) return;
+		deleteSideboardNote(token, myLegend, oppLegend).catch(() => {
+			setSideboard(prev => [...prev, removed]);
+			setSideboardSave(prev => ({ ...prev, [key]: "error" }));
+		});
+	}
+
+	function changeIncludeUnofficial(on) {
+		setIncludeUnofficial(on);
+		writeIncludeUnofficial(on);
 	}
 
 	// Send every row on the page to DynamoDB. The Lambda derives the userId from
@@ -765,6 +947,24 @@ export default function UserProfile({ legends = [] }) {
 			.flatMap(a => liveItems(a.id, otherSaved[a.id]).map(m => ({ ...m, account: a.id }))),
 	];
 	const dataAccounts = accounts.filter(a => a.id === activeId || otherSaved[a.id]).map(a => ({ id: a.id, name: a.display_name ?? a.id }));
+	// Unofficial matches on those accounts (with a result) as the Data tab counts
+	// them — only while "Include unofficial" is ticked.
+	const unofficialStats = unofficial
+		.filter(m => dataAccounts.some(a => a.id === m.eloPlayerId))
+		.map(m => { const item = asStatItem(m); return item && { ...item, account: m.eloPlayerId }; })
+		.filter(Boolean);
+	const statsProps = {
+		matches: includeUnofficial ? [...dataMatches, ...unofficialStats] : dataMatches,
+		accounts: dataAccounts, legends, status: savedStatus,
+		unofficialCount: unofficialStats.length, includeUnofficial, onIncludeUnofficial: changeIncludeUnofficial,
+	};
+	// The Unofficial tab's props, shared by both layouts: the active account's
+	// matches, newest first.
+	const unofficialProps = {
+		matches: unofficial.filter(m => m.eloPlayerId === linkedPlayer?.id).sort(byNewest),
+		legends, status: unofficialStatus, isGuest, saveState: unofficialSave,
+		onCreate: createUnofficial, onChange: changeUnofficial, onDelete: removeUnofficial, onFlush: flushUnofficial,
+	};
 	// User card numbers: the latest season of those. Shown as "—" until they've
 	// loaded (or with no account linked).
 	const statsReady = Boolean(linkedPlayer) && savedStatus === "ready";
@@ -783,13 +983,18 @@ export default function UserProfile({ legends = [] }) {
 	};
 	// The Notes tab: every match with a note in the season shown, newest first,
 	// across the linked accounts — the active one's as on the page (so a note
-	// shows as it's typed), the others' as stored.
+	// shows as it's typed), the others' as stored — and the unofficial ones.
 	const noteEntries = [
 		...(linkedPlayer && shownHistory ? shownHistory.points.map(m => [linkedPlayer.id, m, rowPicks[`${linkedPlayer.id}:${m.match_id}`]]) : []),
 		...accounts.filter(a => a.id !== activeId && otherSaved[a.id]).flatMap(a => {
 			const { history, picks } = fromSaved(a.id, otherSaved[a.id]);
 			const all = withLegacyPicks(picks, history.points, a.id);
 			return historyForSeason(history, season, seasons).points.map(m => [a.id, m, all[`${a.id}:${m.match_id}`]]);
+		}),
+		...unofficial.filter(m => dataAccounts.some(a => a.id === m.eloPlayerId)).flatMap(m => {
+			const row = asRow(m);
+			return historyForSeason({ points: [row] }, season, seasons).points
+				.map(r => [m.eloPlayerId, r, { mine: m.myChampion, opponent: m.opponentChampion, score: m.score, notes: m.notes }]);
 		}),
 	]
 		.filter(([, , picks]) => picks?.notes?.trim())
@@ -816,6 +1021,17 @@ export default function UserProfile({ legends = [] }) {
 	// The legend on their most recent match that has one picked.
 	const lastPlayed = sortChronological(statMatches.filter(m => m.myChampion)).at(-1) ?? null;
 	const lastLegend = lastPlayed ? legends.find(l => l.id === lastPlayed.myChampion) ?? null : null;
+	// The Sideboard Notes tab: your record in each matchup over every game you've
+	// logged, and your legends — the last played first, then the most played,
+	// then any with notes.
+	const allGames = [...dataMatches, ...unofficialStats];
+	const sideboardProps = {
+		notes: sideboard, legends, status: sideboardStatus, saveState: sideboardSave, isGuest,
+		records: new Map(recordsBy(allGames.filter(m => m.myChampion && m.opponentChampion), m => matchupKey(m.myChampion, m.opponentChampion)).map(r => [r.key, r])),
+		myLegends: [...new Set([lastLegend?.id, ...recordsBy(allGames, m => m.myChampion).map(r => r.key), ...sideboard.map(n => n.myLegend)].filter(Boolean))],
+		cards: sideCards, cardsStatus: sideCards ? "ready" : sideCardsFailed ? "error" : "loading",
+		onChange: changeSideboard, onDelete: removeSideboard, onFlush: flushSideboard,
+	};
 	// The legend they've picked most, with how many games: { legend, games }.
 	const topPick = recordsBy(statMatches, m => m.myChampion)[0];
 	const mostPlayed = topPick && legends.some(l => l.id === topPick.key)
@@ -857,7 +1073,7 @@ export default function UserProfile({ legends = [] }) {
 				onAddAccount={() => { setAddingAccount(true); setEloResults([]); setEloError(null); }}
 				onSwitchAccount={switchAccount} onRemoveAccount={removeAccount}
 				cardStats={cardStats} cardSeason={cardSeason} statsReady={statsReady}
-				matchTab={matchTab} setMatchTab={setMatchTab} nexusProps={nexusProps}
+				matchTab={matchTab} setMatchTab={setMatchTab} nexusProps={nexusProps} sideboardProps={sideboardProps} unofficialProps={unofficialProps} statsProps={statsProps} matchTabs={MATCH_TABS} seasonalTabs={SEASONAL_TABS}
 				savedMatches={statMatches} savedStatus={savedStatus} eloHistory={shownHistory} eloHistoryLoading={eloHistoryLoading}
 				season={season} seasonName={seasonName} seasons={seasons} seasonOptions={seasonOptions} onSeasonChange={changeSeason}
 				syncing={syncing} syncError={syncError} onSync={handleSync} onRetry={() => loadSavedHistory(linkedPlayer.id)}
@@ -1038,7 +1254,7 @@ export default function UserProfile({ legends = [] }) {
 				{ linkedPlayer && !addingAccount && (
 					<div style={{ marginBottom: 4 }}>
 						<div role="tablist" style={{ display: "flex", borderBottom: `1px solid ${COLORS.border}`, marginBottom: 10 }}>
-							{[["data", "DATA"], ["history", "HISTORY"], ["notes", "NOTES"], ["nexus", "NEXUS NIGHT"]].map(([key, text]) => (
+							{MATCH_TABS.map(([key, text]) => (
 								<button key={key} role="tab" aria-selected={matchTab === key} onClick={() => setMatchTab(key)}
 									onMouseEnter={e => { if (matchTab !== key) e.currentTarget.style.color = COLORS.text; }}
 									onMouseLeave={e => { if (matchTab !== key) e.currentTarget.style.color = COLORS.textMuted; }}
@@ -1052,15 +1268,18 @@ export default function UserProfile({ legends = [] }) {
 									{text}
 								</button>
 							))}
-							{matchTab !== "nexus" && <SeasonSelect value={season ?? "all"} options={seasonOptions} onChange={changeSeason} />}
+							{SEASONAL_TABS.includes(matchTab) && <SeasonSelect value={season ?? "all"} options={seasonOptions} onChange={changeSeason} />}
 						</div>
 						{matchTab === "nexus" ? (
 							<NexusNight {...nexusProps} />
 						) : matchTab === "notes" ? (
 							<MatchNotes {...notesProps} />
+						) : matchTab === "sideboard" ? (
+							<SideboardNotes {...sideboardProps} />
+						) : matchTab === "unofficial" ? (
+							<UnofficialMatches {...unofficialProps} />
 						) : matchTab === "data" ? (
-							<MatchStats matches={dataMatches} accounts={dataAccounts} legends={legends} status={savedStatus}
-								season={season} seasonName={seasonName} seasons={seasons} />
+							<MatchStats {...statsProps} season={season} seasonName={seasonName} seasons={seasons} />
 						) : (<>
 						{/* Current Elo + season from the rows shown, and Search to pull the latest from BoundRift. */}
 						<div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, fontFamily: FONT_MONO }}>
@@ -1238,27 +1457,6 @@ export default function UserProfile({ legends = [] }) {
 
 			</div>
 		</div>
-	);
-}
-
-// ── Note toggle ──────────────────────────────────────────────────────────────
-// The last column of a History row: opens the match's note box under the row.
-// Blue once the match has a note, which shows as its tooltip.
-
-function NoteToggle({ open, note, onClick }) {
-	const has = Boolean(note?.trim());
-	const color = open || has ? COLORS.accent : COLORS.textDim;
-	return (
-		<button onClick={onClick} aria-expanded={open} aria-label={has ? "Edit note" : "Add a note"} title={has ? note.trim() : "Add a note"}
-			onMouseEnter={e => { e.currentTarget.style.borderColor = COLORS.accentDim; e.currentTarget.style.color = COLORS.accent; }}
-			onMouseLeave={e => { e.currentTarget.style.borderColor = open ? COLORS.accentDim : COLORS.border; e.currentTarget.style.color = color; }}
-			style={{
-				width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", padding: 0,
-				background: open ? COLORS.bgHover : "transparent", border: `1px solid ${open ? COLORS.accentDim : COLORS.border}`, borderRadius: 0,
-				color, cursor: "pointer", transition: "all 0.15s",
-			}}>
-			<NoteIcon filled={has} />
-		</button>
 	);
 }
 
@@ -1476,286 +1674,6 @@ function SameMatch({ row, candidates, last, onPair }) {
 						</button>
 					))}
 				</div>
-			)}
-		</div>
-	);
-}
-
-// ── Score pick ───────────────────────────────────────────────────────────────
-// The final game score, between the result and the Elo change. Click opens a
-// small menu of the scores that fit the result (best of 3, then best of 1),
-// plus ✕ to clear one already set.
-
-function ScorePick({ result, value, onSelect }) {
-	const [open, setOpen] = useState(false);
-	const options = scoreOptions(result);
-	const pick = score => { onSelect(score); setOpen(false); };
-
-	return (
-		<div style={{ position: "relative" }} onKeyDown={e => { if (e.key === "Escape") setOpen(false); }}>
-			<button onClick={() => setOpen(o => !o)} aria-expanded={open}
-				title={value ? `Best of ${bestOf(value)} — click to change` : "Set the final score"}
-				onMouseEnter={e => { e.currentTarget.style.borderColor = COLORS.accentDim; e.currentTarget.style.color = COLORS.accent; }}
-				onMouseLeave={e => { e.currentTarget.style.borderColor = value ? COLORS.border : COLORS.borderHover; e.currentTarget.style.color = value ? COLORS.textStrong : COLORS.textDim; }}
-				style={{
-					height: 22, minWidth: 40, padding: "0 6px", borderRadius: 0, cursor: "pointer",
-					background: open ? COLORS.bgHover : "transparent",
-					border: `1px ${value ? "solid" : "dashed"} ${value ? COLORS.border : COLORS.borderHover}`,
-					color: value ? COLORS.textStrong : COLORS.textDim, fontFamily: FONT_MONO,
-					fontSize: value ? 13 : 9, fontWeight: 700, letterSpacing: value ? "0.04em" : "0.14em",
-					transition: "border-color 0.15s, color 0.15s",
-				}}>
-				{value ?? "SCORE"}
-			</button>
-
-			{open && (
-				<>
-					{/* click-away backdrop */}
-					<div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
-					<div style={{
-						position: "absolute", top: "calc(100% + 4px)", left: "50%", transform: "translateX(-50%)", zIndex: 50,
-						background: COLORS.bgCard, border: `1px solid ${COLORS.border}`, boxShadow: `0 8px 24px ${COLORS.shadow}`,
-						padding: 8, fontFamily: FONT_MONO,
-					}}>
-						<div style={{ fontSize: 9, color: COLORS.textDim, letterSpacing: "0.14em", marginBottom: 6, whiteSpace: "nowrap" }}>FINAL SCORE</div>
-						<div style={{ display: "flex", gap: 4 }}>
-							{options.map(score => {
-								const selected = score === value;
-								return (
-									<button key={score} onClick={() => pick(score)} title={`Best of ${bestOf(score)}`}
-										onMouseEnter={e => { if (!selected) e.currentTarget.style.background = COLORS.bgHover; }}
-										onMouseLeave={e => { if (!selected) e.currentTarget.style.background = COLORS.bgRaised; }}
-										style={{
-											width: 48, height: 42, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2,
-											background: selected ? alpha(COLORS.accent, 14) : COLORS.bgRaised,
-											border: `1px solid ${selected ? COLORS.accent : COLORS.border}`, borderRadius: 0, cursor: "pointer",
-											fontFamily: FONT_MONO, transition: "background 0.15s",
-										}}>
-										<span style={{ fontSize: 13, fontWeight: 700, color: selected ? COLORS.accent : COLORS.textStrong }}>{score}</span>
-										<span style={{ fontSize: 8, letterSpacing: "0.1em", color: COLORS.textDim }}>BO{bestOf(score)}</span>
-									</button>
-								);
-							})}
-							{value && (
-								<button onClick={() => pick(null)} title="Clear the score"
-									onMouseEnter={e => { e.currentTarget.style.color = COLORS.loss; }}
-									onMouseLeave={e => { e.currentTarget.style.color = COLORS.textDim; }}
-									style={{
-										width: 32, height: 42, background: "transparent", border: `1px solid ${COLORS.border}`, borderRadius: 0,
-										color: COLORS.textDim, fontFamily: FONT_MONO, fontSize: 12, cursor: "pointer", transition: "color 0.15s",
-									}}>
-									✕
-								</button>
-							)}
-						</div>
-					</div>
-				</>
-			)}
-		</div>
-	);
-}
-
-// ── Legend pick ──────────────────────────────────────────────────────────────
-// One side of a match row: "[icon] Player - Legend - runes", with the icon on
-// the outer edge (mirrored on the right). Click opens the legend picker, which
-// is portalled to <body> so no other card on the page can cover it.
-
-// Tallest the legend picker gets; it opens upward when there isn't this much room below.
-const PICKER_MAX_HEIGHT = 360;
-const PICKER_GAP = 4;
-const PICK_ICON_SIZE = 32;
-
-// `fillEvent` ({ count, on, onToggle }) adds the "apply to all matches in this
-// event" checkbox; only your own side passes it.
-function LegendPick({ champions, value, onSelect, player, side, fillEvent }) {
-	const [open, setOpen] = useState(false);
-	// Champions whose S3 icon 404s — those fall back to the card art.
-	const [iconless, setIconless] = useState([]);
-	const [pos, setPos] = useState(null);
-	const [search, setSearch] = useState("");
-	const buttonRef = useRef(null);
-	const pickerRef = useRef(null);
-	const champ = champions.find(c => c.id === value);
-	const isLeft = side === "left";
-	const term = search.trim().toLowerCase();
-	const filtered = champions.filter(c =>
-		c.tags_text.toLowerCase().includes(term) ||
-		c.name.toLowerCase().includes(term)
-	);
-	const close = () => { setOpen(false); setSearch(""); };
-	const pick = (id) => { onSelect(id); close(); };
-
-	function openPicker() {
-		// Measure on open: flip above the button if the picker would run past the
-		// bottom of the viewport and there's more room above.
-		const rect = buttonRef.current.getBoundingClientRect();
-		const { clientWidth, clientHeight } = document.documentElement;
-		const spaceBelow = clientHeight - rect.bottom - PICKER_GAP;
-		const spaceAbove = rect.top - PICKER_GAP;
-		const up = spaceBelow < PICKER_MAX_HEIGHT && spaceAbove > spaceBelow;
-		setPos({
-			...(up ? { bottom: clientHeight - rect.top + PICKER_GAP } : { top: rect.bottom + PICKER_GAP }),
-			...(isLeft ? { left: rect.left } : { right: clientWidth - rect.right }),
-			maxHeight: Math.min(PICKER_MAX_HEIGHT, (up ? spaceAbove : spaceBelow) - 8),
-		});
-		setOpen(true);
-	}
-
-	// The picker is fixed to the viewport, so close it rather than leave it
-	// floating away from its row when the page scrolls or resizes.
-	useEffect(() => {
-		if (!open) return;
-		const dismiss = () => { setOpen(false); setSearch(""); };
-		const onScroll = e => { if (!pickerRef.current?.contains(e.target)) dismiss(); };
-		window.addEventListener("scroll", onScroll, true);
-		window.addEventListener("resize", dismiss);
-		return () => {
-			window.removeEventListener("scroll", onScroll, true);
-			window.removeEventListener("resize", dismiss);
-		};
-	}, [open]);
-
-	const iconFor = (c, size) => c.icon && !iconless.includes(c.id)
-		? <Image src={c.icon} alt="" fill sizes={`${size}px`} style={{ objectFit: "cover" }}
-			onError={() => setIconless(prev => prev.includes(c.id) ? prev : [...prev, c.id])} />
-		: c.image && <Image src={c.image} alt="" fill sizes={`${size}px`} style={{ objectFit: "cover", objectPosition: "top" }} />;
-
-	const icon = (
-		<div style={{
-			position: "relative", width: PICK_ICON_SIZE, height: PICK_ICON_SIZE, flexShrink: 0, overflow: "hidden",
-			background: COLORS.bgRaised, border: `1px solid ${COLORS.border}`,
-			display: "flex", alignItems: "center", justifyContent: "center",
-			color: COLORS.textDim, fontSize: 14, fontFamily: FONT_MONO,
-		}}>
-			{champ ? iconFor(champ, PICK_ICON_SIZE) : "+"}
-		</div>
-	);
-
-	return (
-		<div style={{ minWidth: 0, display: "flex", justifyContent: isLeft ? "flex-start" : "flex-end" }}>
-			<button ref={buttonRef}
-				onClick={() => open ? close() : openPicker()}
-				title={champ ? legendLabel(champ) : "Pick a legend"}
-				onMouseEnter={e => { e.currentTarget.style.background = COLORS.bgHover; }}
-				onMouseLeave={e => { if (!open) e.currentTarget.style.background = "transparent"; }}
-				style={{
-					display: "flex", alignItems: "center", gap: 8, minWidth: 0, maxWidth: "100%",
-					background: open ? COLORS.bgHover : "transparent", border: "none", borderRadius: 0,
-					padding: "4px 6px", cursor: "pointer", transition: "background 0.15s",
-				}}>
-				{isLeft && icon}
-				<span style={{
-					minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-					fontSize: 13, fontFamily: FONT_MONO, color: COLORS.text,
-				}}>
-					{player}
-					<span style={{ color: COLORS.textDim }}> - </span>
-					<span style={{ color: champ ? COLORS.accent : COLORS.textDim }}>{champ ? champ.tags_text : "pick legend"}</span>
-				</span>
-				{champ?.domains.length > 0 && (
-					<span style={{ display: "inline-flex", alignItems: "center", gap: 8, flexShrink: 0, fontSize: 13, fontFamily: FONT_MONO, color: COLORS.textDim }}>
-						-<RuneIcons domains={champ.domains} />
-					</span>
-				)}
-				{!isLeft && icon}
-			</button>
-
-			{open && createPortal(
-				<>
-					{/* click-away backdrop */}
-					<div onClick={close} style={{ position: "fixed", inset: 0, zIndex: 999 }} />
-					<div ref={pickerRef} style={{
-						position: "fixed", ...pos, zIndex: 1000,
-						width: 330, maxWidth: "calc(100vw - 32px)",
-						display: "flex", flexDirection: "column",
-						background: COLORS.bgCard, border: `1px solid ${COLORS.border}`, borderRadius: 0,
-						boxShadow: `0 8px 24px ${COLORS.shadow}`,
-					}}>
-						{/* Search stays pinned above the scrolling list; Enter picks the top match. */}
-						<div style={{ padding: 8, borderBottom: `1px solid ${COLORS.border}`, flexShrink: 0 }}>
-							<input
-								autoFocus
-								value={search}
-								onChange={e => setSearch(e.target.value)}
-								onKeyDown={e => {
-									if (e.key === "Enter" && filtered.length > 0) pick(filtered[0].id);
-									if (e.key === "Escape") close();
-								}}
-								onFocus={e => { e.target.style.borderColor = COLORS.accentDim; }}
-								onBlur={e => { e.target.style.borderColor = COLORS.borderHover; }}
-								placeholder="Search legends..."
-								style={{
-									width: "100%", background: COLORS.bg,
-									border: `1px solid ${COLORS.borderHover}`, borderRadius: 0,
-									padding: "6px 10px", fontSize: 12,
-									color: COLORS.text, outline: "none",
-									fontFamily: FONT_MONO,
-								}}
-							/>
-						</div>
-						{fillEvent?.count > 1 && (
-							<div role="checkbox" aria-checked={fillEvent.on} tabIndex={0}
-								onClick={fillEvent.onToggle}
-								onKeyDown={e => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); fillEvent.onToggle(); } }}
-								onMouseEnter={e => { e.currentTarget.style.color = COLORS.text; }}
-								onMouseLeave={e => { e.currentTarget.style.color = COLORS.textMuted; }}
-								style={{
-									display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", flexShrink: 0,
-									borderBottom: `1px solid ${COLORS.border}`, cursor: "pointer", userSelect: "none",
-									fontSize: 11, color: COLORS.textMuted, fontFamily: FONT_MONO, transition: "color 0.15s",
-								}}>
-								<span style={{
-									width: 13, height: 13, flexShrink: 0,
-									display: "flex", alignItems: "center", justifyContent: "center",
-									border: `1px solid ${fillEvent.on ? COLORS.accent : COLORS.borderHover}`,
-									background: fillEvent.on ? COLORS.accent : "transparent",
-									color: COLORS.bg, fontSize: 10, fontWeight: 700, lineHeight: 1,
-								}}>
-									{fillEvent.on && "✓"}
-								</span>
-								Apply to all {fillEvent.count} matches in this event
-							</div>
-						)}
-						<div style={{ overflowY: "auto", flex: 1 }}>
-							{/* Undo a wrong pick; saving then removes it from the stored match too. */}
-							{champ && !term && (
-								<div
-									onClick={() => pick(null)}
-									onMouseEnter={e => { e.currentTarget.style.background = COLORS.bgHover; }}
-									onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
-									style={{ display: "flex", alignItems: "center", gap: 12, padding: "6px 12px", cursor: "pointer", transition: "background 0.15s", borderBottom: `1px solid ${COLORS.border}` }}>
-									<div style={{ width: 35, height: 35, flexShrink: 0, background: COLORS.bg, border: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center", justifyContent: "center", color: COLORS.textDim, fontFamily: FONT_MONO, fontSize: 14 }}>
-										✕
-									</div>
-									<span style={{ fontSize: 14, color: COLORS.textMuted, fontFamily: FONT_MONO }}>Clear pick</span>
-								</div>
-							)}
-							{filtered.length === 0 && (
-								<div style={{ padding: "12px 14px", fontSize: 11, color: COLORS.textDim, fontFamily: FONT_MONO, letterSpacing: "0.06em" }}>
-									{champions.length === 0 ? "No legends found." : <>No legends match &ldquo;{search}&rdquo;.</>}
-								</div>
-							)}
-							{filtered.map(c => (
-								<div key={c.id}
-									onClick={() => pick(c.id)}
-									onMouseEnter={e => { e.currentTarget.style.background = COLORS.bgHover; }}
-									onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
-									style={{ display: "flex", alignItems: "center", gap: 12, padding: "6px 12px", cursor: "pointer", transition: "background 0.15s" }}>
-									<div style={{ position: "relative", width: 35, height: 35, overflow: "hidden", background: COLORS.bg, flexShrink: 0 }}>
-										{iconFor(c, 35)}
-									</div>
-									<span style={{
-										fontSize: 14, color: c.id === value ? COLORS.accent : COLORS.text, fontFamily: FONT_MONO,
-										minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-									}}>
-										{legendLabel(c)}
-									</span>
-								</div>
-							))}
-						</div>
-					</div>
-				</>,
-				document.body
 			)}
 		</div>
 	);

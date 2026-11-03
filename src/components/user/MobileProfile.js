@@ -7,18 +7,21 @@ import { playerSummary, isUnpairedLegacy, pairCandidates } from "../../lib/histo
 import BottomSheet from "../BottomSheet";
 import LegendIcon from "../cards/LegendIcon";
 import RuneIcons from "../cards/RuneIcons";
-import NexusNight from "./NexusNight";
+import NexusNight, { TextInput } from "./NexusNight";
 import MatchNotes, { NoteEditor, NoteIcon } from "./MatchNotes";
-import MatchStats, { Chevron, FieldSelect } from "./MatchStats";
+import SideboardNotes from "./SideboardNotes";
+import MatchStats, { Chevron, FieldSelect, Segmented } from "./MatchStats";
+import { UNOFFICIAL_INTRO, SaveState } from "./UnofficialMatches";
+import { TYPES, typeLabel, withResult } from "../../lib/unofficial";
 import GuestNotice from "./GuestNotice";
 import GetStarted from "./GetStarted";
 
 // ── Profile on phones ────────────────────────────────────────────────────────
 // Same state and handlers as the desktop profile (UserProfile owns them), laid
 // out for a 360–390px screen: one-line user card that expands to stat tiles,
-// DATA / HISTORY / NOTES tabs pinned under the navbar, two-line match rows whose
-// legend slots open a bottom-sheet picker (and whose note opens a sheet to write
-// it in), and a save bar that docks at the bottom
+// the match tabs pinned under the navbar (a strip that swipes sideways), two-line
+// match rows whose legend slots open a bottom-sheet picker (and whose note opens
+// a sheet to write it in), and a save bar that docks at the bottom
 // while picks are unsaved. Until an account is linked, the get-started steps sit
 // above the search; after that a guest gets the not-saved notice under the card,
 // and the save bar sends them to log in.
@@ -30,8 +33,10 @@ const shortDate = d => playedLabel(d);
 
 export default function MobileProfile(p) {
 	const [accountsOpen, setAccountsOpen] = useState(false);
-	// { match, side, round } while a picker is open — side "mine" / "opponent"
-	// for a legend, "score" for the final score, "notes" for the match's note.
+	// { match, side, round, unofficial } while a picker is open — side "mine" /
+	// "opponent" for a legend, "score" for the final score, "notes" for the
+	// match's note, "details" for an unofficial match's result, opponent, date
+	// and kind. `unofficial` marks a picker opened from an unofficial match.
 	const [picker, setPicker] = useState(null);
 
 	const isHistory = p.matchTab === "history";
@@ -59,14 +64,16 @@ export default function MobileProfile(p) {
 
 			{p.linkedPlayer && !p.addingAccount && (
 				<>
+					{/* Five tabs don't fit 360px, so the strip swipes sideways; the two match
+					    histories go by their short names (the full name is the label). */}
 					<div role="tablist" style={{
 						position: "sticky", top: LAYOUT.navHeight, zIndex: 10, marginTop: 12,
-						display: "grid", gridTemplateColumns: "0.9fr 1.2fr 1fr 1.5fr", background: COLORS.bg, borderBottom: `1px solid ${COLORS.border}`,
+						display: "flex", overflowX: "auto", scrollbarWidth: "none", background: COLORS.bg, borderBottom: `1px solid ${COLORS.border}`,
 					}}>
-						{[["data", "DATA"], ["history", "HISTORY"], ["notes", "NOTES"], ["nexus", "NEXUS NIGHT"]].map(([key, text]) => (
-							<button key={key} role="tab" aria-selected={p.matchTab === key} onClick={() => p.setMatchTab(key)} style={{
-								position: "relative", height: 48, background: "transparent", border: "none", cursor: "pointer",
-								fontFamily: FONT_MONO, fontSize: 11, letterSpacing: "0.14em", fontWeight: 700,
+						{p.matchTabs.map(([key, full, text]) => (
+							<button key={key} role="tab" aria-selected={p.matchTab === key} aria-label={full} onClick={() => p.setMatchTab(key)} style={{
+								position: "relative", flex: "1 0 auto", height: 48, padding: "0 12px", background: "transparent", border: "none", cursor: "pointer",
+								fontFamily: FONT_MONO, fontSize: 11, letterSpacing: "0.12em", fontWeight: 700, whiteSpace: "nowrap",
 								color: p.matchTab === key ? COLORS.accent : COLORS.textMuted,
 							}}>
 								{text}
@@ -74,8 +81,8 @@ export default function MobileProfile(p) {
 							</button>
 						))}
 					</div>
-					{/* Season for Data, History and Notes; Nexus Night drafts aren't seasonal */}
-					{p.matchTab !== "nexus" && (
+					{/* Season for Data, Official and Notes; unofficial matches and Nexus Night drafts aren't seasonal */}
+					{p.seasonalTabs.includes(p.matchTab) && (
 						<div style={{ padding: "12px 12px 0" }}>
 							<FieldSelect label="SEASON" value={p.season ?? "all"} options={p.seasonOptions} onChange={p.onSeasonChange} />
 						</div>
@@ -86,10 +93,13 @@ export default function MobileProfile(p) {
 						? <History {...p} onOpenPicker={setPicker} />
 						: p.matchTab === "notes"
 						? <div style={{ padding: 12 }}><MatchNotes {...p.notesProps} mobile /></div>
+						: p.matchTab === "sideboard"
+						? <div style={{ padding: 12 }}><SideboardNotes {...p.sideboardProps} mobile /></div>
+						: p.matchTab === "unofficial"
+						? <Unofficial {...p} onOpenPicker={setPicker} />
 						: (
 							<div style={{ padding: 12 }}>
-								<MatchStats mobile matches={p.dataMatches} accounts={p.dataAccounts} legends={p.legends} status={p.savedStatus}
-									season={p.season} seasonName={p.seasonName} seasons={p.seasons}
+								<MatchStats mobile {...p.statsProps} season={p.season} seasonName={p.seasonName} seasons={p.seasons}
 									onGoToHistory={() => p.setMatchTab("history")} />
 							</div>
 						)}
@@ -98,11 +108,14 @@ export default function MobileProfile(p) {
 
 			{showSaveBar && <SaveBar count={p.unsaved.size} off={savingOff} saving={p.saving} onSave={p.onSave} guest={p.isGuest} />}
 			{saveMsg && isHistory && <Toast ok={saveMsg.ok} onClose={onDismissSave} />}
-			{picker && (picker.side === "score"
-				? <ScoreSheet {...p} picker={picker} onClose={() => setPicker(null)} />
-				: picker.side === "notes"
-				? <NoteSheet {...p} picker={picker} onClose={() => setPicker(null)} />
-				: <LegendSheet {...p} picker={picker} onClose={() => setPicker(null)} />)}
+			{picker && (() => {
+				// An unofficial match's sheets read and write that match instead of the History picks.
+				const sheet = { ...p, ...(picker.unofficial ? unofficialSheetProps(p, picker) : {}), picker, onClose: () => setPicker(null) };
+				return picker.side === "details" ? <UnofficialSheet {...sheet} />
+					: picker.side === "score" ? <ScoreSheet {...sheet} />
+					: picker.side === "notes" ? <NoteSheet {...sheet} />
+					: <LegendSheet {...sheet} />;
+			})()}
 			{accountsOpen && <AccountSheet {...p} onClose={() => setAccountsOpen(false)} />}
 		</div>
 	);
@@ -686,6 +699,158 @@ function LegendSheet({ picker, legends, linkedPlayer, matchChampions, eloHistory
 	);
 }
 
+// ── Unofficial matches ───────────────────────────────────────────────────────
+// Games logged by hand (see UnofficialMatches for desktop). Each row matches an
+// official one — line 1 opens the match's details (result, opponent, date and
+// kind), line 2 holds the legend and score slots, line 3 previews the note —
+// and every edit saves on its own.
+
+function Unofficial(p) {
+	const u = p.unofficialProps;
+	return (
+		<div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 12 }}>
+			<div style={{ fontSize: 12, lineHeight: 1.6, color: COLORS.textMuted }}>
+				{UNOFFICIAL_INTRO}{u.isGuest && " As a guest they\u2019re kept in this browser only."}
+			</div>
+			<button onClick={u.onCreate} disabled={u.status !== "ready"} style={{ ...primaryButton, opacity: u.status === "ready" ? 1 : 0.5 }}>+ LOG A MATCH</button>
+			{u.status === "loading" && <Skeleton />}
+			{u.status === "error" && <Note color={COLORS.loss}>Couldn&rsquo;t load your unofficial matches. Reload the page to try again.</Note>}
+			{u.status === "ready" && u.matches.length === 0 && (
+				<div style={{ background: COLORS.bgCard, border: `1px solid ${COLORS.border}`, padding: "28px 20px", textAlign: "center", fontSize: 13, lineHeight: 1.6 }}>
+					No unofficial matches yet. Log an online game or a friendly above.
+				</div>
+			)}
+			{u.matches.length > 0 && (
+				<div style={{ background: COLORS.bgCard, border: `1px solid ${COLORS.border}` }}>
+					{u.matches.map((m, i) => <UnofficialRow key={m.matchId} {...p} m={m} first={i === 0} />)}
+				</div>
+			)}
+		</div>
+	);
+}
+
+// An unofficial match as a History row, for the sheets: { match_id, result,
+// opponent_name, date }.
+const unofficialRow = m => ({ match_id: m.matchId, result: m.result?.toLowerCase() ?? "", opponent_name: m.opponent || "Opponent", date: m.date });
+
+function UnofficialRow({ m, first, legends, unofficialProps, onOpenPicker }) {
+	const color = RESULT_COLOR[m.result?.toLowerCase()] ?? COLORS.textDim;
+	const legendById = id => legends.find(l => l.id === id);
+	const note = m.notes?.trim();
+	const open = side => onOpenPicker({ match: unofficialRow(m), side, unofficial: true });
+	const slot = side => ({
+		label: side === "mine" ? "YOU" : "OPP",
+		legend: legendById(side === "mine" ? m.myChampion : m.opponentChampion),
+		onClick: () => open(side),
+	});
+	return (
+		<div style={{ padding: 10, display: "flex", flexDirection: "column", gap: 8, borderTop: first ? "none" : `1px solid ${COLORS.border}` }}>
+			<div style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 24 }}>
+				<button onClick={() => open("details")} aria-label="Edit result, opponent, date and kind" style={{
+					flex: 1, minWidth: 0, minHeight: 44, margin: "-10px 0", padding: 0, display: "flex", alignItems: "center", gap: 10,
+					background: "transparent", border: "none", cursor: "pointer", fontFamily: FONT_MONO, textAlign: "left",
+				}}>
+					<span style={{
+						minWidth: 48, height: 24, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+						background: m.result ? alpha(color, 14) : "transparent", border: m.result ? "none" : `1px dashed ${COLORS.borderHover}`,
+						color: m.result ? color : COLORS.accent, fontSize: 10, fontWeight: 700, letterSpacing: "0.12em",
+					}}>{m.result ?? "RESULT"}</span>
+					<span style={{ flex: 1, minWidth: 0, fontSize: 12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+						<span style={{ color: COLORS.textDim }}>vs </span>
+						{m.opponent ? <span style={{ color: COLORS.textStrong }}>{m.opponent}</span> : <span style={{ color: COLORS.accent }}>add opponent</span>}
+					</span>
+					<span style={{ fontSize: 10, color: COLORS.textDim, letterSpacing: "0.08em", whiteSpace: "nowrap" }}>
+						{shortDate(m.date)} · {typeLabel(m.type).toUpperCase()}
+					</span>
+				</button>
+				<SaveState state={unofficialProps.saveState[m.matchId]} isGuest={unofficialProps.isGuest} />
+				<button onClick={() => open("notes")} aria-label={note ? "Edit note" : "Add a note"} style={{
+					width: 44, height: 44, margin: "-10px -10px -10px -4px", display: "flex", alignItems: "center", justifyContent: "center",
+					background: "transparent", border: "none", padding: 0, cursor: "pointer", color: note ? COLORS.accent : COLORS.textDim,
+				}}><NoteIcon size={16} filled={Boolean(note)} /></button>
+			</div>
+			<div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto minmax(0, 1fr)", gap: 6 }}>
+				<Slot {...slot("mine")} />
+				<ScoreSlot score={m.score} onClick={() => open(m.result ? "score" : "details")} />
+				<Slot {...slot("opponent")} />
+			</div>
+			{note && (
+				<button onClick={() => open("notes")} style={{
+					width: "100%", padding: "8px 10px", textAlign: "left", cursor: "pointer",
+					background: COLORS.bgRaised, border: `1px solid ${COLORS.border}`,
+					fontFamily: FONT_MONO, fontSize: 12, lineHeight: 1.5, color: COLORS.text, whiteSpace: "pre-wrap", overflowWrap: "anywhere",
+					overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+				}}>{note}</button>
+			)}
+		</div>
+	);
+}
+
+// What the legend, score and note sheets need for an unofficial match: its
+// picks under the key they read, and handlers that edit the match.
+function unofficialSheetProps(p, picker) {
+	const u = p.unofficialProps;
+	const m = u.matches.find(x => x.matchId === picker.match.match_id);
+	if (!m) return {};
+	const key = `${p.linkedPlayer.id}:${m.matchId}`;
+	return {
+		unofficialMatch: m,
+		matchChampions: { [key]: { mine: m.myChampion, opponent: m.opponentChampion, score: m.score, notes: m.notes } },
+		// No event to fill, so the legend sheet offers no "apply to all".
+		eloHistory: { points: [] },
+		onPick: (_, side, id) => u.onChange({ ...m, [side === "mine" ? "myChampion" : "opponentChampion"]: id }),
+		onScore: (_, score) => u.onChange({ ...m, score }),
+		onNote: (_, notes) => u.onChange({ ...m, notes }),
+		onNoteDone: () => u.onFlush(m.matchId),
+		noteSave: { [key]: u.saveState[m.matchId] },
+		notesOff: false,
+	};
+}
+
+// An unofficial match's result, opponent, date and kind, and Delete.
+function UnofficialSheet({ unofficialMatch: m, unofficialProps: u, onClose }) {
+	if (!m) return null;
+	const update = fields => u.onChange({ ...m, ...fields });
+	const close = () => { u.onFlush(m.matchId); onClose(); };
+	return (
+		<BottomSheet onClose={close} title="UNOFFICIAL MATCH" subtitle={`${typeLabel(m.type)} · ${shortDate(m.date)}`}
+			footer={<>
+				<button onClick={() => { u.onDelete(m.matchId); onClose(); }} style={{ ...secondaryButton, color: COLORS.loss }}>DELETE</button>
+				<button onClick={close} style={{ ...primaryButton, flex: 1 }}>DONE</button>
+			</>}>
+			<div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 16 }}>
+				<div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+					<span style={LABEL}>RESULT</span>
+					<div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
+						{["WIN", "LOSS", "DRAW"].map(r => {
+							const color = RESULT_COLOR[r.toLowerCase()];
+							const on = m.result === r;
+							return (
+								<button key={r} onClick={() => u.onChange(withResult(m, r))} aria-pressed={on} style={{
+									height: 48, background: on ? alpha(color, 14) : COLORS.bgRaised, border: `1px solid ${on ? color : COLORS.border}`,
+									color, fontFamily: FONT_MONO, fontSize: 12, fontWeight: 700, letterSpacing: "0.12em", cursor: "pointer",
+								}}>{r}</button>
+							);
+						})}
+					</div>
+				</div>
+				<label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+					<span style={LABEL}>OPPONENT</span>
+					<TextInput mobile value={m.opponent} onChange={opponent => update({ opponent })} placeholder="Opponent name" ariaLabel="Opponent name" />
+				</label>
+				<label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+					<span style={LABEL}>DATE</span>
+					<TextInput mobile type="date" value={m.date} onChange={date => date && update({ date })} ariaLabel="Date played" style={{ colorScheme: "inherit" }} />
+				</label>
+				<div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+					<span style={LABEL}>KIND</span>
+					<Segmented value={m.type} onChange={type => update({ type })} options={TYPES.map(([t, name]) => [t, name.toUpperCase()])} />
+				</div>
+			</div>
+		</BottomSheet>
+	);
+}
+
 // Bottom-sheet note editor. Signed in, the note saves as it's typed, and right
 // away when the sheet closes.
 function NoteSheet({ picker, linkedPlayer, matchChampions, noteSave, notesOff, isGuest, onNote, onNoteDone, onClose }) {
@@ -693,7 +858,7 @@ function NoteSheet({ picker, linkedPlayer, matchChampions, noteSave, notesOff, i
 	const key = `${linkedPlayer.id}:${match.match_id}`;
 	const close = () => { onNoteDone(match); onClose(); };
 	return (
-		<BottomSheet height="80%" onClose={close} title="MATCH NOTES"
+		<BottomSheet height="80%" onClose={close} title="GAME NOTES"
 			subtitle={[round && `R${round}`, `${match.result.toUpperCase()} vs ${match.opponent_name}`, shortDate(match.date ?? match.month)].filter(Boolean).join(" · ")}
 			footer={<button onClick={close} style={{ ...primaryButton, flex: 1 }}>DONE</button>}>
 			<div style={{ padding: 16 }}>

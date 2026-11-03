@@ -1,7 +1,7 @@
 "use client";
 import { useRef } from "react";
 import Image from "next/image";
-import { COLORS, FONT_MONO, LAYOUT, SHOW, alpha } from "../../lib/data";
+import { COLORS, FONT_SANS, LAYOUT, SHOW, alpha } from "../../lib/data";
 import { ALL_COLORS, ALL_TAGS, KEYWORD_STYLES, TAGS_IMG, runeIconPng } from "../../lib/cards/data";
 import BottomSheet from "../BottomSheet";
 import Dropdown from "../Dropdown";
@@ -20,11 +20,11 @@ const COST_MAX = 12;
 const LABEL = { fontSize: 10, letterSpacing: "0.14em", color: COLORS.text };
 const primary = {
 	height: 48, background: COLORS.accent, border: `1px solid ${COLORS.accent}`, color: COLORS.bg, cursor: "pointer",
-	fontFamily: FONT_MONO, fontSize: 12, letterSpacing: "0.12em", fontWeight: 700,
+	fontFamily: FONT_SANS, fontSize: 12, letterSpacing: "0.12em", fontWeight: 700,
 };
 const secondary = {
 	height: 48, padding: "0 16px", background: COLORS.bgRaised, border: `1px solid ${COLORS.borderHover}`, color: COLORS.text, cursor: "pointer",
-	fontFamily: FONT_MONO, fontSize: 11, letterSpacing: "0.12em", fontWeight: 700,
+	fontFamily: FONT_SANS, fontSize: 11, letterSpacing: "0.12em", fontWeight: 700,
 };
 // Selected / unselected look for filter toggles — accent, never the rune colour.
 const toggle = on => ({
@@ -50,7 +50,7 @@ export function MobileSearchHeader({ search, setSearch, chips, onClearAll, onOpe
 	return (
 		<div style={{
 			display: SHOW.mobileFlex, flexDirection: "column", gap: 8, position: "sticky", top: LAYOUT.navHeight, zIndex: 5,
-			background: COLORS.bg, borderBottom: `1px solid ${COLORS.border}`, padding: "10px 12px 8px", fontFamily: FONT_MONO,
+			background: COLORS.bg, borderBottom: `1px solid ${COLORS.border}`, padding: "10px 12px 8px", fontFamily: FONT_SANS,
 		}}>
 			<div style={{ display: "flex", gap: 8 }}>
 				<label style={{ flex: 1, minWidth: 0, height: 48, display: "flex", alignItems: "center", gap: 10, padding: "0 12px", background: COLORS.bgRaised, border: `1px solid ${COLORS.border}` }}>
@@ -58,7 +58,7 @@ export function MobileSearchHeader({ search, setSearch, chips, onClearAll, onOpe
 					<input ref={inputRef} value={search} onChange={e => setSearch(e.target.value)} placeholder="Name or ability" type="search"
 						onFocus={e => { e.currentTarget.parentElement.style.borderColor = COLORS.accent; }}
 						onBlur={e => { e.currentTarget.parentElement.style.borderColor = COLORS.border; }}
-						style={{ flex: 1, minWidth: 0, height: "100%", background: "transparent", border: "none", outline: "none", color: COLORS.textStrong, fontFamily: FONT_MONO, fontSize: 16, caretColor: COLORS.accent }} />
+						style={{ flex: 1, minWidth: 0, height: "100%", background: "transparent", border: "none", outline: "none", color: COLORS.textStrong, fontFamily: FONT_SANS, fontSize: 16, caretColor: COLORS.accent }} />
 				</label>
 				<button onClick={onOpenFilters} aria-label="Filters" style={{
 					position: "relative", width: 48, height: 48, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
@@ -75,15 +75,15 @@ export function MobileSearchHeader({ search, setSearch, chips, onClearAll, onOpe
 					{chips.map(c => (
 						<button key={c.label} onClick={c.clear} style={{
 							height: 34, flexShrink: 0, display: "flex", alignItems: "center", gap: 8, padding: "0 10px", ...toggle(true),
-							fontFamily: FONT_MONO, fontSize: 11, letterSpacing: "0.08em", cursor: "pointer", whiteSpace: "nowrap",
+							fontFamily: FONT_SANS, fontSize: 11, letterSpacing: "0.08em", cursor: "pointer", whiteSpace: "nowrap",
 						}}>{c.label}<span aria-hidden="true">✕</span></button>
 					))}
-					<button onClick={onClearAll} style={{ height: 34, flexShrink: 0, padding: "0 10px", background: "transparent", border: "none", color: COLORS.textMuted, fontFamily: FONT_MONO, fontSize: 11, letterSpacing: "0.1em", cursor: "pointer", whiteSpace: "nowrap" }}>CLEAR ALL</button>
+					<button onClick={onClearAll} style={{ height: 34, flexShrink: 0, padding: "0 10px", background: "transparent", border: "none", color: COLORS.textMuted, fontFamily: FONT_SANS, fontSize: 11, letterSpacing: "0.1em", cursor: "pointer", whiteSpace: "nowrap" }}>CLEAR ALL</button>
 				</div>
 			)}
 			<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
 				<span style={{ fontSize: 11, color: COLORS.textDim }}><span style={{ color: COLORS.text }}>{shown}</span> of {total} cards</span>
-				<Dropdown variant="text" label="SORT" value={sortBy} onChange={setSortBy} options={SORT_OPTIONS} />
+				<Dropdown font={FONT_SANS} variant="text" label="SORT" value={sortBy} onChange={setSortBy} options={SORT_OPTIONS} />
 			</div>
 		</div>
 	);
@@ -103,7 +103,7 @@ export function DeckFab({ total, onClick }) {
 		<button onClick={onClick} style={{
 			display: SHOW.mobileFlex, position: "fixed", right: 12, bottom: "calc(12px + env(safe-area-inset-bottom))", zIndex: 20,
 			height: 52, alignItems: "center", gap: 12, padding: "0 16px", background: COLORS.accent, border: `1px solid ${COLORS.accent}`,
-			color: COLORS.bg, fontFamily: FONT_MONO, cursor: "pointer", boxShadow: `0 8px 24px ${COLORS.shadow}`,
+			color: COLORS.bg, fontFamily: FONT_SANS, cursor: "pointer", boxShadow: `0 8px 24px ${COLORS.shadow}`,
 		}}>
 			<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" aria-hidden="true"><path d="M3 10h18v11H3zM5 6.5h14M7 3h10" /></svg>
 			<span style={{ fontSize: 11, letterSpacing: "0.14em", fontWeight: 700 }}>DECK</span>
@@ -117,8 +117,8 @@ export function DeckFab({ total, onClick }) {
 export function FilterSheet({ f, shown, onClose }) {
 	const [lo, hi] = f.costRange;
 	return (
-		<BottomSheet title="FILTERS" height="88%" onClose={onClose}
-			actions={<button onClick={f.clearFilters} style={{ height: 44, padding: "0 12px", background: "transparent", border: "none", color: COLORS.textMuted, fontFamily: FONT_MONO, fontSize: 11, letterSpacing: "0.12em", cursor: "pointer" }}>RESET</button>}
+		<BottomSheet font={FONT_SANS} title="FILTERS" height="88%" onClose={onClose}
+			actions={<button onClick={f.clearFilters} style={{ height: 44, padding: "0 12px", background: "transparent", border: "none", color: COLORS.textMuted, fontFamily: FONT_SANS, fontSize: 11, letterSpacing: "0.12em", cursor: "pointer" }}>RESET</button>}
 			footer={<>
 				<button onClick={f.clearFilters} style={secondary}>CLEAR</button>
 				<button onClick={onClose} style={{ ...primary, flex: 1 }}>SHOW {shown} CARDS</button>
@@ -132,7 +132,7 @@ export function FilterSheet({ f, shown, onClose }) {
 					<div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: 5 }}>
 						{Array.from({ length: COST_MAX + 1 }, (_, n) => (
 							<button key={n} onClick={() => f.setCostRange([n, Math.max(n, hi)])} style={{
-								height: 42, padding: 0, ...toggle(n >= lo && n <= hi), fontFamily: FONT_MONO, fontSize: 13, fontWeight: 700, cursor: "pointer",
+								height: 42, padding: 0, ...toggle(n >= lo && n <= hi), fontFamily: FONT_SANS, fontSize: 13, fontWeight: 700, cursor: "pointer",
 							}}>{n}</button>
 						))}
 					</div>
@@ -144,7 +144,7 @@ export function FilterSheet({ f, shown, onClose }) {
 						{ALL_COLORS.map(c => (
 							<button key={c} onClick={() => f.toggleColor(c)} style={{
 								height: 48, display: "flex", alignItems: "center", gap: 8, padding: "0 10px", ...toggle(f.selectedColors.includes(c)),
-								fontFamily: FONT_MONO, fontSize: 12, cursor: "pointer",
+								fontFamily: FONT_SANS, fontSize: 12, cursor: "pointer",
 							}}><Image src={runeIconPng(c)} alt="" width={18} height={18} />{c}</button>
 						))}
 					</div>
@@ -155,7 +155,7 @@ export function FilterSheet({ f, shown, onClose }) {
 						{ALL_TAGS.map(t => (
 							<button key={t} onClick={() => f.toggleTag(t)} style={{
 								height: 48, display: "flex", alignItems: "center", gap: 10, padding: "0 12px", ...toggle(f.selectedTags.includes(t)),
-								fontFamily: FONT_MONO, fontSize: 12, cursor: "pointer",
+								fontFamily: FONT_SANS, fontSize: 12, cursor: "pointer",
 							}}><Image src={TAGS_IMG[t]} alt="" width={18} height={18} />{t}</button>
 						))}
 					</div>
@@ -166,7 +166,7 @@ export function FilterSheet({ f, shown, onClose }) {
 						{Object.keys(KEYWORD_STYLES).map(a => (
 							<button key={a} onClick={() => f.toggleAttribute(a)} aria-pressed={f.selectedAttribute.includes(a)} style={{
 								height: 36, padding: "0 12px", border: "none", ...KEYWORD_STYLES[a], opacity: f.selectedAttribute.includes(a) ? 1 : 0.45,
-								fontFamily: FONT_MONO, fontSize: 11, fontWeight: 700, letterSpacing: "0.05em", cursor: "pointer",
+								fontFamily: FONT_SANS, fontSize: 11, fontWeight: 700, letterSpacing: "0.05em", cursor: "pointer",
 							}}>{a}</button>
 						))}
 					</div>
@@ -176,7 +176,7 @@ export function FilterSheet({ f, shown, onClose }) {
 					<div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 6 }}>
 						{SETS.map(set => (
 							<button key={set} onClick={() => f.setReleaseSet(prev => prev === set ? null : set)} style={{
-								height: 44, ...toggle(f.releaseSet === set), fontFamily: FONT_MONO, fontSize: 12, cursor: "pointer",
+								height: 44, ...toggle(f.releaseSet === set), fontFamily: FONT_SANS, fontSize: 12, cursor: "pointer",
 							}}>{set}</button>
 						))}
 					</div>
@@ -234,13 +234,13 @@ export function CardDetailSheet({ card, count, max, onAdd, onRemove, onClose }) 
 	].filter(([, v]) => v);
 	const full = count >= max;
 	return (
-		<BottomSheet height="92%" onClose={onClose} title={card.name.toUpperCase()}
+		<BottomSheet font={FONT_SANS} height="92%" onClose={onClose} title={card.name.toUpperCase()}
 			subtitle={[card.card_set_text, card.id, card.rarity_text].filter(Boolean).join(" · ").toUpperCase()}
 			footer={<>
 				<div style={{ display: "flex", alignItems: "center", border: `1px solid ${COLORS.borderHover}`, height: 48 }}>
-					<button onClick={onRemove} disabled={!count} aria-label="Remove one" style={{ width: 44, height: 46, background: COLORS.bgRaised, border: "none", color: COLORS.text, fontFamily: FONT_MONO, fontSize: 18, cursor: "pointer", opacity: count ? 1 : 0.4 }}>−</button>
+					<button onClick={onRemove} disabled={!count} aria-label="Remove one" style={{ width: 44, height: 46, background: COLORS.bgRaised, border: "none", color: COLORS.text, fontFamily: FONT_SANS, fontSize: 18, cursor: "pointer", opacity: count ? 1 : 0.4 }}>−</button>
 					<span style={{ width: 52, textAlign: "center", fontSize: 14, fontWeight: 700, color: COLORS.accent }}>{count}<span style={{ color: COLORS.textDim, fontWeight: 500 }}>/{max}</span></span>
-					<button onClick={onAdd} disabled={full} aria-label="Add one" style={{ width: 44, height: 46, background: COLORS.bgRaised, border: "none", color: COLORS.text, fontFamily: FONT_MONO, fontSize: 18, cursor: "pointer", opacity: full ? 0.4 : 1 }}>+</button>
+					<button onClick={onAdd} disabled={full} aria-label="Add one" style={{ width: 44, height: 46, background: COLORS.bgRaised, border: "none", color: COLORS.text, fontFamily: FONT_SANS, fontSize: 18, cursor: "pointer", opacity: full ? 0.4 : 1 }}>+</button>
 				</div>
 				<button onClick={onAdd} disabled={full} style={{
 					...primary, flex: 1, fontSize: 11, whiteSpace: "nowrap",
@@ -303,10 +303,10 @@ export function DeckSheet({ deck, deckTotal, legendId, championId, onAdd, onRemo
 	const empty = deck.length === 0;
 	const badgeColor = empty ? COLORS.textDim : deckTotal === 40 ? COLORS.win : COLORS.loss;
 	const hint = <div style={{ fontSize: 10, color: COLORS.textDim, letterSpacing: "0.06em" }}>Max 3 copies per card · 1 legend</div>;
-	const step = { width: 40, height: 40, flexShrink: 0, background: COLORS.bgRaised, border: `1px solid ${COLORS.border}`, color: COLORS.text, fontFamily: FONT_MONO, fontSize: 16, cursor: "pointer" };
+	const step = { width: 40, height: 40, flexShrink: 0, background: COLORS.bgRaised, border: `1px solid ${COLORS.border}`, color: COLORS.text, fontFamily: FONT_SANS, fontSize: 16, cursor: "pointer" };
 
 	return (
-		<BottomSheet height="90%" onClose={onClose} title="DECK BUILDER"
+		<BottomSheet font={FONT_SANS} height="90%" onClose={onClose} title="DECK BUILDER"
 			actions={<span style={{ fontSize: 10, letterSpacing: "0.08em", padding: "5px 8px", color: badgeColor, background: alpha(badgeColor, 10) }}>{empty ? "EMPTY" : `${deckTotal}/40 CARDS`}</span>}
 			footer={<>
 				<button onClick={onCopyList} disabled={empty} style={{ ...secondary, flex: 1, background: "transparent", color: COLORS.textMuted, fontWeight: 400, opacity: empty ? 0.5 : 1 }}>COPY LIST</button>

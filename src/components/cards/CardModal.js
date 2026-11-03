@@ -3,7 +3,7 @@ import Image from "next/image";
 import parse, { Text, Element } from "html-react-parser";
 import { ALL_COLORS, COLOR_CONFIG, cardGradient, cardGlow } from "../../lib/cards/data";
 import CardText from "./CardText";
-import { COLORS, FONT_MONO, alpha } from "../../lib/data";
+import { COLORS, FONT_SANS, alpha } from "../../lib/data";
 
 // Riot draws these glyphs and the card-type icons in plain white, so they need
 // COLORS.glyphFilter to show up in light mode. Energy and rune glyphs carry
@@ -26,7 +26,7 @@ function Field({ label, html }) {
 
 	return (
 		<div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-			<h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: COLORS.textStrong, letterSpacing: "0.05em", fontFamily: FONT_MONO }}>{label}</h3>
+			<h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: COLORS.textStrong, letterSpacing: "0.05em", fontFamily: FONT_SANS }}>{label}</h3>
 			<div style={{ display: "flex", flexDirection: label.includes("Ability") ? "column" : "row" }}>{parsed}</div>
 		</div>
 	);
@@ -47,11 +47,13 @@ export default function CardModal({ card, onClose, deckOpen, onAddToDeck, deckCo
 				borderRadius: 0, overflow: "hidden", position: "relative",
 				boxShadow: (colors.length > 0 ? cardGlow(colors) : "none") + ", 0 30px 80px var(--shadow)",
 				display: "flex", flexDirection: "column",
+				// The card's _html fields render as bare <p>s, which inherit their font.
+				fontFamily: FONT_SANS,
 			}}>
 				{/* Row 1: Title */}
 				<div style={{ padding: "18px 24px 12px", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
 					<button onClick={onClose} style={{ position: "absolute", top: 14, right: 14, background: "transparent", border: "none", color: COLORS.textMuted, fontSize: 18, cursor: "pointer" }}>✕</button>
-					<div style={{ fontSize: 20, fontWeight: 700, color: COLORS.textStrong, letterSpacing: "0.05em", lineHeight: 1.2, fontFamily: FONT_MONO }}>{card.name}</div>
+					<div style={{ fontSize: 20, fontWeight: 700, color: COLORS.textStrong, letterSpacing: "0.05em", lineHeight: 1.2, fontFamily: FONT_SANS }}>{card.name}</div>
 				</div>
 
 				{deckOpen && (
@@ -64,7 +66,7 @@ export default function CardModal({ card, onClose, deckOpen, onAddToDeck, deckCo
 							border: `1px solid ${deckCount >= deckMax ? COLORS.borderHover : COLORS.accentDim}`,
 							borderRadius: 0, padding: "8px 16px", cursor: deckCount >= deckMax ? "default" : "pointer",
 							color: deckCount >= deckMax ? COLORS.textDim : COLORS.accent,
-							fontFamily: FONT_MONO, fontSize: 11,
+							fontFamily: FONT_SANS, fontSize: 11,
 							letterSpacing: "0.12em", fontWeight: 700, transition: "all 0.2s",
 						}}
 						onMouseEnter={e => { if (deckCount < deckMax) { e.currentTarget.style.background = "color-mix(in srgb, var(--accent) 20%, transparent)"; e.currentTarget.style.color = COLORS.accent; e.currentTarget.style.borderColor = COLORS.accent; } }}

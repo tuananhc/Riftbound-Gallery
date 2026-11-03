@@ -7,11 +7,13 @@ import { COLORS, FONT_MONO } from "../lib/data";
 // The phone surface for every picker, filter, detail view and the deck
 // builder: 3px handle, title + 44px close, a scrolling body and an optional
 // pinned footer. Scrim tap, Escape, or dragging the handle down dismisses it.
-// Portalled to <body> so nothing on the page can cover it.
+// Portalled to <body> so nothing on the page can cover it, which is also why
+// it takes its `font` (FONT_MONO unless the page uses FONT_SANS) rather than
+// inheriting one.
 
 const DISMISS_DRAG = 80;
 
-export default function BottomSheet({ onClose, title, subtitle, actions, footer, height, children }) {
+export default function BottomSheet({ onClose, title, subtitle, actions, footer, height, font = FONT_MONO, children }) {
 	const [drag, setDrag] = useState(0);
 	const dragStart = useRef(null);
 
@@ -39,7 +41,7 @@ export default function BottomSheet({ onClose, title, subtitle, actions, footer,
 	};
 
 	return createPortal(
-		<div style={{ position: "fixed", inset: 0, zIndex: 1000, display: "flex", flexDirection: "column", justifyContent: "flex-end", fontFamily: FONT_MONO }}>
+		<div style={{ position: "fixed", inset: 0, zIndex: 1000, display: "flex", flexDirection: "column", justifyContent: "flex-end", fontFamily: font }}>
 			<div onClick={onClose} style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.55)" }} />
 			<div role="dialog" aria-modal="true" aria-label={title} style={{
 				position: "relative", height: height ?? "auto", maxHeight: "92%",
@@ -64,7 +66,7 @@ export default function BottomSheet({ onClose, title, subtitle, actions, footer,
 						{actions}
 						<button onClick={onClose} aria-label="Close" style={{
 							width: 44, height: 44, flexShrink: 0, background: "transparent", border: "none",
-							color: COLORS.textMuted, fontSize: 16, cursor: "pointer", fontFamily: FONT_MONO,
+							color: COLORS.textMuted, fontSize: 16, cursor: "pointer", fontFamily: font,
 						}}>✕</button>
 					</div>
 				</div>

@@ -240,6 +240,110 @@ Resources:
         Variables:
           DYNAMODB_TABLE_HISTORY: !Ref MatchHistoryTable
 
+  # ── unofficial-matches: GET /unofficial, PUT + DELETE /unofficial/{matchId} ─
+  # Games logged by hand that BoundRift never sees (online, friendlies),
+  # stored in MatchHistory under "~unofficial#" sort keys (see
+  # lambda/unofficialMatches.mjs), so this needs no table of its own.
+
+  UnofficialMatchesRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${AWS::StackName}-fn-unofficial-matches
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: read-write-unofficial-matches
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: [dynamodb:Query, dynamodb:PutItem, dynamodb:DeleteItem]
+                Resource: !GetAtt MatchHistoryTable.Arn
+
+  UnofficialMatchesLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${AWS::StackName}-unofficial-matches
+      RetentionInDays: 30
+
+  UnofficialMatchesFunction:
+    Type: AWS::Lambda::Function
+    DependsOn: UnofficialMatchesLogGroup
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-unofficial-matches
+      Description: GET /unofficial, PUT + DELETE /unofficial/{matchId} - hand-logged unofficial matches
+      Runtime: nodejs24.x
+      Architectures: [arm64]
+      Handler: unofficialMatches.handler
+      Code:
+        S3Bucket: !Ref CodeBucket
+        S3Key: !Ref CodeKey
+      Role: !GetAtt UnofficialMatchesRole.Arn
+      MemorySize: 256
+      Timeout: 10
+      Environment:
+        Variables:
+          DYNAMODB_TABLE_HISTORY: !Ref MatchHistoryTable
+
+  # ── sideboard-notes: GET, PUT + DELETE /sideboard ──────────────────────────
+  # Per-matchup sideboard plans (on the play / on the draw), stored in
+  # MatchHistory under "~side#" sort keys (see lambda/sideboardNotes.mjs), so
+  # this needs no table of its own.
+
+  SideboardNotesRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${AWS::StackName}-fn-sideboard-notes
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: read-write-sideboard-notes
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: [dynamodb:Query, dynamodb:PutItem, dynamodb:DeleteItem]
+                Resource: !GetAtt MatchHistoryTable.Arn
+
+  SideboardNotesLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${AWS::StackName}-sideboard-notes
+      RetentionInDays: 30
+
+  SideboardNotesFunction:
+    Type: AWS::Lambda::Function
+    DependsOn: SideboardNotesLogGroup
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-sideboard-notes
+      Description: GET, PUT + DELETE /sideboard - per-matchup sideboard notes
+      Runtime: nodejs24.x
+      Architectures: [arm64]
+      Handler: sideboardNotes.handler
+      Code:
+        S3Bucket: !Ref CodeBucket
+        S3Key: !Ref CodeKey
+      Role: !GetAtt SideboardNotesRole.Arn
+      MemorySize: 256
+      Timeout: 10
+      Environment:
+        Variables:
+          DYNAMODB_TABLE_HISTORY: !Ref MatchHistoryTable
+
   # ── user-profile: GET /profile, PUT /profile ───────────────────────────────
 
   UserProfileRole:
@@ -416,6 +520,22 @@ Resources:
       IntegrationUri: !GetAtt MatchDraftsFunction.Arn
       PayloadFormatVersion: "2.0"
 
+  UnofficialMatchesIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt UnofficialMatchesFunction.Arn
+      PayloadFormatVersion: "2.0"
+
+  SideboardNotesIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt SideboardNotesFunction.Arn
+      PayloadFormatVersion: "2.0"
+
   UserProfileIntegration:
     Type: AWS::ApiGatewayV2::Integration
     Properties:
@@ -469,6 +589,60 @@ Resources:
       AuthorizerId: !Ref CognitoAuthorizer
       Target: !Sub integrations/${MatchDraftsIntegration}
 
+  GetUnofficialRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: GET /unofficial
+      AuthorizationType: JWT
+      AuthorizerId: !Ref CognitoAuthorizer
+      Target: !Sub integrations/${UnofficialMatchesIntegration}
+
+  PutUnofficialRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: PUT /unofficial/{matchId}
+      AuthorizationType: JWT
+      AuthorizerId: !Ref CognitoAuthorizer
+      Target: !Sub integrations/${UnofficialMatchesIntegration}
+
+  DeleteUnofficialRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: DELETE /unofficial/{matchId}
+      AuthorizationType: JWT
+      AuthorizerId: !Ref CognitoAuthorizer
+      Target: !Sub integrations/${UnofficialMatchesIntegration}
+
+  GetSideboardRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: GET /sideboard
+      AuthorizationType: JWT
+      AuthorizerId: !Ref CognitoAuthorizer
+      Target: !Sub integrations/${SideboardNotesIntegration}
+
+  PutSideboardRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: PUT /sideboard
+      AuthorizationType: JWT
+      AuthorizerId: !Ref CognitoAuthorizer
+      Target: !Sub integrations/${SideboardNotesIntegration}
+
+  DeleteSideboardRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: DELETE /sideboard
+      AuthorizationType: JWT
+      AuthorizerId: !Ref CognitoAuthorizer
+      Target: !Sub integrations/${SideboardNotesIntegration}
+
   GetProfileRoute:
     Type: AWS::ApiGatewayV2::Route
     Properties:
@@ -510,6 +684,22 @@ Resources:
       Action: lambda:InvokeFunction
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/*/drafts*
+
+  UnofficialMatchesApiPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref UnofficialMatchesFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/*/unofficial*
+
+  SideboardNotesApiPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref SideboardNotesFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/*/sideboard
 
   UserProfileApiPermission:
     Type: AWS::Lambda::Permission

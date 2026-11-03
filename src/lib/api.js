@@ -83,6 +83,68 @@ export function deleteDraft(token, draftId) {
 	return authFetch(`/drafts/${encodeURIComponent(draftId)}`, token, { method: "DELETE" });
 }
 
+// Stop following cursors after this many pages (200 matches each).
+const MAX_UNOFFICIAL_PAGES = 10;
+
+// Every unofficial match the caller has logged, across all linked accounts
+// (see lambda/unofficialMatches.mjs for the shape).
+export async function getUnofficialMatches(token) {
+	const matches = [];
+	let cursor = null;
+	for (let page = 0; page < MAX_UNOFFICIAL_PAGES; page++) {
+		const res = await authFetch(`/unofficial${cursor ? `?${new URLSearchParams({ cursor })}` : ""}`, token);
+		matches.push(...res.matches);
+		cursor = res.nextCursor;
+		if (!cursor) break;
+	}
+	return matches;
+}
+
+// Create or replace one unofficial match; resolves to the stored match.
+export function saveUnofficialMatch(token, match) {
+	return authFetch(`/unofficial/${encodeURIComponent(match.matchId)}`, token, {
+		method: "PUT",
+		body: JSON.stringify(match),
+	});
+}
+
+export function deleteUnofficialMatch(token, matchId) {
+	return authFetch(`/unofficial/${encodeURIComponent(matchId)}`, token, { method: "DELETE" });
+}
+
+// Stop following cursors after this many pages (100 notes each).
+const MAX_SIDEBOARD_PAGES = 10;
+
+// Every sideboard note the caller has written, one per matchup
+// (see lambda/sideboardNotes.mjs for the shape).
+export async function getSideboardNotes(token) {
+	const notes = [];
+	let cursor = null;
+	for (let page = 0; page < MAX_SIDEBOARD_PAGES; page++) {
+		const res = await authFetch(`/sideboard${cursor ? `?${new URLSearchParams({ cursor })}` : ""}`, token);
+		notes.push(...res.notes);
+		cursor = res.nextCursor;
+		if (!cursor) break;
+	}
+	return notes;
+}
+
+// Create or replace one matchup's note; resolves to the stored note.
+export function saveSideboardNote(token, note) {
+	return authFetch("/sideboard", token, { method: "PUT", body: JSON.stringify(note) });
+}
+
+export function deleteSideboardNote(token, myLegend, oppLegend) {
+	return authFetch(`/sideboard?${new URLSearchParams({ myLegend, oppLegend })}`, token, { method: "DELETE" });
+}
+
+// The cards the sideboard IN / OUT pickers offer (Next.js route, public).
+export async function getSideboardCards() {
+	const res = await fetch("/api/cards/sideboard");
+	if (!res.ok) throw new Error(`HTTP ${res.status}`);
+	return res.json();
+}
+
 // The caller's Users row, including `eloPlayers` (linked player accounts — see
 // lambda/userProfile.mjs) and `activeEloPlayerId`.
 export function getProfile(token) {

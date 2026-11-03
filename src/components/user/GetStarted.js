@@ -12,7 +12,7 @@ import { COLORS, FONT_MONO } from "../../lib/data";
 const STEPS = [
 	["ENTER YOUR RIOT ACCOUNT ID", "Type it into the search box below and press Search."],
 	["PICK YOUR ACCOUNT", "Choose yourself from the results. Your match history loads straight away."],
-	["LOG YOUR LEGENDS", "On the History tab, set the legend you and your opponent played. The Data tab turns that into win rates and matchups."],
+	["LOG YOUR LEGENDS", "On the Match History (Official) tab, set the legend you and your opponent played. The Data tab turns that into win rates and matchups."],
 ];
 
 export default function GetStarted({ mobile, guest }) {

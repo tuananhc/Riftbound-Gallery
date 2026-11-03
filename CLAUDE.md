@@ -13,7 +13,7 @@ This file defines the architecture rules, coding conventions, and best practices
 - **News/Blog:** Markdown files in `content/news/`
 - **Styling:** Inline styles only — no CSS modules, no Tailwind, no styled-components
 - **Theme:** flat grey surfaces (dark by default, light via the navbar toggle), hairline grey borders, square corners, one blue accent
-- **Fonts:** Geist Mono (whole UI, via `FONT_MONO` in `src/lib/data.js`), except the `/devlog`, `/news` and `/about` pages and the navbar wordmark, which use DM Sans (`FONT_SANS`)
+- **Fonts:** Geist Mono (whole UI, via `FONT_MONO` in `src/lib/data.js`), except the navbar, the footer, the Cards page (`/cards`) and the `/devlog`, `/news` and `/about` pages, which use DM Sans (`FONT_SANS`)
 
 ---
 
@@ -193,12 +193,17 @@ COLORS.draw // #6aa8ff #2563c9
 
 - UI font: `FONT_MONO` from `src/lib/data.js` (Geist Mono, falling back to the
   system monospace stack) — import it, never write a font name in a component
-- Reading font: `FONT_SANS` (DM Sans) is for the `/devlog`, `/news` and `/about`
-  pages and the navbar wordmark only. `src/app/layout.js` loads it on every page (the
-  wordmark is everywhere); `src/app/devlog/layout.js`, `src/app/news/layout.js` and
-  the `/about` page set it as the inherited font; inline `code` in a log or post
-  stays `FONT_MONO`. Don't use
-  it elsewhere
+- Sans font: `FONT_SANS` (DM Sans) is for the navbar (`src/components/Navbar.js`),
+  the site footer (`src/app/layout.js`),
+  the Cards page (`src/components/cards/`, except `LegendIcon`, which the profile
+  shares) and the `/devlog`, `/news` and `/about` pages only. `src/app/layout.js`
+  loads it on every page (the navbar and footer are everywhere); `src/app/devlog/layout.js`,
+  `src/app/news/layout.js` and the `/about` page set it as the inherited font;
+  inline `code` in a log or post stays `FONT_MONO`. The card components set it on
+  their own elements, and pass `font={FONT_SANS}` to the shared `Dropdown` and
+  `BottomSheet` (portalled, so they can't inherit it; both default to
+  `FONT_MONO`). The profile, its Data tab and the decks pages stay `FONT_MONO`.
+  Don't use it elsewhere
 - Corners are square — no `borderRadius` except `50%` for circular avatars
 - Emphasis comes from brightness, not hue. The only saturated colours in the UI
   are the semantic win/loss/draw tokens and the game's own rune/rarity colours

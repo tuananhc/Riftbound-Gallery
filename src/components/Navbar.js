@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
-import { COLORS, FONT_MONO, FONT_SANS, SHOW, SITE_NAME } from "../lib/data";
+import { COLORS, FONT_SANS, SHOW, SITE_NAME } from "../lib/data";
 import { useAuth } from "../hooks/useAuth";
 import { useTheme } from "../hooks/useTheme";
 
@@ -80,7 +80,7 @@ export default function Navbar() {
           <div style={{ fontSize: 17, fontWeight: 900, letterSpacing: "0.06em", color: COLORS.accent, fontFamily: FONT_SANS, whiteSpace: "nowrap" }}>
             {SITE_NAME}
           </div>
-          <div style={{ fontSize: 10, color: COLORS.textDim, letterSpacing: "0.04em", marginTop: 1, fontFamily: FONT_MONO }}>
+          <div style={{ fontSize: 10, color: COLORS.textDim, letterSpacing: "0.04em", marginTop: 1, fontFamily: FONT_SANS }}>
             Record your historical matches
           </div>
         </div>
@@ -100,7 +100,7 @@ export default function Navbar() {
                 display: "flex", alignItems: "center",
                 padding: "0 16px",
                 fontSize: 11,
-                fontFamily: FONT_MONO,
+                fontFamily: FONT_SANS,
                 letterSpacing: "0.14em",
                 fontWeight: active ? 700 : 500,
                 color: active ? COLORS.accent : COLORS.textMuted,
@@ -128,7 +128,7 @@ export default function Navbar() {
           padding: "6px 16px",
           borderRadius: 0,
           fontSize: 11,
-          fontFamily: FONT_MONO,
+          fontFamily: FONT_SANS,
           letterSpacing: "0.12em",
           fontWeight: "bold",
           color: COLORS.bg,
@@ -159,7 +159,7 @@ export default function Navbar() {
             fontSize: 14,
           }}>🧙</div>
           <span style={{
-            fontSize: 12, color: COLORS.text, fontFamily: FONT_MONO,
+            fontSize: 12, color: COLORS.text, fontFamily: FONT_SANS,
             letterSpacing: "0.06em", maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
           }}>
             {name}
@@ -173,7 +173,7 @@ export default function Navbar() {
       {status === "guest" && (
         <Link href="/login" title={LOGIN_HINT} style={{
           padding: "7px 20px", borderRadius: 0, fontSize: 11,
-          fontFamily: FONT_MONO, letterSpacing: "0.12em",
+          fontFamily: FONT_SANS, letterSpacing: "0.12em",
           fontWeight: 700, color: COLORS.bg,
           background: "linear-gradient(135deg, var(--accent), var(--accent))",
           border: "1px solid var(--accent)", transition: "all 0.2s", textDecoration: "none",
@@ -232,7 +232,7 @@ function ThemeToggle({ size = 30 }) {
 function MobileNav({ pathname, status, name, email, menuRef, menuOpen, setMenuOpen, onLogout }) {
   const initials = name.replace(/[^a-z0-9]/gi, "").slice(0, 2).toUpperCase() || "?";
   return (
-    <div style={{ display: SHOW.mobileBlock, fontFamily: FONT_MONO }}>
+    <div style={{ display: SHOW.mobileBlock, fontFamily: FONT_SANS }}>
       <div style={{ height: 52, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 8px 0 16px" }}>
         <Link href="/" style={{ display: "flex", flexDirection: "column", gap: 1, textDecoration: "none" }}>
           <span style={{ fontSize: 15, fontWeight: 900, letterSpacing: "0.06em", color: COLORS.accent, fontFamily: FONT_SANS, whiteSpace: "nowrap" }}>{SITE_NAME}</span>
@@ -292,7 +292,7 @@ function MobileNav({ pathname, status, name, email, menuRef, menuOpen, setMenuOp
 function AccountMenu({ name, email, withDevLog, onClose, onLogout }) {
   const row = {
     height: 48, display: "flex", alignItems: "center", padding: "0 16px", width: "100%",
-    fontSize: 12, letterSpacing: "0.08em", color: COLORS.textMuted, fontFamily: FONT_MONO,
+    fontSize: 12, letterSpacing: "0.08em", color: COLORS.textMuted, fontFamily: FONT_SANS,
     background: "transparent", border: "none", textDecoration: "none", cursor: "pointer", textAlign: "left",
   };
   const hover = {
@@ -304,7 +304,7 @@ function AccountMenu({ name, email, withDevLog, onClose, onLogout }) {
       position: "absolute", top: "calc(100% + 4px)", right: 0, width: 208, zIndex: 100,
       background: COLORS.bgCard, border: `1px solid ${COLORS.border}`, boxShadow: `0 8px 24px ${COLORS.shadow}`,
     }}>
-      <div style={{ padding: "12px 16px", borderBottom: `1px solid ${COLORS.border}`, display: "flex", flexDirection: "column", gap: 2, fontFamily: FONT_MONO }}>
+      <div style={{ padding: "12px 16px", borderBottom: `1px solid ${COLORS.border}`, display: "flex", flexDirection: "column", gap: 2, fontFamily: FONT_SANS }}>
         <span style={{ fontSize: 12, fontWeight: 700, color: COLORS.textStrong, overflow: "hidden", textOverflow: "ellipsis" }}>{name}</span>
         {email && <span style={{ fontSize: 10, color: COLORS.textDim, overflow: "hidden", textOverflow: "ellipsis" }}>{email}</span>}
       </div>
