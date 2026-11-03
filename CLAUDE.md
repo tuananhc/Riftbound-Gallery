@@ -313,6 +313,7 @@ DYNAMODB_TABLE_DECKS=Decks
 DYNAMODB_TABLE_DECK_VERSIONS=DeckVersions
 DYNAMODB_TABLE_HISTORY=MatchHistory
 NEXT_PUBLIC_API_URL=              # API Gateway base URL (when Lambda is deployed)
+ELOSHOWDOWN_API_KEY=              # Optional — raises EloShowdown's 60 req/hour anonymous limit (match dates)
 NEXT_PUBLIC_COGNITO_POOL_ID=      # Cognito User Pool ID
 NEXT_PUBLIC_COGNITO_CLIENT_ID=    # Cognito App Client ID
 ```

@@ -8,6 +8,7 @@ import BottomSheet from "../BottomSheet";
 import LegendIcon from "../cards/LegendIcon";
 import RuneIcons from "../cards/RuneIcons";
 import NexusNight from "./NexusNight";
+import MatchNotes, { NoteEditor, NoteIcon } from "./MatchNotes";
 import MatchStats, { Chevron, FieldSelect } from "./MatchStats";
 import GuestNotice from "./GuestNotice";
 import GetStarted from "./GetStarted";
@@ -15,8 +16,9 @@ import GetStarted from "./GetStarted";
 // ── Profile on phones ────────────────────────────────────────────────────────
 // Same state and handlers as the desktop profile (UserProfile owns them), laid
 // out for a 360–390px screen: one-line user card that expands to stat tiles,
-// DATA / HISTORY tabs pinned under the navbar, two-line match rows whose legend
-// slots open a bottom-sheet picker, and a save bar that docks at the bottom
+// DATA / HISTORY / NOTES tabs pinned under the navbar, two-line match rows whose
+// legend slots open a bottom-sheet picker (and whose note opens a sheet to write
+// it in), and a save bar that docks at the bottom
 // while picks are unsaved. Until an account is linked, the get-started steps sit
 // above the search; after that a guest gets the not-saved notice under the card,
 // and the save bar sends them to log in.
@@ -29,7 +31,7 @@ const shortDate = d => playedLabel(d);
 export default function MobileProfile(p) {
 	const [accountsOpen, setAccountsOpen] = useState(false);
 	// { match, side, round } while a picker is open — side "mine" / "opponent"
-	// for a legend, "score" for the final score.
+	// for a legend, "score" for the final score, "notes" for the match's note.
 	const [picker, setPicker] = useState(null);
 
 	const isHistory = p.matchTab === "history";
@@ -59,9 +61,9 @@ export default function MobileProfile(p) {
 				<>
 					<div role="tablist" style={{
 						position: "sticky", top: LAYOUT.navHeight, zIndex: 10, marginTop: 12,
-						display: "grid", gridTemplateColumns: "1fr 1fr 1.4fr", background: COLORS.bg, borderBottom: `1px solid ${COLORS.border}`,
+						display: "grid", gridTemplateColumns: "0.9fr 1.2fr 1fr 1.5fr", background: COLORS.bg, borderBottom: `1px solid ${COLORS.border}`,
 					}}>
-						{[["data", "DATA"], ["history", "HISTORY"], ["nexus", "NEXUS NIGHT"]].map(([key, text]) => (
+						{[["data", "DATA"], ["history", "HISTORY"], ["notes", "NOTES"], ["nexus", "NEXUS NIGHT"]].map(([key, text]) => (
 							<button key={key} role="tab" aria-selected={p.matchTab === key} onClick={() => p.setMatchTab(key)} style={{
 								position: "relative", height: 48, background: "transparent", border: "none", cursor: "pointer",
 								fontFamily: FONT_MONO, fontSize: 11, letterSpacing: "0.14em", fontWeight: 700,
@@ -72,7 +74,7 @@ export default function MobileProfile(p) {
 							</button>
 						))}
 					</div>
-					{/* Season for Data and History; Nexus Night drafts aren't seasonal */}
+					{/* Season for Data, History and Notes; Nexus Night drafts aren't seasonal */}
 					{p.matchTab !== "nexus" && (
 						<div style={{ padding: "12px 12px 0" }}>
 							<FieldSelect label="SEASON" value={p.season ?? "all"} options={p.seasonOptions} onChange={p.onSeasonChange} />
@@ -82,6 +84,8 @@ export default function MobileProfile(p) {
 						? <div style={{ padding: 12 }}><NexusNight {...p.nexusProps} mobile /></div>
 						: isHistory
 						? <History {...p} onOpenPicker={setPicker} />
+						: p.matchTab === "notes"
+						? <div style={{ padding: 12 }}><MatchNotes {...p.notesProps} mobile /></div>
 						: (
 							<div style={{ padding: 12 }}>
 								<MatchStats mobile matches={p.dataMatches} accounts={p.dataAccounts} legends={p.legends} status={p.savedStatus}
@@ -96,6 +100,8 @@ export default function MobileProfile(p) {
 			{saveMsg && isHistory && <Toast ok={saveMsg.ok} onClose={onDismissSave} />}
 			{picker && (picker.side === "score"
 				? <ScoreSheet {...p} picker={picker} onClose={() => setPicker(null)} />
+				: picker.side === "notes"
+				? <NoteSheet {...p} picker={picker} onClose={() => setPicker(null)} />
 				: <LegendSheet {...p} picker={picker} onClose={() => setPicker(null)} />)}
 			{accountsOpen && <AccountSheet {...p} onClose={() => setAccountsOpen(false)} />}
 		</div>
@@ -482,11 +488,14 @@ function SameMatch({ row, candidates, onPair }) {
 	);
 }
 
-// Line 1: result, Elo change, opponent, round. Line 2: your legend, the final
-// score and their legend — 48px tall, so they're the tap targets.
+// Line 1: result, Elo change, opponent, round and the note button. Line 2:
+// your legend, the final score and their legend — 48px tall, so they're the
+// tap targets. Line 3, once the match has a note: its first lines, which open it.
 function MatchRow({ m, first, round, legends, linkedPlayer, matchChampions, unsaved, onOpenPicker }) {
 	const color = RESULT_COLOR[m.result] ?? COLORS.textDim;
 	const picks = matchChampions[`${linkedPlayer.id}:${m.match_id}`] || {};
+	const note = picks.notes?.trim();
+	const openNote = () => onOpenPicker({ match: m, side: "notes", round });
 	const legendById = id => legends.find(l => l.id === id);
 	const slot = side => ({
 		label: side === "mine" ? "YOU" : "OPP",
@@ -508,6 +517,11 @@ function MatchRow({ m, first, round, legends, linkedPlayer, matchChampions, unsa
 					<span style={{ color: COLORS.textDim }}>vs </span><span style={{ color: COLORS.textStrong }}>{m.opponent_name}</span>
 				</span>
 				{round && <span style={{ fontSize: 10, color: COLORS.textDim, letterSpacing: "0.08em" }}>R{round}</span>}
+				<button onClick={openNote} aria-label={note ? "Edit note" : "Add a note"} style={{
+					width: 44, height: 44, margin: "-10px -10px -10px -4px", display: "flex", alignItems: "center", justifyContent: "center",
+					background: "transparent", border: "none", padding: 0, cursor: "pointer",
+					color: note || unsaved.has(`${m.match_id}:notes`) ? COLORS.accent : COLORS.textDim,
+				}}><NoteIcon size={16} filled={Boolean(note)} /></button>
 			</div>
 			<div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto minmax(0, 1fr)", gap: 6 }}>
 				<Slot {...slot("mine")} />
@@ -515,6 +529,14 @@ function MatchRow({ m, first, round, legends, linkedPlayer, matchChampions, unsa
 					onClick={() => onOpenPicker({ match: m, side: "score", round })} />
 				<Slot {...slot("opponent")} />
 			</div>
+			{note && (
+				<button onClick={openNote} style={{
+					width: "100%", padding: "8px 10px", textAlign: "left", cursor: "pointer",
+					background: COLORS.bgRaised, border: `1px solid ${unsaved.has(`${m.match_id}:notes`) ? COLORS.accentDim : COLORS.border}`,
+					fontFamily: FONT_MONO, fontSize: 12, lineHeight: 1.5, color: COLORS.text, whiteSpace: "pre-wrap", overflowWrap: "anywhere",
+					overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+				}}>{note}</button>
+			)}
 		</div>
 	);
 }
@@ -660,6 +682,24 @@ function LegendSheet({ picker, legends, linkedPlayer, matchChampions, eloHistory
 				<div style={{ padding: "32px 16px", textAlign: "center", fontSize: 11, letterSpacing: "0.12em", color: COLORS.textDim }}>NO LEGEND MATCHES &ldquo;{query.toUpperCase()}&rdquo;</div>
 			)}
 			<div style={{ height: "calc(16px + env(safe-area-inset-bottom))" }} />
+		</BottomSheet>
+	);
+}
+
+// Bottom-sheet note editor. Signed in, the note saves as it's typed, and right
+// away when the sheet closes.
+function NoteSheet({ picker, linkedPlayer, matchChampions, noteSave, notesOff, isGuest, onNote, onNoteDone, onClose }) {
+	const { match, round } = picker;
+	const key = `${linkedPlayer.id}:${match.match_id}`;
+	const close = () => { onNoteDone(match); onClose(); };
+	return (
+		<BottomSheet height="80%" onClose={close} title="MATCH NOTES"
+			subtitle={[round && `R${round}`, `${match.result.toUpperCase()} vs ${match.opponent_name}`, shortDate(match.date ?? match.month)].filter(Boolean).join(" · ")}
+			footer={<button onClick={close} style={{ ...primaryButton, flex: 1 }}>DONE</button>}>
+			<div style={{ padding: 16 }}>
+				<NoteEditor mobile autoFocus value={matchChampions[key]?.notes} onChange={text => onNote(match, text)}
+					state={noteSave[key]} isGuest={isGuest} disabled={notesOff} />
+			</div>
 		</BottomSheet>
 	);
 }

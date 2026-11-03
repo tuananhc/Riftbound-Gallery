@@ -106,6 +106,13 @@ export async function getPlayerHistory(playerId) {
 	return rows.sort((a, b) => seasonOrder(a.season) - seasonOrder(b.season) || num(a) - num(b));
 }
 
+// The names BoundRift shows for a player: [username, realName] (for a player
+// who started on PlayRiftbound, both are usually their Riot game name).
+export async function getPlayerNames(playerId) {
+	const career = await brGet(`/players/${playerId}/career`, 24 * HOUR);
+	return [...new Set([career?.player?.username, career?.player?.realName].filter(Boolean))];
+}
+
 // { id, name, startDatetime, latitude, longitude, storeName, source, ... }
 export function getEvent(eventId) {
 	return brGet(`/events/${eventId}`, 24 * HOUR);

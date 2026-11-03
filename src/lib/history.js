@@ -2,7 +2,8 @@
 //   { match_id, date, month, season, result, opponent_name, opponent_id,
 //     elo_before, elo_change, elo_after, score, event, legacy_id }
 // Rows from BoundRift (ids "br-…", pulled by Search) know their month from May
-// 2026 on, and get a date once the event they were played at is found. `event`
+// 2026 on, get a date from EloShowdown when it has the match (withDates), and
+// take their event's start as the date once that event is found. `event`
 // is undefined until it's looked up, null when it wasn't found, else
 // { id, name, url } — or just { name } on rows saved before BoundRift.
 //
@@ -11,7 +12,7 @@
 // over their date, event and picks; `legacy_id` remembers the saved row, so
 // Save can mark it as replaced (lambda/saveMatchHistory.mjs). Pure functions.
 
-import { compareChronological, isBoundriftId, seasonAt, seasonKey } from "./matchStats";
+import { compareChronological, isBoundriftId, matchNumber, seasonAt, seasonKey } from "./matchStats";
 
 export const EVENT_URL = "https://boundrift.com/events";
 
@@ -20,6 +21,11 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // one event can be listed in either order — and how far after it.
 const BEHIND = 8;
 const AHEAD = 60;
+// BoundRift numbers matches worldwide in the order they're played (thousands a
+// day), so one event's rounds sit close together: up to ~3,500 ids apart at a
+// long Skirmish, against 10,000+ between events on different days. Two events
+// on the same day can't be told apart this way.
+const RUN_GAP = 6000;
 
 export const byPlayed = (a, b) => compareChronological(
 	{ id: a.match_id, at: a.date, month: a.month, season: a.season },
@@ -29,7 +35,8 @@ export const byPlayed = (a, b) => compareChronological(
 // Drop undefined fields, so spreading a row never blanks another's.
 const defined = o => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined));
 
-// Saved MatchHistory items → { history, picks }, picks keyed "accountId:matchId".
+// Saved MatchHistory items → { history, picks }, picks keyed "accountId:matchId"
+// — { mine, opponent, score, notes }.
 // Items replaced by a BoundRift row are skipped.
 export function fromSaved(accountId, items) {
 	const live = items.filter(m => !m.rekeyedTo);
@@ -47,8 +54,8 @@ export function fromSaved(accountId, items) {
 		event: m.eventId ? { id: m.eventId, name: m.eventName, url: `${EVENT_URL}/${m.eventId}` } : m.eventName ? { name: m.eventName } : undefined,
 	}));
 	const picks = Object.fromEntries(live
-		.filter(m => m.myChampion || m.opponentChampion || m.score)
-		.map(m => [`${accountId}:${m.matchId}`, { mine: m.myChampion, opponent: m.opponentChampion, score: m.score }]));
+		.filter(m => m.myChampion || m.opponentChampion || m.score || m.notes)
+		.map(m => [`${accountId}:${m.matchId}`, defined({ mine: m.myChampion, opponent: m.opponentChampion, score: m.score, notes: m.notes })]));
 	return { history: { points: foldLegacy(points).sort(byPlayed) }, picks };
 }
 
@@ -62,14 +69,46 @@ export function liveItems(accountId, items) {
 
 // Lay BoundRift's rows over the ones on the page: its fields win, what the page
 // learned (date, event, legacy_id) stays, and rows it no longer returns are
-// kept. → the merged history.
+// kept. A date the page learned from the row's event beats EloShowdown's (see
+// withDates). → the merged history.
 export function mergeHistory(current, fresh) {
 	const byId = new Map((current?.points ?? []).map(p => [String(p.match_id), p]));
 	for (const p of fresh) {
 		const id = String(p.match_id);
-		byId.set(id, { ...byId.get(id), ...p });
+		const prev = byId.get(id);
+		byId.set(id, defined({ ...prev, ...p, date: prev?.date ?? p.date }));
 	}
 	return { points: foldLegacy([...byId.values()]).sort(byPlayed) };
+}
+
+// EloShowdown's matches ({ match_id, date, result, opponent_name },
+// lib/eloshowdown.js) paired with BoundRift's rows the way legacy rows are (see
+// pairLegacy). → Map of BoundRift match id → date
+export function pairDates(rows, dated) {
+	if (!dated.length) return new Map();
+	const legacy = dated.map(m => ({ ...m, season: seasonAt(m.date) })).sort(byPlayed);
+	return new Map(pairLegacy(legacy, rows).map(([l, r]) => [r.match_id, l.date]));
+}
+
+// BoundRift's rows (oldest first) with the dates pairDates found. A row
+// EloShowdown doesn't have takes the date of the nearest paired row within
+// RUN_GAP ids of it in the same season — the same event. A dated row from
+// before May 2026 gains its month too, so its event can be looked up.
+export function withDates(rows, dateOf) {
+	if (!dateOf.size) return rows;
+	const sources = rows.filter(r => dateOf.has(r.match_id));
+	const nearest = r => {
+		let best = null;
+		for (const s of sources) {
+			const gap = Math.abs(matchNumber(s.match_id) - matchNumber(r.match_id));
+			if (s.season === r.season && gap <= RUN_GAP && (!best || gap < best.gap)) best = { gap, date: dateOf.get(s.match_id) };
+		}
+		return best?.date;
+	};
+	return rows.map(r => {
+		const date = !r.date && (dateOf.get(r.match_id) ?? (isBoundriftId(r.match_id) ? nearest(r) : undefined));
+		return date ? { ...r, date, month: r.month ?? date.slice(0, 7) } : r;
+	});
 }
 
 // The picks a BoundRift row shows include those made on the legacy row folded
@@ -283,6 +322,27 @@ export function groupKey(p) {
 	const key = eventKey(p);
 	if (!key.startsWith("match:")) return key;
 	return p.month ? `month:${p.month}` : `season:${p.season}`;
+}
+
+// groupKey over a whole history (oldest first), for players EloShowdown has no
+// dates for: BoundRift rows with no event or date are split into runs of
+// close match ids — one per event, as far as the ids can tell — instead of all
+// sharing their month's header. → (row) => key
+export function groupKeys(points) {
+	const runOf = new Map();
+	let prev = null;
+	let run = null;
+	for (const p of points) {
+		if (!isBoundriftId(p.match_id) || !eventKey(p).startsWith("match:")) {
+			prev = null;
+			continue;
+		}
+		const gap = prev ? matchNumber(p.match_id) - matchNumber(prev.match_id) : Infinity;
+		if (prev?.season !== p.season || prev?.month !== p.month || gap > RUN_GAP) run = p.match_id;
+		runOf.set(p.match_id, run);
+		prev = p;
+	}
+	return p => (runOf.has(p.match_id) ? `run:${runOf.get(p.match_id)}` : groupKey(p));
 }
 
 // The line under a player search result: "Yingxin L · 92 events · Master Yi".

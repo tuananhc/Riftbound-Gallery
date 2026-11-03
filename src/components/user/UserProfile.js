@@ -10,6 +10,7 @@ import RuneIcons from "../cards/RuneIcons";
 import MatchStats from "./MatchStats";
 import MobileProfile from "./MobileProfile";
 import NexusNight from "./NexusNight";
+import MatchNotes, { NoteEditor, NoteIcon } from "./MatchNotes";
 import Dropdown from "../Dropdown";
 import { useIsMobile } from "../../hooks/useIsMobile";
 import { StatTiles } from "./ProfileStats";
@@ -17,7 +18,7 @@ import { latestSeason, summarize, sortChronological, seasonOfMatch, seasonsOf, s
 import { countryFlag } from "../../lib/countries";
 import { useAuth } from "../../hooks/useAuth";
 import { saveMatchHistory, getMatchHistory, getDrafts, saveDraft, deleteDraft, searchPlayers, getPlayerHistory, findBoundriftId, resolveEvents, lookupEvent, getProfile, addEloAccount, selectEloAccount, removeEloAccount } from "../../lib/api";
-import { fromSaved, mergeHistory, withLegacyPicks, applyEvents, retryMissing, needsLookup, lookupHints, eventKey, groupKey, withSourceScores, playerSummary, isUnpairedLegacy, pairCandidates, pairByHand, liveItems } from "../../lib/history";
+import { byPlayed, fromSaved, mergeHistory, withLegacyPicks, applyEvents, retryMissing, needsLookup, lookupHints, eventKey, groupKeys, withSourceScores, playerSummary, isUnpairedLegacy, pairCandidates, pairByHand, liveItems } from "../../lib/history";
 import { readGuestDraft, writeGuestDraft, clearGuestDraft } from "../../lib/guestDraft";
 import { newDraft, matchDraftGames, draftPicks, readLocalDrafts, writeLocalDrafts } from "../../lib/nexusDrafts";
 import GuestNotice, { GUEST_SAVE_HINT } from "./GuestNotice";
@@ -33,6 +34,8 @@ const initials = name => name.replace(/[^a-z0-9]/gi, "").slice(0, 2).toUpperCase
 const ELO_PAGE_SIZE = 10;
 // Nexus Night drafts save this long after the last edit.
 const DRAFT_SAVE_DELAY_MS = 800;
+// ...and match notes this long after the last keystroke.
+const NOTE_SAVE_DELAY_MS = 1000;
 
 // ── Match history data ────────────────────────────────────────────────────────
 // The rows are { points } — see lib/history.js for their shape — whether they
@@ -64,7 +67,8 @@ function withDraft(playerId, items, draft) {
 const boundriftIdOf = account => account?.boundrift_id ?? (account?.id?.startsWith("br-") ? account.id.slice(3) : null);
 
 // One page row as Save sends it. Picks go as null when the row has none, which
-// clears any stored pick — as does a score that no longer fits the result.
+// clears any stored pick — as does a score that no longer fits the result. A
+// note is sent once the row has one (an emptied note goes as null, clearing it).
 function toPayload(m, picks = {}) {
 	return {
 		matchId: m.match_id,
@@ -82,7 +86,27 @@ function toPayload(m, picks = {}) {
 		eloChange: m.elo_change,
 		eloAfter: m.elo_after,
 		season: m.season,
+		notes: noteValue(picks.notes),
 	};
+}
+
+// A note as it's sent: trimmed, null once emptied, absent if never written.
+const noteValue = notes => (typeof notes === "string" ? notes.trim() || null : undefined);
+
+// One row as a note's autosave sends it: the row without its picks, so the
+// stored picks are left as they are (lambda/saveMatchHistory.mjs).
+function notePayload(m, notes) {
+	const row = toPayload(m);
+	for (const k of ["myChampion", "opponentChampion", "score"]) delete row[k];
+	return { ...row, notes: noteValue(notes) ?? null };
+}
+
+// The stored items once a note has saved: the row's item takes the note (or
+// loses it), or is added if the row wasn't stored yet.
+function withStoredNote(items, row) {
+	const id = String(row.matchId);
+	if (!items.some(m => String(m.matchId) === id)) return [...items, asStored(row)];
+	return items.map(m => (String(m.matchId) === id ? asStored({ ...m, notes: row.notes }) : m));
 }
 
 // A sent row as the Lambda stores it, minus the empty fields it never keeps —
@@ -140,15 +164,15 @@ export default function UserProfile({ legends = [] }) {
 	const [syncing, setSyncing] = useState(false);
 	const [syncError, setSyncError] = useState(null);
 	const [eloVisible, setEloVisible] = useState(ELO_PAGE_SIZE);
-	// Per-match picks — both legends and the final score:
-	// { ["playerId:matchId"]: { mine, opponent, score } }.
+	// Per-match picks — both legends, the final score and the match's note:
+	// { ["playerId:matchId"]: { mine, opponent, score, notes } }.
 	const [matchChampions, setMatchChampions] = useState({});
 	const [saving, setSaving] = useState(false);
 	// "Apply to all matches in this event" in your legend picker — on by default,
 	// since a player almost always runs one legend for a whole event.
 	const [fillEvent, setFillEvent] = useState(true);
-	// Match section tab: "data" (analysis), "history" (the editable rows) or
-	// "nexus" (Nexus Night drafts).
+	// Match section tab: "data" (analysis), "history" (the editable rows),
+	// "notes" (match notes by matchup) or "nexus" (Nexus Night drafts).
 	const [matchTab, setMatchTab] = useState("data");
 	const [saveMsg, setSaveMsg] = useState(null);
 	const dismissSave = useCallback(() => setSaveMsg(null), []);
@@ -166,6 +190,12 @@ export default function UserProfile({ legends = [] }) {
 	const [draftsStatus, setDraftsStatus] = useState("loading");
 	const [draftSave, setDraftSave] = useState({});
 	const draftTimers = useRef({});
+	// Each note's autosave state, { ["playerId:matchId"]: "saving" | "saved" |
+	// "error" }, and the saves waiting on the typing to stop: { [key]: { timer, send } }.
+	const [noteSave, setNoteSave] = useState({});
+	const noteTimers = useRef({});
+	// History rows (desktop) whose note box is open, by "playerId:matchId".
+	const [openNotes, setOpenNotes] = useState(() => new Set());
 	// The seasons (Riftbound sets) that have started: the selector's options, and
 	// the dates that place rows saved without a season.
 	const [seasons] = useState(() => startedSeasons());
@@ -192,11 +222,17 @@ export default function UserProfile({ legends = [] }) {
 		months.forEach(m => requestedMonths.current.add(`${accountId}:${m}`));
 		const hints = lookupHints(eloHistory.points, drafts.filter(d => d.eloPlayerId === accountId));
 		// Every match in those months still without an event, visible or not.
-		const pending = Object.fromEntries(months.map(m => [m, eloHistory.points.filter(p => needsLookup(p) && p.month === m).map(p => p.match_id)]));
+		const waiting = m => eloHistory.points.filter(p => needsLookup(p) && p.month === m);
+		const pending = Object.fromEntries(months.map(m => [m, waiting(m).map(p => p.match_id)]));
+		// When EloShowdown has dated all of a month's matches, only events
+		// starting around those dates are checked.
+		const dates = Object.fromEntries(months
+			.filter(m => waiting(m).every(p => p.date))
+			.map(m => [m, [...new Set(waiting(m).map(p => p.date))]]));
 		const apply = found => {
 			if (historyRequest.current === accountId) setEloHistory(prev => applyEvents(prev, found, months));
 		};
-		resolveEvents(boundriftId, { months, pending, ...hints })
+		resolveEvents(boundriftId, { months, pending, dates, ...hints })
 			.then(res => apply(res.events))
 			.catch(() => apply({}));
 	}, [linkedPlayer, boundriftId, eloHistory, eloVisible, seasonChoice, seasons, drafts]);
@@ -330,7 +366,7 @@ export default function UserProfile({ legends = [] }) {
 
 	// A guest with legend picks gets the browser's "leave site?" prompt on
 	// closing or reloading the tab — closing it is when their work is lost.
-	const guestHasPicks = isGuest && Object.values(matchChampions).some(p => p.mine || p.opponent || p.score);
+	const guestHasPicks = isGuest && Object.values(matchChampions).some(p => p.mine || p.opponent || p.score || p.notes?.trim());
 	useEffect(() => {
 		if (!guestHasPicks) return;
 		const warn = e => { e.preventDefault(); e.returnValue = ""; };
@@ -361,9 +397,10 @@ export default function UserProfile({ legends = [] }) {
 	// matches before May 2026).
 	const tournamentFor = m => (m.event !== undefined ? m.event : needsLookup(m) && boundriftId ? undefined : null);
 	// Matches from one event share a key; one whose event isn't known is its own
-	// event. Headers group by groupKeyFor, which puts those under their month.
+	// event. Headers group by groupKeyFor, which puts those under their day —
+	// or, with no date either, with the matches whose ids are close to theirs.
 	const eventKeyFor = eventKey;
-	const groupKeyFor = groupKey;
+	const groupKeyFor = groupKeys(eloHistory?.points ?? []);
 
 	// Set (or clear, with null) one side's legend. Your own pick goes to every
 	// match in the same event while "apply to all" is ticked.
@@ -385,6 +422,51 @@ export default function UserProfile({ legends = [] }) {
 	function setScore(match, score) {
 		const key = `${linkedPlayer.id}:${match.match_id}`;
 		setMatchChampions(prev => ({ ...prev, [key]: { ...prev[key], score } }));
+	}
+
+	// Write a match's note. Signed in, it saves on its own a moment after the
+	// typing stops (or when the box loses focus — see flushNote): notes are too
+	// much typing to leave waiting on Save. A guest's stay in the tab's draft.
+	function setNote(match, notes) {
+		const accountId = linkedPlayer.id;
+		const key = `${accountId}:${match.match_id}`;
+		setMatchChampions(prev => ({ ...prev, [key]: { ...prev[key], notes } }));
+		if (isGuest) return;
+		clearTimeout(noteTimers.current[key]?.timer);
+		const send = () => sendNote(accountId, match, notes);
+		noteTimers.current[key] = { send, timer: setTimeout(send, NOTE_SAVE_DELAY_MS) };
+		setNoteSave(prev => ({ ...prev, [key]: "saving" }));
+	}
+
+	// Save a note now if its save is still waiting on the typing to stop.
+	function flushNote(match) {
+		const pending = noteTimers.current[`${linkedPlayer?.id}:${match.match_id}`];
+		if (!pending) return;
+		clearTimeout(pending.timer);
+		pending.send();
+	}
+
+	async function sendNote(accountId, match, notes) {
+		const key = `${accountId}:${match.match_id}`;
+		delete noteTimers.current[key];
+		const row = notePayload(match, notes);
+		try {
+			await saveMatchHistory(token, accountId, [row]);
+			if (historyRequest.current === accountId) setSavedMatches(prev => withStoredNote(prev, row));
+			// Still "saving" if more was typed while this one was in flight.
+			if (!noteTimers.current[key]) setNoteSave(prev => ({ ...prev, [key]: "saved" }));
+		} catch {
+			setNoteSave(prev => ({ ...prev, [key]: "error" }));
+		}
+	}
+
+	function toggleNote(key) {
+		setOpenNotes(prev => {
+			const next = new Set(prev);
+			if (next.has(key)) next.delete(key);
+			else next.add(key);
+			return next;
+		});
 	}
 
 	// Every row on the page (with its picks), as Save sends it. A row that took
@@ -699,6 +781,30 @@ export default function UserProfile({ legends = [] }) {
 		savedById: new Map(savedMatches.map(m => [String(m.matchId), m])),
 		onCreate: createDraft, onChange: changeDraft, onDelete: removeDraft, onGoToHistory: () => setMatchTab("history"),
 	};
+	// The Notes tab: every match with a note in the season shown, newest first,
+	// across the linked accounts — the active one's as on the page (so a note
+	// shows as it's typed), the others' as stored.
+	const noteEntries = [
+		...(linkedPlayer && shownHistory ? shownHistory.points.map(m => [linkedPlayer.id, m, rowPicks[`${linkedPlayer.id}:${m.match_id}`]]) : []),
+		...accounts.filter(a => a.id !== activeId && otherSaved[a.id]).flatMap(a => {
+			const { history, picks } = fromSaved(a.id, otherSaved[a.id]);
+			const all = withLegacyPicks(picks, history.points, a.id);
+			return historyForSeason(history, season, seasons).points.map(m => [a.id, m, all[`${a.id}:${m.match_id}`]]);
+		}),
+	]
+		.filter(([, , picks]) => picks?.notes?.trim())
+		.map(([account, m, picks]) => ({
+			key: `${account}:${m.match_id}`, account: accounts.find(a => a.id === account)?.display_name ?? account,
+			match: m, mine: picks.mine, opponent: picks.opponent, score: picks.score, notes: picks.notes.trim(),
+		}))
+		.sort((a, b) => byPlayed(b.match, a.match));
+	const notesProps = {
+		entries: noteEntries, legends, status: savedStatus, seasonName, showAccount: dataAccounts.length > 1,
+		onGoToHistory: () => setMatchTab("history"),
+	};
+	// Notes can't be written until the stored ones have loaded, or one would be
+	// saved over a note the page hasn't shown.
+	const notesOff = !isGuest && savedStatus !== "ready";
 	const cardStats = summarize(cardSeason.matches);
 	// Who's signed in: the name stored at sign-up (the part of their email
 	// before the @), their email and when they joined.
@@ -717,7 +823,7 @@ export default function UserProfile({ legends = [] }) {
 		: null;
 
 	// Picks that differ from what's stored, keyed "matchId:mine" /
-	// "matchId:opponent" / "matchId:score" — the phone save bar counts these and
+	// "matchId:opponent" / "matchId:score" / "matchId:notes" — the phone save bar counts these and
 	// outlines their slots. BoundRift's own score on a row with none stored isn't
 	// a pick the user made, so it isn't counted.
 	const unsaved = new Set();
@@ -730,6 +836,9 @@ export default function UserProfile({ legends = [] }) {
 			if ((picks.mine ?? null) !== (saved?.myChampion ?? null)) unsaved.add(`${m.match_id}:mine`);
 			if ((picks.opponent ?? null) !== (saved?.opponentChampion ?? null)) unsaved.add(`${m.match_id}:opponent`);
 			if ((picks.score ?? null) !== (saved?.score ?? null) && !sourceScore) unsaved.add(`${m.match_id}:score`);
+			// Notes save on their own once typed into here; one that hasn't (a
+			// guest's, or guest work carried over by logging in) waits on Save.
+			if (!noteSave[`${linkedPlayer.id}:${m.match_id}`] && (noteValue(picks.notes) ?? null) !== (saved?.notes ?? null)) unsaved.add(`${m.match_id}:notes`);
 		}
 	}
 	// "Event not found" headers offer a pasted link — once there's a BoundRift
@@ -753,7 +862,8 @@ export default function UserProfile({ legends = [] }) {
 				season={season} seasonName={seasonName} seasons={seasons} seasonOptions={seasonOptions} onSeasonChange={changeSeason}
 				syncing={syncing} syncError={syncError} onSync={handleSync} onRetry={() => loadSavedHistory(linkedPlayer.id)}
 				eloVisible={eloVisible} onShowMore={() => setEloVisible(v => v + ELO_PAGE_SIZE)}
-				matchChampions={rowPicks} onPick={setChampion} onScore={setScore} eventKeyFor={eventKeyFor} groupKeyFor={groupKeyFor} tournamentFor={tournamentFor}
+				matchChampions={rowPicks} onPick={setChampion} onScore={setScore} onNote={setNote} onNoteDone={flushNote} noteSave={noteSave} notesOff={notesOff} notesProps={notesProps}
+				eventKeyFor={eventKeyFor} groupKeyFor={groupKeyFor} tournamentFor={tournamentFor}
 				fillEvent={fillEvent} setFillEvent={setFillEvent}
 				canLink={canLink} linking={linking} onToggleLink={toggleLink} eventLink={eventLink} onAddEvent={handleAddEvent}
 				allPoints={eloHistory?.points ?? []} onPairRow={pairRow}
@@ -928,7 +1038,7 @@ export default function UserProfile({ legends = [] }) {
 				{ linkedPlayer && !addingAccount && (
 					<div style={{ marginBottom: 4 }}>
 						<div role="tablist" style={{ display: "flex", borderBottom: `1px solid ${COLORS.border}`, marginBottom: 10 }}>
-							{[["data", "DATA"], ["history", "HISTORY"], ["nexus", "NEXUS NIGHT"]].map(([key, text]) => (
+							{[["data", "DATA"], ["history", "HISTORY"], ["notes", "NOTES"], ["nexus", "NEXUS NIGHT"]].map(([key, text]) => (
 								<button key={key} role="tab" aria-selected={matchTab === key} onClick={() => setMatchTab(key)}
 									onMouseEnter={e => { if (matchTab !== key) e.currentTarget.style.color = COLORS.text; }}
 									onMouseLeave={e => { if (matchTab !== key) e.currentTarget.style.color = COLORS.textMuted; }}
@@ -946,6 +1056,8 @@ export default function UserProfile({ legends = [] }) {
 						</div>
 						{matchTab === "nexus" ? (
 							<NexusNight {...nexusProps} />
+						) : matchTab === "notes" ? (
+							<MatchNotes {...notesProps} />
 						) : matchTab === "data" ? (
 							<MatchStats matches={dataMatches} accounts={dataAccounts} legends={legends} status={savedStatus}
 								season={season} seasonName={seasonName} seasons={seasons} />
@@ -1013,7 +1125,10 @@ export default function UserProfile({ legends = [] }) {
 										{recent.map((m, i) => {
 											const resultColor = m.result === "win" ? COLORS.win : m.result === "loss" ? COLORS.loss : COLORS.draw;
 											const changeSign = m.elo_change > 0 ? "+" : "";
-											const picks = rowPicks[`${linkedPlayer.id}:${m.match_id}`] || {};
+											const key = `${linkedPlayer.id}:${m.match_id}`;
+											const picks = rowPicks[key] || {};
+											const noteOpen = openNotes.has(key);
+											const unpaired = isUnpairedLegacy(m, eloHistory.points);
 											// Consecutive matches from the same event (or, while it isn't
 											// known, the same month) share one header row.
 											const showHeader = i === 0 || groupKeyFor(m) !== groupKeyFor(recent[i - 1]);
@@ -1028,14 +1143,14 @@ export default function UserProfile({ legends = [] }) {
 												{showHeader && linking === groupKeyFor(m) && (
 													<EventLinkForm state={eventLink} onAdd={handleAddEvent} />
 												)}
-												{/* You | result + Elo | opponent. Equal side columns keep the result centred. */}
+												{/* You | result + Elo | opponent | note. Equal side columns keep the result centred. */}
 												<div
 													style={{
-														display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto minmax(0, 1fr)",
+														display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto minmax(0, 1fr) auto",
 														alignItems: "center", columnGap: 16,
 														height: 50, padding: "0 4px", background: COLORS.bg,
 														border: `1px solid ${COLORS.border}`, borderTop: "none",
-														marginBottom: endsGroup && !isUnpairedLegacy(m, eloHistory.points) ? 12 : 0,
+														marginBottom: endsGroup && !unpaired && !noteOpen ? 12 : 0,
 													}}>
 													<LegendPick side="left" player="You" champions={legends} value={picks.mine}
 														onSelect={id => setChampion(m, "mine", id)}
@@ -1055,8 +1170,18 @@ export default function UserProfile({ legends = [] }) {
 													</div>
 													<LegendPick side="right" player={m.opponent_name} champions={legends} value={picks.opponent}
 														onSelect={id => setChampion(m, "opponent", id)} />
+													<NoteToggle open={noteOpen} note={picks.notes} onClick={() => toggleNote(key)} />
 												</div>
-												{isUnpairedLegacy(m, eloHistory.points) && (
+												{noteOpen && (
+													<div style={{
+														padding: 8, background: COLORS.bgCard, border: `1px solid ${COLORS.border}`, borderTop: "none",
+														marginBottom: endsGroup && !unpaired ? 12 : 0,
+													}}>
+														<NoteEditor value={picks.notes} onChange={text => setNote(m, text)} onBlur={() => flushNote(m)}
+															state={noteSave[key]} isGuest={isGuest} disabled={notesOff} autoFocus />
+													</div>
+												)}
+												{unpaired && (
 													<SameMatch row={m} candidates={pairCandidates(eloHistory.points, m)} last={endsGroup}
 														onPair={matchId => pairRow(m.match_id, matchId)} />
 												)}
@@ -1113,6 +1238,27 @@ export default function UserProfile({ legends = [] }) {
 
 			</div>
 		</div>
+	);
+}
+
+// ── Note toggle ──────────────────────────────────────────────────────────────
+// The last column of a History row: opens the match's note box under the row.
+// Blue once the match has a note, which shows as its tooltip.
+
+function NoteToggle({ open, note, onClick }) {
+	const has = Boolean(note?.trim());
+	const color = open || has ? COLORS.accent : COLORS.textDim;
+	return (
+		<button onClick={onClick} aria-expanded={open} aria-label={has ? "Edit note" : "Add a note"} title={has ? note.trim() : "Add a note"}
+			onMouseEnter={e => { e.currentTarget.style.borderColor = COLORS.accentDim; e.currentTarget.style.color = COLORS.accent; }}
+			onMouseLeave={e => { e.currentTarget.style.borderColor = open ? COLORS.accentDim : COLORS.border; e.currentTarget.style.color = color; }}
+			style={{
+				width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", padding: 0,
+				background: open ? COLORS.bgHover : "transparent", border: `1px solid ${open ? COLORS.accentDim : COLORS.border}`, borderRadius: 0,
+				color, cursor: "pointer", transition: "all 0.15s",
+			}}>
+			<NoteIcon filled={has} />
+		</button>
 	);
 }
 

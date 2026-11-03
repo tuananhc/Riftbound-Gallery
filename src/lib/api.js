@@ -124,7 +124,7 @@ export function searchPlayers(query) {
 }
 
 // Every match the player has on BoundRift, oldest first (see
-// src/lib/boundrift.js for the row shape).
+// src/lib/boundrift.js for the row shape), dated from EloShowdown where it can be.
 export function getPlayerHistory(playerId) {
 	return localFetch(`/api/players/${playerId}/history`);
 }
@@ -138,12 +138,14 @@ export async function findBoundriftId(eloPlayerId) {
 // learning the player's stores from `events` (ids their rows already link to)
 // and `seeds` ({ name, date } of events without one). `pending` maps each month
 // to the ids of its matches still without an event, so the search can stop
-// once they're found. Resolves to { events: { [matchId]: { id, name, date, url } }, stores }.
-export function resolveEvents(playerId, { months, pending, events, seeds }) {
+// once they're found; `dates` maps a month to when those matches were played,
+// when EloShowdown dated them all. Resolves to
+// { events: { [matchId]: { id, name, date, url } }, stores }.
+export function resolveEvents(playerId, { months, pending, dates, events, seeds }) {
 	return localFetch("/api/events/resolve", {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ playerId, months, pending, events, seeds }),
+		body: JSON.stringify({ playerId, months, pending, dates, events, seeds }),
 	});
 }
 

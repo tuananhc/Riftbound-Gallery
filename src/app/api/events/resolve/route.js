@@ -11,11 +11,12 @@ const DAY = /^\d{4}-\d{2}-\d{2}/;
 
 // POST /api/events/resolve
 // { playerId: "23284", months: ["2026-10"], pending: { "2026-10": ["br-1500402205"] },
-//   events: ["2120000399"], seeds: [{ name, date }] }
+//   dates: { "2026-10": ["2026-10-31T02:00:00Z"] }, events: ["2120000399"], seeds: [{ name, date }] }
 // → { events: { "br-<matchId>": { id, name, date, url } }, stores: <number> }
 // playerId is the BoundRift player id. See lib/playerEvents.js for how stores
-// are learned from `events` and `seeds` and searched in `months`, and how
-// `pending` (each month's matches still without an event) ends a month early.
+// are learned from `events` and `seeds` and searched in `months`, how
+// `pending` (each month's matches still without an event) ends a month early,
+// and how `dates` (when those matches were played) narrows a month's events.
 export async function POST(request) {
 	let body;
 	try {
@@ -35,9 +36,11 @@ export async function POST(request) {
 		.map(s => ({ name: s.name.trim().slice(0, 120), date: s.date }));
 	const pending = Object.fromEntries(months.map(m => [m, list(body.pending?.[m]).filter(id => /^br-\d{1,12}$/.test(id)).slice(0, 200)])
 		.filter(([, ids]) => ids.length));
+	const dates = Object.fromEntries(months.map(m => [m, list(body.dates?.[m]).filter(d => typeof d === "string" && DAY.test(d) && !Number.isNaN(Date.parse(d))).slice(0, 62)])
+		.filter(([, ds]) => ds.length));
 
 	try {
-		return NextResponse.json(await resolvePlayerEvents(playerId, { months, events, seeds, pending }));
+		return NextResponse.json(await resolvePlayerEvents(playerId, { months, events, seeds, pending, dates }));
 	} catch {
 		return NextResponse.json({ error: "BoundRift didn't answer — try again." }, { status: 502 });
 	}

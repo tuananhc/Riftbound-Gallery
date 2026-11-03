@@ -43,9 +43,11 @@
 // Writes are UpdateItem, not PutItem, so re-saving from the page never wipes
 // attributes it didn't include — e.g. notes written elsewhere survive a bulk
 // re-sync. A field that's absent from the payload is left untouched. The picks
-// are the exception: myChampion / opponentChampion / score sent as null or ""
-// are REMOVEd, so a save always leaves the picks exactly as the page shows them
-// and a wrong pick can be cleared. (Nothing is ever stored as null.)
+// and notes are the exception: myChampion / opponentChampion / score / notes
+// sent as null or "" are REMOVEd, so a save always leaves them exactly as the
+// page shows them and a wrong pick or an emptied note can be cleared. (Nothing
+// is ever stored as null.) The page autosaves a note on its own by sending the
+// row without the picks, which leaves the stored picks as they are.
 //
 // Deployed by infra/backend.yml (runtime, env vars, IAM role, routes) on every
 // push to master — don't change the function's settings in the console.
@@ -70,7 +72,7 @@ const CONCURRENCY = 25; // parallel UpdateItem calls per wave
 const MAX_NOTES = 2000; // keep items well under the 400KB limit
 const MAX_TEXT = 200; // opponent / event name / legend id
 // Sent as null / "" → removed from the item rather than left as it was.
-const CLEARABLE = ["myChampion", "opponentChampion", "score"];
+const CLEARABLE = ["myChampion", "opponentChampion", "score", "notes"];
 
 function json(statusCode, body) {
 	return { statusCode, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };

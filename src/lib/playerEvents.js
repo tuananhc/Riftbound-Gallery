@@ -98,14 +98,18 @@ function monthWindow(month) {
 
 // Events in a "YYYY-MM" month to check, in order: those at the player's stores
 // (and regionals in reach of their main store), then other events close by,
-// nearest first. Within each, oldest first.
-async function candidates(stores, month, skip) {
+// nearest first. Within each, oldest first. With `dates` (when the month's
+// matches were played, from EloShowdown) only events that started within a
+// day of one are kept.
+async function candidates(stores, month, skip, dates = []) {
 	const [from, to] = monthWindow(month);
 	const lists = await mapLimit(stores, CONCURRENCY, store => nearbyEvents(store, MILES, from, to));
+	const times = dates.map(Date.parse);
+	const onDate = e => !times.length || times.some(t => Math.abs(Date.parse(e.startDatetime) - t) <= DAY_MS);
 	const out = new Map();
 	for (const e of lists.flat()) {
 		const day = e?.startDatetime?.slice(0, 10);
-		if (!e || out.has(e.id) || skip.has(String(e.id)) || !hasPlace(e) || e.source === "loltcg" || !day || day < from || day > to) continue;
+		if (!e || out.has(e.id) || skip.has(String(e.id)) || !hasPlace(e) || e.source === "loltcg" || !day || day < from || day > to || !onDate(e)) continue;
 		const distance = Math.min(...stores.map(s => km(s, e)));
 		if (e.eventCategory === "regional") {
 			if (km(stores[0], e) <= REGIONAL_KM) out.set(e.id, { e, distance: 0 });
@@ -134,8 +138,9 @@ async function eventsAtSeedTime(store, { date }) {
 // `seeds` are { name, date } pairs from rows and drafts without one, `months`
 // are the "YYYY-MM" months still to look through, and `pending` maps a month to
 // the ids of its matches still without an event — once they're all found, the
-// month stops.
-export async function resolvePlayerEvents(playerId, { events = [], seeds = [], months = [], pending = {} }) {
+// month stops. `dates` maps a month to when those matches were played, when
+// all of them are known.
+export async function resolvePlayerEvents(playerId, { events = [], seeds = [], months = [], pending = {}, dates = {} }) {
 	const found = {};
 	// Events already linked or already checked, so none is checked twice.
 	const seen = new Set(events.map(String));
@@ -177,7 +182,7 @@ export async function resolvePlayerEvents(playerId, { events = [], seeds = [], m
 	for (const month of stores.length ? months.slice(0, MAX_MONTHS) : []) {
 		const left = () => (pending[month] ?? []).filter(id => !found[id]);
 		if (pending[month] && !left().length) continue;
-		const list = (await candidates(stores, month, seen)).slice(0, MONTH_BUDGET);
+		const list = (await candidates(stores, month, seen, dates[month])).slice(0, MONTH_BUDGET);
 		for (let i = 0; i < list.length && (!pending[month] || left().length); i += CONCURRENCY) {
 			await keepPlayed(list.slice(i, i + CONCURRENCY));
 		}
