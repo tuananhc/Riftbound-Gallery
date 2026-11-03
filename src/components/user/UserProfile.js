@@ -18,11 +18,11 @@ import { StatTiles } from "./ProfileStats";
 import { latestSeason, summarize, sortChronological, seasonOfMatch, seasonsOf, seasonLabel, scoreOptions, startedSeasons, playedLabel, recordsBy } from "../../lib/matchStats";
 import { countryFlag } from "../../lib/countries";
 import { useAuth } from "../../hooks/useAuth";
-import { saveMatchHistory, getMatchHistory, getDrafts, saveDraft, deleteDraft, getUnofficialMatches, saveUnofficialMatch, deleteUnofficialMatch, getSideboardNotes, saveSideboardNote, deleteSideboardNote, getSideboardCards, searchPlayers, getPlayerHistory, findBoundriftId, resolveEvents, lookupEvent, getProfile, addEloAccount, selectEloAccount, removeEloAccount } from "../../lib/api";
+import { saveMatchHistory, getMatchHistory, getDrafts, saveDraft, deleteDraft, getUnofficialMatches, saveUnofficialMatch, deleteUnofficialMatch, getSideboardNotes, saveSideboardNote, saveSideboardBattlefields, deleteSideboardNote, getSideboardCards, searchPlayers, getPlayerHistory, findBoundriftId, resolveEvents, lookupEvent, getProfile, addEloAccount, selectEloAccount, removeEloAccount } from "../../lib/api";
 import { byPlayed, fromSaved, mergeHistory, withLegacyPicks, applyEvents, retryMissing, needsLookup, lookupHints, eventKey, groupKeys, withSourceScores, playerSummary, isUnpairedLegacy, pairCandidates, pairByHand, liveItems } from "../../lib/history";
 import { readGuestDraft, writeGuestDraft, clearGuestDraft } from "../../lib/guestDraft";
 import { newDraft, matchDraftGames, draftPicks, readLocalDrafts, writeLocalDrafts } from "../../lib/nexusDrafts";
-import { matchupKey, noteIsEmpty, readLocalNotes, writeLocalNotes } from "../../lib/sideboardNotes";
+import { matchupKey, noteIsEmpty, readLocalNotes, writeLocalNotes, readLocalBattlefields, writeLocalBattlefields } from "../../lib/sideboardNotes";
 import { newUnofficial, byNewest, asStatItem, asRow, readLocalUnofficial, writeLocalUnofficial, readIncludeUnofficial, writeIncludeUnofficial } from "../../lib/unofficial";
 import GuestNotice, { GUEST_SAVE_HINT } from "./GuestNotice";
 import GetStarted from "./GetStarted";
@@ -213,10 +213,12 @@ export default function UserProfile({ legends = [] }) {
 	// Unofficial matches (every linked account's — lib/unofficial.js), their load
 	// status, each one's save state ({ [matchId]: "saving" | "saved" | "error" })
 	// and the saves waiting on the typing to stop ({ [matchId]: { timer, send } }).
-	// Sideboard notes (one per matchup), their load status and save states
-	// keyed "myLegend|oppLegend", and the IN / OUT picker's cards — fetched the
-	// first time the tab opens.
+	// Sideboard notes (one per matchup), the battlefields brought with each
+	// legend, their load status and save states keyed "myLegend|oppLegend", and
+	// the pickers' cards and battlefields — fetched the first time the tab opens.
 	const [sideboard, setSideboard] = useState([]);
+	const [battlefieldSets, setBattlefieldSets] = useState([]);
+	const [battlefieldError, setBattlefieldError] = useState(null); // legend id whose save failed
 	const [sideboardStatus, setSideboardStatus] = useState("loading");
 	const [sideboardSave, setSideboardSave] = useState({});
 	const sideboardTimers = useRef({});
@@ -375,12 +377,12 @@ export default function UserProfile({ legends = [] }) {
 		if (!token) return;
 		let cancelled = false;
 		getSideboardNotes(token)
-			.then(found => { if (!cancelled) { setSideboard(found); setSideboardStatus("ready"); } })
+			.then(found => { if (!cancelled) { setSideboard(found.notes); setBattlefieldSets(found.battlefields); setSideboardStatus("ready"); } })
 			.catch(() => { if (!cancelled) setSideboardStatus("error"); });
 		return () => { cancelled = true; };
 	}, [token]);
 
-	// The IN / OUT picker's card list, once, when Sideboard Notes first opens.
+	// The pickers' cards and battlefields, once, when Sideboard Notes first opens.
 	useEffect(() => {
 		if (matchTab !== "sideboard" || sideCardsRequested.current) return;
 		sideCardsRequested.current = true;
@@ -411,6 +413,7 @@ export default function UserProfile({ legends = [] }) {
 		setUnofficial(readLocalUnofficial());
 		setUnofficialStatus("ready");
 		setSideboard(readLocalNotes());
+		setBattlefieldSets(readLocalBattlefields());
 		setSideboardStatus("ready");
 		const draft = readGuestDraft();
 		if (!draft) return;
@@ -437,6 +440,9 @@ export default function UserProfile({ legends = [] }) {
 	useEffect(() => {
 		if (status === "guest" && sideboardStatus === "ready") writeLocalNotes(sideboard);
 	}, [status, sideboardStatus, sideboard]);
+	useEffect(() => {
+		if (status === "guest" && sideboardStatus === "ready") writeLocalBattlefields(battlefieldSets);
+	}, [status, sideboardStatus, battlefieldSets]);
 
 	// A guest with legend picks gets the browser's "leave site?" prompt on
 	// closing or reloading the tab — closing it is when their work is lost.
@@ -692,6 +698,19 @@ export default function UserProfile({ legends = [] }) {
 		deleteSideboardNote(token, myLegend, oppLegend).catch(() => {
 			setSideboard(prev => [...prev, removed]);
 			setSideboardSave(prev => ({ ...prev, [key]: "error" }));
+		});
+	}
+
+	// The (up to three) battlefields you bring with a legend. Stored at once —
+	// it's a click, not typing — and put back, with a message, if that fails.
+	function setBattlefields(myLegend, ids) {
+		const before = battlefieldSets;
+		setBattlefieldError(null);
+		setBattlefieldSets(prev => [...prev.filter(s => s.myLegend !== myLegend), ...(ids.length ? [{ myLegend, battlefields: ids }] : [])]);
+		if (isGuest) return;
+		saveSideboardBattlefields(token, myLegend, ids).catch(() => {
+			setBattlefieldSets(before);
+			setBattlefieldError(myLegend);
 		});
 	}
 
@@ -1029,8 +1048,8 @@ export default function UserProfile({ legends = [] }) {
 		notes: sideboard, legends, status: sideboardStatus, saveState: sideboardSave, isGuest,
 		records: new Map(recordsBy(allGames.filter(m => m.myChampion && m.opponentChampion), m => matchupKey(m.myChampion, m.opponentChampion)).map(r => [r.key, r])),
 		myLegends: [...new Set([lastLegend?.id, ...recordsBy(allGames, m => m.myChampion).map(r => r.key), ...sideboard.map(n => n.myLegend)].filter(Boolean))],
-		cards: sideCards, cardsStatus: sideCards ? "ready" : sideCardsFailed ? "error" : "loading",
-		onChange: changeSideboard, onDelete: removeSideboard, onFlush: flushSideboard,
+		battlefieldSets, battlefieldError, pickers: sideCards, cardsStatus: sideCards ? "ready" : sideCardsFailed ? "error" : "loading",
+		onChange: changeSideboard, onDelete: removeSideboard, onFlush: flushSideboard, onSetBattlefields: setBattlefields,
 	};
 	// The legend they've picked most, with how many games: { legend, games }.
 	const topPick = recordsBy(statMatches, m => m.myChampion)[0];

@@ -17,6 +17,7 @@ USER_POOL_CLIENT_ID="3t60375gm00ed0adlmo0mkn896"
 USERS_TABLE="Users"
 CREATE_USERS_TABLE="false"
 MATCH_HISTORY_TABLE="MatchHistory"
+SIDEBOARD_NOTES_TABLE="SideboardNotes"
 ALLOWED_ORIGINS="*" # comma-separated, e.g. "https://example.com,http://localhost:3000"
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -71,6 +72,7 @@ if ! aws cloudformation deploy \
 		"UsersTableName=${USERS_TABLE}" \
 		"CreateUsersTable=${CREATE_USERS_TABLE}" \
 		"MatchHistoryTableName=${MATCH_HISTORY_TABLE}" \
+		"SideboardNotesTableName=${SIDEBOARD_NOTES_TABLE}" \
 		"AllowedOrigins=${ALLOWED_ORIGINS}" \
 	--tags project=riftbound \
 	--no-fail-on-empty-changeset \

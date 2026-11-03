@@ -116,11 +116,13 @@ flowchart LR
       saveH["save-match-history"]
       prof["user-profile"]
       sync["sync-user-profile"]
+      side["sideboard-notes"]
     end
     subgraph ddb["DynamoDB"]
       cards[("RiftboundCards")]
       users[("Users")]
       hist[("MatchHistory")]
+      sbn[("SideboardNotes")]
     end
     s3[("S3 riftbound<br/>icons, runes")]
   end
@@ -139,6 +141,7 @@ flowchart LR
   sync --> users
   apigw --> getH & saveH --> hist
   apigw --> prof --> users
+  apigw --> side --> sbn
   next -->|"Scan, IAM keys"| cards
   next -->|"/api/players, /api/events"| br
   next -->|"old account ids"| elo
@@ -168,6 +171,9 @@ sign-up is confirmed, the pool's post-confirmation trigger runs
 | `PUT /profile` | `user-profile` | `Users` | Add, select or remove a linked account |
 | `GET /history` | `get-match-history` | `MatchHistory` | One account's saved matches, paginated |
 | `POST /history` | `save-match-history` | `MatchHistory` | Upsert matches with legend picks |
+| `GET /sideboard` | `sideboard-notes` | `SideboardNotes` | Every matchup note and battlefield set, paginated |
+| `PUT /sideboard` | `sideboard-notes` | `SideboardNotes` | Save one matchup's note, or a legend's three battlefields |
+| `DELETE /sideboard` | `sideboard-notes` | `SideboardNotes` | Delete one matchup's note |
 
 **Tables** (on-demand, standard class, no GSIs):
 
@@ -176,6 +182,7 @@ sign-up is confirmed, the pool's post-confirmation trigger runs
 | `RiftboundCards` | — | Every card; read by the Next.js server. Name set by `DYNAMODB_TABLE_CARDS` |
 | `Users` | `userId` | Profile, linked player accounts, the active one |
 | `MatchHistory` | `userId` + `accountMatchId` (`<eloPlayerId>#<matchId>`) | Each match's BoundRift data (result, opponent, Elo before / change / after, season, event) plus the user's legend picks. Rows saved before October 2026 hold EloShowdown's, until replaced |
+| `SideboardNotes` | `userId` + `noteKey` (`<myLegend>\|<oppLegend>`, or `bf#<myLegend>`) | Per matchup: game 1's battlefield and plan, and on the play / on the draw the battlefield, cards in and out, and plan. Per legend: the three battlefields you bring |
 
 **S3.** The public `riftbound` bucket (in `us-east-1`; everything else is in
 `ap-southeast-2`) holds champion icons, rune icons and type icons. They're
@@ -200,7 +207,7 @@ flowchart LR
   boot["bootstrap stack<br/>deployed by hand"] -.->|"OIDC deploy role"| gha
   gha -->|"Lambda zip"| art[("S3 artifacts bucket")]
   gha -->|"infra/deploy.sh"| cfn["CloudFormation<br/>backend stack"]
-  cfn --> owned["Lambdas, IAM roles,<br/>HTTP API + routes,<br/>MatchHistory table"]
+  cfn --> owned["Lambdas, IAM roles,<br/>HTTP API + routes,<br/>MatchHistory + SideboardNotes tables"]
   art -.-> owned
   cfn -.->|"referenced, not owned"| ref["Cognito pool,<br/>Users, RiftboundCards"]
 ```
@@ -213,7 +220,7 @@ flowchart LR
   GitHub's OIDC — no stored AWS keys — and runs `infra/deploy.sh`, which zips
   `lambda/` into the artifacts bucket and deploys `infra/backend.yml`.
 - **Owned vs referenced:** the backend stack creates the Lambdas, their roles,
-  the API and `MatchHistory`. The Cognito pool, `Users` and `RiftboundCards`
+  the API, `MatchHistory` and `SideboardNotes`. The Cognito pool, `Users` and `RiftboundCards`
   hold real data that predates the stack, so it only references them — they
   are never created or replaced by a deploy.
 - **The bootstrap stack** (`infra/bootstrap.yml`: the deploy role and the

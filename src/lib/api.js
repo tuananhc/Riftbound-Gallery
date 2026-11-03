@@ -115,18 +115,26 @@ export function deleteUnofficialMatch(token, matchId) {
 // Stop following cursors after this many pages (100 notes each).
 const MAX_SIDEBOARD_PAGES = 10;
 
-// Every sideboard note the caller has written, one per matchup
-// (see lambda/sideboardNotes.mjs for the shape).
+// Every sideboard note the caller has written, one per matchup, and the
+// battlefields they bring with each legend (see lambda/sideboardNotes.mjs):
+// { notes: [...], battlefields: [{ myLegend, battlefields: [id, …] }] }.
 export async function getSideboardNotes(token) {
 	const notes = [];
+	const battlefields = [];
 	let cursor = null;
 	for (let page = 0; page < MAX_SIDEBOARD_PAGES; page++) {
 		const res = await authFetch(`/sideboard${cursor ? `?${new URLSearchParams({ cursor })}` : ""}`, token);
 		notes.push(...res.notes);
+		battlefields.push(...(res.battlefields ?? []));
 		cursor = res.nextCursor;
 		if (!cursor) break;
 	}
-	return notes;
+	return { notes, battlefields };
+}
+
+// Set the (up to three) battlefields you bring with a legend; [] clears them.
+export function saveSideboardBattlefields(token, myLegend, battlefields) {
+	return authFetch("/sideboard", token, { method: "PUT", body: JSON.stringify({ myLegend, battlefields }) });
 }
 
 // Create or replace one matchup's note; resolves to the stored note.
@@ -138,7 +146,8 @@ export function deleteSideboardNote(token, myLegend, oppLegend) {
 	return authFetch(`/sideboard?${new URLSearchParams({ myLegend, oppLegend })}`, token, { method: "DELETE" });
 }
 
-// The cards the sideboard IN / OUT pickers offer (Next.js route, public).
+// What the sideboard pickers offer (Next.js route, public):
+// { cards: [...], battlefields: [...] }.
 export async function getSideboardCards() {
 	const res = await fetch("/api/cards/sideboard");
 	if (!res.ok) throw new Error(`HTTP ${res.status}`);

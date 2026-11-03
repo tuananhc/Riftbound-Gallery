@@ -5,7 +5,7 @@ automatically on every push to `master`.
 
 | File | What it is | Deployed |
 | --- | --- | --- |
-| `backend.yml` | Lambdas, their IAM roles and log groups, the HTTP API with Cognito JWT auth, the `MatchHistory` table | By CI on every push (`.github/workflows/deploy-backend.yml` → `deploy.sh`) |
+| `backend.yml` | Lambdas, their IAM roles and log groups, the HTTP API with Cognito JWT auth, the `MatchHistory` and `SideboardNotes` tables | By CI on every push (`.github/workflows/deploy-backend.yml` → `deploy.sh`) |
 | `bootstrap.yml` | The GitHub deploy role, the CloudFormation execution role, the Lambda code bucket | **By hand, once** — CI can't change its own permissions, by design |
 | `deploy.sh` | Zips `lambda/`, uploads it, deploys `backend.yml`, prints the outputs | Run by CI; also runnable from CloudShell |
 

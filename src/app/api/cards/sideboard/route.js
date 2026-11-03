@@ -4,9 +4,9 @@ import { getSideboardCards } from "../../../../lib/cards/cards";
 export const runtime = "nodejs";
 export const revalidate = 3600;
 
-// GET /api/cards/sideboard — the main-deck cards the sideboard notes' IN / OUT
-// pickers offer: [{ id, name, image, type, cost, domains }], by name. Loaded
-// only when the Sideboard Notes tab opens, so the profile page stays light.
+// GET /api/cards/sideboard — what the sideboard notes pick from, by name:
+// { cards: [{ id, name, image, type, cost, domains }], battlefields: [{ id, name, image }] }.
+// Loaded only when the Sideboard Notes tab opens, so the profile page stays light.
 export async function GET() {
 	try {
 		return NextResponse.json(await getSideboardCards());

@@ -9,7 +9,7 @@ This file defines the architecture rules, coding conventions, and best practices
 - **Frontend:** Next.js 14 (App Router), React, hosted on Vercel
 - **Backend:** AWS Lambda + API Gateway
 - **Auth:** AWS Cognito (User Pool, JWT only — no Groups or roles)
-- **Database:** DynamoDB (Cards, Users, Decks, DeckVersions, MatchHistory)
+- **Database:** DynamoDB (Cards, Users, Decks, DeckVersions, MatchHistory, SideboardNotes)
 - **News/Blog:** Markdown files in `content/news/`
 - **Styling:** Inline styles only — no CSS modules, no Tailwind, no styled-components
 - **Theme:** flat grey surfaces (dark by default, light via the navbar toggle), hairline grey borders, square corners, one blue accent
@@ -68,12 +68,12 @@ import { getAllCards } from "../../lib/cards"; // throws if cards.js uses Node.j
 - All tables use **Standard table class** — not Standard-IA (cards are frequently accessed)
 - Never add GSIs unless a specific server-side query pattern requires one — there are currently none
 - Never store `null` values in DynamoDB — strip null and empty string fields before writing
-- MatchHistory and DeckVersions items persist indefinitely — do **not** set a `ttl` field on them (users own this data and can edit it, so it must not auto-expire). Bound read size with `Query` `Limit` + pagination (`LastEvaluatedKey`), not deletion
+- MatchHistory, SideboardNotes and DeckVersions items persist indefinitely — do **not** set a `ttl` field on them (users own this data and can edit it, so it must not auto-expire). Bound read size with `Query` `Limit` + pagination (`LastEvaluatedKey`), not deletion
 - Deck saves must use `TransactWriteCommand` to atomically write both the Decks record and DeckVersions snapshot
 
 ### Infrastructure
 
-- All backend AWS resources (Lambdas, their IAM roles, the HTTP API and its routes, the `MatchHistory` table) are defined in `infra/backend.yml` and deployed by `.github/workflows/deploy-backend.yml` on every push to `master` — never create or edit them in the AWS console
+- All backend AWS resources (Lambdas, their IAM roles, the HTTP API and its routes, the `MatchHistory` and `SideboardNotes` tables) are defined in `infra/backend.yml` and deployed by `.github/workflows/deploy-backend.yml` on every push to `master` — never create or edit them in the AWS console
 - Lambda source lives in `lambda/`, one `.mjs` file per function with no npm dependencies (the AWS SDK v3 ships with the runtime); the handler is `<fileName>.handler`
 - The Cognito user pool and the `Users` / `RiftboundCards` tables hold real data and are **referenced, not owned**, by the stack — never add them as resources (the pool can't be recreated without losing every account)
 - CI's own permissions live in `infra/bootstrap.yml`, deployed by hand; a new AWS service type in `backend.yml` needs a matching permission there first

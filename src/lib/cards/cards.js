@@ -59,16 +59,17 @@ export const getLegends = cached(async () => legendOptions(await scanCards({
 	ExpressionAttributeValues: { ":legend": "Legend" },
 })));
 
-// Main-deck cards (no legends, battlefields or runes, base printings only) for
-// the sideboard notes' IN / OUT pickers, trimmed to what the picker shows.
+// What the sideboard notes pick from, trimmed to what the pickers show (base
+// printings only): main-deck cards for IN / OUT — no legends, battlefields or
+// runes — and the battlefields. → { cards: [...], battlefields: [...] }
 export const getSideboardCards = cached(async () => {
 	const items = await scanCards({
-		FilterExpression: "NOT contains(card_type_text, :legend) AND NOT contains(card_type_text, :field) AND NOT contains(card_type_text, :rune)",
+		FilterExpression: "NOT contains(card_type_text, :legend) AND NOT contains(card_type_text, :rune)",
 		ProjectionExpression: "id, #name, image, domain_text, card_type_text, energy_text",
 		ExpressionAttributeNames: { "#name": "name" },
-		ExpressionAttributeValues: { ":legend": "Legend", ":field": "Battlefield", ":rune": "Rune" },
+		ExpressionAttributeValues: { ":legend": "Legend", ":rune": "Rune" },
 	});
-	return items
+	const trimmed = items
 		.filter(c => isBaseCard(c.id))
 		.map(c => ({
 			id: c.id,
@@ -79,4 +80,9 @@ export const getSideboardCards = cached(async () => {
 			domains: (c.domain_text ?? "").split(",").map(d => d.trim()).filter(Boolean),
 		}))
 		.sort((a, b) => a.name.localeCompare(b.name));
+	const isField = c => c.type.includes("Battlefield");
+	return {
+		cards: trimmed.filter(c => !isField(c)),
+		battlefields: trimmed.filter(isField).map(({ id, name, image }) => ({ id, name, image })),
+	};
 });
